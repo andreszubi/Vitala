@@ -1,5 +1,4 @@
-/.DS_Store
-
-# Local demo media (not tracked)
-Video/
-Screenshots/
+**/.DS_Store
+buildServer.json
+.compile
+.build/
