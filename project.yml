@@ -1,0 +1,58 @@
+name: Vitala
+options:
+  bundleIdPrefix: com.vitala
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: en
+  createIntermediateGroups: true
+configs:
+  Debug: debug
+  Release: release
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    DEVELOPMENT_TEAM: ""
+
+packages:
+  Firebase:
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: 10.29.0
+
+targets:
+  Vitala:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    sources:
+      - path: Vitala
+        excludes:
+          - "Resources/Assets.xcassets/**/*.png"
+    resources:
+      - Vitala/Resources/Assets.xcassets
+      - Vitala/Resources/GoogleService-Info.plist
+    info:
+      path: Vitala/Resources/Info.plist
+      properties:
+        CFBundleShortVersionString: "1.0.0"
+        CFBundleVersion: "1"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.vitala.healthyliving
+        CODE_SIGN_STYLE: Automatic
+        CODE_SIGN_ENTITLEMENTS: Vitala/Resources/Vitala.entitlements
+        SWIFT_VERSION: "5.9"
+        ENABLE_PREVIEWS: "YES"
+        GENERATE_INFOPLIST_FILE: "NO"
+        INFOPLIST_FILE: Vitala/Resources/Info.plist
+        OTHER_LDFLAGS: "$(inherited) -ObjC"
+        SUPPORTS_MACCATALYST: "NO"
+        SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD: "NO"
+    dependencies:
+      - package: Firebase
+        product: FirebaseAuth
+      - package: Firebase
+        product: FirebaseFirestore
+      - package: Firebase
+        product: FirebaseFirestoreSwift
