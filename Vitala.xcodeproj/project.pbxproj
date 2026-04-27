@@ -1,0 +1,724 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 60;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		3F68F31ECD2F72197E5A7471 /* MainTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4AA19BEB89E1437C27A29E72 /* MainTabView.swift */; };
+		7865FD4B262D76EDC170894A /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7697C8570C35D3625289F0ED /* RootView.swift */; };
+		23B34C50BAC9224B5AAB96A3 /* VitalaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D94847ADF018D253F8AB54E8 /* VitalaApp.swift */; };
+		6A28C847CE4F4BE6EE37D473 /* Colors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 490ABB202A8C5D07FF5B6441 /* Colors.swift */; };
+		0EB493B19036AE47FB9EE676 /* ActivityLogRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5759F82BF5D8D149735B89A1 /* ActivityLogRow.swift */; };
+		E4FBD524A211D13C29C882AC /* DateNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74AB16CC440F3B818CE4C512 /* DateNavigator.swift */; };
+		D761F1234358CF17483AF8F0 /* MetricCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 702908417C18B16CC90CB14B /* MetricCard.swift */; };
+		B6BA85E4C70CC395DF6FB6B9 /* PrimaryButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE320FA0F74DADDDE47D21A7 /* PrimaryButton.swift */; };
+		2791A449F6E51FFF537A3514 /* ProgressRing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5431B9FFE94441FD6BE71BE6 /* ProgressRing.swift */; };
+		F1977842340622D30129BD6B /* QuickLogCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D89F5738FA5EB59C0618BDF /* QuickLogCard.swift */; };
+		E8BE129ED47D1A35B705A7A9 /* RowItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AD08E086987D295F6F26BA2 /* RowItem.swift */; };
+		1176D2149F3F95B1DCAE5792 /* SectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = E36556A91B34DF6F18CBD7CB /* SectionHeader.swift */; };
+		5FEB893284FB69B0F3398C73 /* VitalaTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42DE3455A9C6669EFFC46718 /* VitalaTabBar.swift */; };
+		4CD1F876B9663A66DFCE7F04 /* VitalaTextField.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2FFF9E8DA14611FF7A4110C /* VitalaTextField.swift */; };
+		50B4D1194E43C6C78BA2D82A /* Glass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2591E7FBC450D176B77A7C83 /* Glass.swift */; };
+		5F52F73F038C9D1DA36B751F /* Spacing.swift in Sources */ = {isa = PBXBuildFile; fileRef = 36C845721C11C2646A4E9A0D /* Spacing.swift */; };
+		59106DB254A176CC6CEA6010 /* Typography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56519ECCA8F6BA294F6A391E /* Typography.swift */; };
+		F7D9095492939C50FCC64388 /* ActiveWorkoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E6ABF78F95B0B8FD2357BCA5 /* ActiveWorkoutView.swift */; };
+		F3B674A2C827E5EBDE1D9BC1 /* LogActivityView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7622D1375531F7A251A1C602 /* LogActivityView.swift */; };
+		FA4500B6D813C415DC8E9F1E /* WorkoutDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9D226097FD4E0B104EDBD8 /* WorkoutDetailView.swift */; };
+		DF482CD3EBD594C00CBD51A2 /* WorkoutsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E81DB70D359F224A4EAF66D /* WorkoutsListView.swift */; };
+		DBCB2C9653800CC2AEE78539 /* AuthRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CDC9D94759CDDBF6FC12A8E /* AuthRootView.swift */; };
+		4DDB24F265EBB57E2A66E26E /* ForgotPasswordView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2621D9A20DF589312F99B197 /* ForgotPasswordView.swift */; };
+		24427FE5EE883B5D0D3A52AD /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A920488DAB813CB8D659A55 /* SignInView.swift */; };
+		A8C45A549EE784F9C392BE75 /* SignUpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 68F5F2883F4780F51AC48116 /* SignUpView.swift */; };
+		2B3FE731F86B8B8E7B73493A /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06C5DEB96AB1F42EA9278CE6 /* DashboardView.swift */; };
+		C808AF22C6B8B15A8519DDA4 /* EditMindfulnessSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = D6F511CFD9082BFFEC9D7AE5 /* EditMindfulnessSheet.swift */; };
+		24C4C80657188CCE57DC4585 /* MindfulnessView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EDF8D54416CC6D7D215A7ACB /* MindfulnessView.swift */; };
+		3A5F6CC2C5C15B00C5FCBFB1 /* SessionPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 699286A428B882968B3D1240 /* SessionPlayerView.swift */; };
+		5769EB71E66B2C95B6E4DDA0 /* AddMealView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A198C7DF250732EA33CAF336 /* AddMealView.swift */; };
+		FC1E12FF035644167A29DAC0 /* CustomFoodSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BF2613D6D5FD9B7200AE33C /* CustomFoodSheet.swift */; };
+		D8002925C1BE3DC33FC61B94 /* NutritionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD318E0A74DDF0117AB755A9 /* NutritionView.swift */; };
+		E2E1BBE4913142411BDD5FEA /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D30EB42825C673B76843EB56 /* OnboardingView.swift */; };
+		1D1FA654F60B92380754CDD3 /* GoalsFocusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BBB276276EA32A40DDE0A40 /* GoalsFocusView.swift */; };
+		DD82CEFC57324EB6B99A22E2 /* PermissionsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 192D28023A4E1EE2AFF949DA /* PermissionsView.swift */; };
+		9DAF50760CB2ECA82F51BE03 /* PersonalInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9DB2A6E44F1930CF0AFD4C /* PersonalInfoView.swift */; };
+		FA2B6DBE5397332F40124E94 /* ProfileSetupRootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7241C228D1DE61264DC333FB /* ProfileSetupRootView.swift */; };
+		9EA4194BCB44BEEA00434D9D /* ReviewSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 497789FC786F1CA39A98DFA7 /* ReviewSetupView.swift */; };
+		E25C22785D155889A035FA47 /* ProgressDashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = D66C3FE6DBD0A053A0CEB16A /* ProgressDashboardView.swift */; };
+		C166BAEC950B164A69104AD4 /* EditProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 687F98DA55C3B423AC25BAAC /* EditProfileView.swift */; };
+		4716BE729A91C6DF0D79D6D1 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C938A8ECD152F91097E2A7E /* ProfileView.swift */; };
+		9AA832E1399E65BBC5B1A897 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A7AA9B540FDEFA1A8B2B45F /* SettingsView.swift */; };
+		79892A3E051E845FAA706846 /* SleepTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97921D570476D502C4A9AE29 /* SleepTrackerView.swift */; };
+		0D4EAF5C952A839016AE6B76 /* SleepView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 854DEC998AFA1806F9C5D6B6 /* SleepView.swift */; };
+		C5E5A49DDBC11B6F69D523D2 /* SplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7FBF207A713D781923488D65 /* SplashView.swift */; };
+		1005A76EB860BE170C53AAA3 /* WaterTrackerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3C5373F0F56AFB4B8EDED66 /* WaterTrackerView.swift */; };
+		9A925EC7073BF17BD6FCA43E /* HealthMetric.swift in Sources */ = {isa = PBXBuildFile; fileRef = 55AF57DC4147DE7194D25391 /* HealthMetric.swift */; };
+		FBE8FF38BA20416C78AB9921 /* Meal.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97EE2A7F1C7B052A3E5A0E62 /* Meal.swift */; };
+		D07A4B9DA9FC4851AF9505DB /* MindfulnessSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAF418EA9A696FFC1B2D040 /* MindfulnessSession.swift */; };
+		4A0401EE7584080EF79F6E75 /* SleepLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 684F2B9ED1AB8AD01450A32C /* SleepLog.swift */; };
+		75EAF8F86BE2FDB380CFA1FC /* User.swift in Sources */ = {isa = PBXBuildFile; fileRef = 54143E6B94788D82F563F69C /* User.swift */; };
+		3EBB9D3EB7EFABCF86466036 /* WaterLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 107F410766CECCCC729BF623 /* WaterLog.swift */; };
+		805DFC306DDB36324C84A97F /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C3C66137F13B217EA9567E2 /* Workout.swift */; };
+		25CA59A18052FFD57C83ACEA /* AuthService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 66FE26EFFA2E9C3A661A82FB /* AuthService.swift */; };
+		5353B39EA9F234F18FC0D34E /* FirestoreService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5A662C75027110F8ACC0703 /* FirestoreService.swift */; };
+		CC72532DCB566ABF0E4F5987 /* HealthKitService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 105F759AC87E0B549DD9511B /* HealthKitService.swift */; };
+		C5E869D5E4C36372806D0EB7 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B895B897ABC5D49E166E9678 /* NotificationService.swift */; };
+		D8B2B318A44733D905704D28 /* ThemeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = EEB344EB57A77ECDB9C79E43 /* ThemeService.swift */; };
+		47FF15015724287FA68CFF4A /* UnitsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A395AE048B19744B87EB20 /* UnitsService.swift */; };
+		9A78F7DB3B6012831D6EE24A /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E599C93FB0BF5C2D8081640 /* AppState.swift */; };
+		8EACB49440BC037201F14B3D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 2D7A013C01A8258579F623F7 /* Assets.xcassets */; };
+		A4FB9B4FC911B558F3F4FF69 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 5BB6A66D86B2DC005E86EA81 /* GoogleService-Info.plist */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		4AA19BEB89E1437C27A29E72 /* MainTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MainTabView.swift"; sourceTree = "<group>"; };
+		7697C8570C35D3625289F0ED /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RootView.swift"; sourceTree = "<group>"; };
+		D94847ADF018D253F8AB54E8 /* VitalaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitalaApp.swift"; sourceTree = "<group>"; };
+		490ABB202A8C5D07FF5B6441 /* Colors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Colors.swift"; sourceTree = "<group>"; };
+		5759F82BF5D8D149735B89A1 /* ActivityLogRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ActivityLogRow.swift"; sourceTree = "<group>"; };
+		74AB16CC440F3B818CE4C512 /* DateNavigator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DateNavigator.swift"; sourceTree = "<group>"; };
+		702908417C18B16CC90CB14B /* MetricCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MetricCard.swift"; sourceTree = "<group>"; };
+		CE320FA0F74DADDDE47D21A7 /* PrimaryButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PrimaryButton.swift"; sourceTree = "<group>"; };
+		5431B9FFE94441FD6BE71BE6 /* ProgressRing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgressRing.swift"; sourceTree = "<group>"; };
+		1D89F5738FA5EB59C0618BDF /* QuickLogCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "QuickLogCard.swift"; sourceTree = "<group>"; };
+		0AD08E086987D295F6F26BA2 /* RowItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "RowItem.swift"; sourceTree = "<group>"; };
+		E36556A91B34DF6F18CBD7CB /* SectionHeader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SectionHeader.swift"; sourceTree = "<group>"; };
+		42DE3455A9C6669EFFC46718 /* VitalaTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitalaTabBar.swift"; sourceTree = "<group>"; };
+		B2FFF9E8DA14611FF7A4110C /* VitalaTextField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VitalaTextField.swift"; sourceTree = "<group>"; };
+		2591E7FBC450D176B77A7C83 /* Glass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Glass.swift"; sourceTree = "<group>"; };
+		36C845721C11C2646A4E9A0D /* Spacing.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Spacing.swift"; sourceTree = "<group>"; };
+		56519ECCA8F6BA294F6A391E /* Typography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Typography.swift"; sourceTree = "<group>"; };
+		E6ABF78F95B0B8FD2357BCA5 /* ActiveWorkoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ActiveWorkoutView.swift"; sourceTree = "<group>"; };
+		7622D1375531F7A251A1C602 /* LogActivityView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "LogActivityView.swift"; sourceTree = "<group>"; };
+		8B9D226097FD4E0B104EDBD8 /* WorkoutDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkoutDetailView.swift"; sourceTree = "<group>"; };
+		0E81DB70D359F224A4EAF66D /* WorkoutsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WorkoutsListView.swift"; sourceTree = "<group>"; };
+		5CDC9D94759CDDBF6FC12A8E /* AuthRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthRootView.swift"; sourceTree = "<group>"; };
+		2621D9A20DF589312F99B197 /* ForgotPasswordView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ForgotPasswordView.swift"; sourceTree = "<group>"; };
+		8A920488DAB813CB8D659A55 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SignInView.swift"; sourceTree = "<group>"; };
+		68F5F2883F4780F51AC48116 /* SignUpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SignUpView.swift"; sourceTree = "<group>"; };
+		06C5DEB96AB1F42EA9278CE6 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "DashboardView.swift"; sourceTree = "<group>"; };
+		D6F511CFD9082BFFEC9D7AE5 /* EditMindfulnessSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditMindfulnessSheet.swift"; sourceTree = "<group>"; };
+		EDF8D54416CC6D7D215A7ACB /* MindfulnessView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MindfulnessView.swift"; sourceTree = "<group>"; };
+		699286A428B882968B3D1240 /* SessionPlayerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SessionPlayerView.swift"; sourceTree = "<group>"; };
+		A198C7DF250732EA33CAF336 /* AddMealView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AddMealView.swift"; sourceTree = "<group>"; };
+		6BF2613D6D5FD9B7200AE33C /* CustomFoodSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CustomFoodSheet.swift"; sourceTree = "<group>"; };
+		CD318E0A74DDF0117AB755A9 /* NutritionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NutritionView.swift"; sourceTree = "<group>"; };
+		D30EB42825C673B76843EB56 /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "OnboardingView.swift"; sourceTree = "<group>"; };
+		9BBB276276EA32A40DDE0A40 /* GoalsFocusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "GoalsFocusView.swift"; sourceTree = "<group>"; };
+		192D28023A4E1EE2AFF949DA /* PermissionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PermissionsView.swift"; sourceTree = "<group>"; };
+		2A9DB2A6E44F1930CF0AFD4C /* PersonalInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PersonalInfoView.swift"; sourceTree = "<group>"; };
+		7241C228D1DE61264DC333FB /* ProfileSetupRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProfileSetupRootView.swift"; sourceTree = "<group>"; };
+		497789FC786F1CA39A98DFA7 /* ReviewSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReviewSetupView.swift"; sourceTree = "<group>"; };
+		D66C3FE6DBD0A053A0CEB16A /* ProgressDashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProgressDashboardView.swift"; sourceTree = "<group>"; };
+		687F98DA55C3B423AC25BAAC /* EditProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "EditProfileView.swift"; sourceTree = "<group>"; };
+		1C938A8ECD152F91097E2A7E /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProfileView.swift"; sourceTree = "<group>"; };
+		3A7AA9B540FDEFA1A8B2B45F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsView.swift"; sourceTree = "<group>"; };
+		97921D570476D502C4A9AE29 /* SleepTrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SleepTrackerView.swift"; sourceTree = "<group>"; };
+		854DEC998AFA1806F9C5D6B6 /* SleepView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SleepView.swift"; sourceTree = "<group>"; };
+		7FBF207A713D781923488D65 /* SplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SplashView.swift"; sourceTree = "<group>"; };
+		F3C5373F0F56AFB4B8EDED66 /* WaterTrackerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WaterTrackerView.swift"; sourceTree = "<group>"; };
+		55AF57DC4147DE7194D25391 /* HealthMetric.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HealthMetric.swift"; sourceTree = "<group>"; };
+		97EE2A7F1C7B052A3E5A0E62 /* Meal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Meal.swift"; sourceTree = "<group>"; };
+		4FAF418EA9A696FFC1B2D040 /* MindfulnessSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MindfulnessSession.swift"; sourceTree = "<group>"; };
+		684F2B9ED1AB8AD01450A32C /* SleepLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SleepLog.swift"; sourceTree = "<group>"; };
+		54143E6B94788D82F563F69C /* User.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "User.swift"; sourceTree = "<group>"; };
+		107F410766CECCCC729BF623 /* WaterLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WaterLog.swift"; sourceTree = "<group>"; };
+		0C3C66137F13B217EA9567E2 /* Workout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Workout.swift"; sourceTree = "<group>"; };
+		66FE26EFFA2E9C3A661A82FB /* AuthService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthService.swift"; sourceTree = "<group>"; };
+		B5A662C75027110F8ACC0703 /* FirestoreService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "FirestoreService.swift"; sourceTree = "<group>"; };
+		105F759AC87E0B549DD9511B /* HealthKitService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "HealthKitService.swift"; sourceTree = "<group>"; };
+		B895B897ABC5D49E166E9678 /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "NotificationService.swift"; sourceTree = "<group>"; };
+		EEB344EB57A77ECDB9C79E43 /* ThemeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ThemeService.swift"; sourceTree = "<group>"; };
+		B6A395AE048B19744B87EB20 /* UnitsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "UnitsService.swift"; sourceTree = "<group>"; };
+		3E599C93FB0BF5C2D8081640 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AppState.swift"; sourceTree = "<group>"; };
+		2D7A013C01A8258579F623F7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Assets.xcassets"; sourceTree = "<group>"; };
+		5BB6A66D86B2DC005E86EA81 /* GoogleService-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		135FADA39E00B47FB135BD26 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
+		8F16F0376B84484EA8F58140 /* Vitala.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Vitala.entitlements"; sourceTree = "<group>"; };
+		37832BEE52484B5A998C32E6 /* Vitala.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vitala.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		F845A3CC75B2C88E09C8099E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		9C2A08257EA8EE844869F75A = {
+			isa = PBXGroup;
+			children = (
+				09DA77F31715B00E48342172 /* Vitala */,
+				2AC8BA37DAC32D5437812408 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		2AC8BA37DAC32D5437812408 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				37832BEE52484B5A998C32E6 /* Vitala.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		09DA77F31715B00E48342172 /* Vitala */ = {
+			isa = PBXGroup;
+			children = (
+				62A9A84E5E024BD9418B716A /* App */,
+				B8D38A9AFE6081A4C0D7AAEC /* DesignSystem */,
+				2F4AC24D3D768FA5A5CACD35 /* Features */,
+				FA9F7F8D256330090CF745A1 /* Models */,
+				6F8CC79ABC17F97B47D64252 /* Resources */,
+				D2C06C35DA60F19D5E38FA0F /* Services */,
+				52C64EAD3D79326963D3A493 /* ViewModels */,
+			);
+			path = "Vitala";
+			sourceTree = "<group>";
+		};
+		62A9A84E5E024BD9418B716A /* App */ = {
+			isa = PBXGroup;
+			children = (
+				4AA19BEB89E1437C27A29E72 /* MainTabView.swift */,
+				7697C8570C35D3625289F0ED /* RootView.swift */,
+				D94847ADF018D253F8AB54E8 /* VitalaApp.swift */,
+			);
+			path = "App";
+			sourceTree = "<group>";
+		};
+		B8D38A9AFE6081A4C0D7AAEC /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				B8AC20185AFDDFFC9973B129 /* Components */,
+				490ABB202A8C5D07FF5B6441 /* Colors.swift */,
+				2591E7FBC450D176B77A7C83 /* Glass.swift */,
+				36C845721C11C2646A4E9A0D /* Spacing.swift */,
+				56519ECCA8F6BA294F6A391E /* Typography.swift */,
+			);
+			path = "DesignSystem";
+			sourceTree = "<group>";
+		};
+		B8AC20185AFDDFFC9973B129 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				5759F82BF5D8D149735B89A1 /* ActivityLogRow.swift */,
+				74AB16CC440F3B818CE4C512 /* DateNavigator.swift */,
+				702908417C18B16CC90CB14B /* MetricCard.swift */,
+				CE320FA0F74DADDDE47D21A7 /* PrimaryButton.swift */,
+				5431B9FFE94441FD6BE71BE6 /* ProgressRing.swift */,
+				1D89F5738FA5EB59C0618BDF /* QuickLogCard.swift */,
+				0AD08E086987D295F6F26BA2 /* RowItem.swift */,
+				E36556A91B34DF6F18CBD7CB /* SectionHeader.swift */,
+				42DE3455A9C6669EFFC46718 /* VitalaTabBar.swift */,
+				B2FFF9E8DA14611FF7A4110C /* VitalaTextField.swift */,
+			);
+			path = "Components";
+			sourceTree = "<group>";
+		};
+		6E3D0A53245AF0CF2D05DFE3 /* Activity */ = {
+			isa = PBXGroup;
+			children = (
+				E6ABF78F95B0B8FD2357BCA5 /* ActiveWorkoutView.swift */,
+				7622D1375531F7A251A1C602 /* LogActivityView.swift */,
+				8B9D226097FD4E0B104EDBD8 /* WorkoutDetailView.swift */,
+				0E81DB70D359F224A4EAF66D /* WorkoutsListView.swift */,
+			);
+			path = "Activity";
+			sourceTree = "<group>";
+		};
+		2F4AC24D3D768FA5A5CACD35 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				6E3D0A53245AF0CF2D05DFE3 /* Activity */,
+				2F544B55C59600E5943CF45D /* Auth */,
+				7B8D05A7814319AA14FAE2EB /* Dashboard */,
+				BB104D8D03CA5F27812B4F47 /* Mindfulness */,
+				44EC72DE39A69919C379CE4B /* Nutrition */,
+				C71B36887BE4BBE2276C77E9 /* Onboarding */,
+				BD3A73AC1C9D353AAD09AC5E /* ProfileSetup */,
+				0BAE6DBA150A51110541E6DD /* Progress */,
+				94CBA0E4D61EFC3C95126994 /* Settings */,
+				C9FFDBB8A4E14CD509791F43 /* Sleep */,
+				2C5B077398CF7525E653DA6B /* Splash */,
+				0C7E7DB48A4DFE395F7D5D9C /* Water */,
+			);
+			path = "Features";
+			sourceTree = "<group>";
+		};
+		2F544B55C59600E5943CF45D /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				5CDC9D94759CDDBF6FC12A8E /* AuthRootView.swift */,
+				2621D9A20DF589312F99B197 /* ForgotPasswordView.swift */,
+				8A920488DAB813CB8D659A55 /* SignInView.swift */,
+				68F5F2883F4780F51AC48116 /* SignUpView.swift */,
+			);
+			path = "Auth";
+			sourceTree = "<group>";
+		};
+		7B8D05A7814319AA14FAE2EB /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				06C5DEB96AB1F42EA9278CE6 /* DashboardView.swift */,
+			);
+			path = "Dashboard";
+			sourceTree = "<group>";
+		};
+		BB104D8D03CA5F27812B4F47 /* Mindfulness */ = {
+			isa = PBXGroup;
+			children = (
+				D6F511CFD9082BFFEC9D7AE5 /* EditMindfulnessSheet.swift */,
+				EDF8D54416CC6D7D215A7ACB /* MindfulnessView.swift */,
+				699286A428B882968B3D1240 /* SessionPlayerView.swift */,
+			);
+			path = "Mindfulness";
+			sourceTree = "<group>";
+		};
+		44EC72DE39A69919C379CE4B /* Nutrition */ = {
+			isa = PBXGroup;
+			children = (
+				A198C7DF250732EA33CAF336 /* AddMealView.swift */,
+				6BF2613D6D5FD9B7200AE33C /* CustomFoodSheet.swift */,
+				CD318E0A74DDF0117AB755A9 /* NutritionView.swift */,
+			);
+			path = "Nutrition";
+			sourceTree = "<group>";
+		};
+		C71B36887BE4BBE2276C77E9 /* Onboarding */ = {
+			isa = PBXGroup;
+			children = (
+				D30EB42825C673B76843EB56 /* OnboardingView.swift */,
+			);
+			path = "Onboarding";
+			sourceTree = "<group>";
+		};
+		BD3A73AC1C9D353AAD09AC5E /* ProfileSetup */ = {
+			isa = PBXGroup;
+			children = (
+				9BBB276276EA32A40DDE0A40 /* GoalsFocusView.swift */,
+				192D28023A4E1EE2AFF949DA /* PermissionsView.swift */,
+				2A9DB2A6E44F1930CF0AFD4C /* PersonalInfoView.swift */,
+				7241C228D1DE61264DC333FB /* ProfileSetupRootView.swift */,
+				497789FC786F1CA39A98DFA7 /* ReviewSetupView.swift */,
+			);
+			path = "ProfileSetup";
+			sourceTree = "<group>";
+		};
+		0BAE6DBA150A51110541E6DD /* Progress */ = {
+			isa = PBXGroup;
+			children = (
+				D66C3FE6DBD0A053A0CEB16A /* ProgressDashboardView.swift */,
+			);
+			path = "Progress";
+			sourceTree = "<group>";
+		};
+		94CBA0E4D61EFC3C95126994 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				687F98DA55C3B423AC25BAAC /* EditProfileView.swift */,
+				1C938A8ECD152F91097E2A7E /* ProfileView.swift */,
+				3A7AA9B540FDEFA1A8B2B45F /* SettingsView.swift */,
+			);
+			path = "Settings";
+			sourceTree = "<group>";
+		};
+		C9FFDBB8A4E14CD509791F43 /* Sleep */ = {
+			isa = PBXGroup;
+			children = (
+				97921D570476D502C4A9AE29 /* SleepTrackerView.swift */,
+				854DEC998AFA1806F9C5D6B6 /* SleepView.swift */,
+			);
+			path = "Sleep";
+			sourceTree = "<group>";
+		};
+		2C5B077398CF7525E653DA6B /* Splash */ = {
+			isa = PBXGroup;
+			children = (
+				7FBF207A713D781923488D65 /* SplashView.swift */,
+			);
+			path = "Splash";
+			sourceTree = "<group>";
+		};
+		0C7E7DB48A4DFE395F7D5D9C /* Water */ = {
+			isa = PBXGroup;
+			children = (
+				F3C5373F0F56AFB4B8EDED66 /* WaterTrackerView.swift */,
+			);
+			path = "Water";
+			sourceTree = "<group>";
+		};
+		FA9F7F8D256330090CF745A1 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				55AF57DC4147DE7194D25391 /* HealthMetric.swift */,
+				97EE2A7F1C7B052A3E5A0E62 /* Meal.swift */,
+				4FAF418EA9A696FFC1B2D040 /* MindfulnessSession.swift */,
+				684F2B9ED1AB8AD01450A32C /* SleepLog.swift */,
+				54143E6B94788D82F563F69C /* User.swift */,
+				107F410766CECCCC729BF623 /* WaterLog.swift */,
+				0C3C66137F13B217EA9567E2 /* Workout.swift */,
+			);
+			path = "Models";
+			sourceTree = "<group>";
+		};
+		D2C06C35DA60F19D5E38FA0F /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				66FE26EFFA2E9C3A661A82FB /* AuthService.swift */,
+				B5A662C75027110F8ACC0703 /* FirestoreService.swift */,
+				105F759AC87E0B549DD9511B /* HealthKitService.swift */,
+				B895B897ABC5D49E166E9678 /* NotificationService.swift */,
+				EEB344EB57A77ECDB9C79E43 /* ThemeService.swift */,
+				B6A395AE048B19744B87EB20 /* UnitsService.swift */,
+			);
+			path = "Services";
+			sourceTree = "<group>";
+		};
+		52C64EAD3D79326963D3A493 /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				3E599C93FB0BF5C2D8081640 /* AppState.swift */,
+			);
+			path = "ViewModels";
+			sourceTree = "<group>";
+		};
+		6F8CC79ABC17F97B47D64252 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				2D7A013C01A8258579F623F7 /* Assets.xcassets */,
+				5BB6A66D86B2DC005E86EA81 /* GoogleService-Info.plist */,
+				135FADA39E00B47FB135BD26 /* Info.plist */,
+				8F16F0376B84484EA8F58140 /* Vitala.entitlements */,
+			);
+			path = "Resources";
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		51BC5B318242F73C3825A8CF /* Vitala */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FF064009BFBAE8E986428C4F /* Build configuration list for PBXNativeTarget "Vitala" */;
+			buildPhases = (
+				6C521AF8D6B34123C882A873 /* Sources */,
+				F845A3CC75B2C88E09C8099E /* Frameworks */,
+				987A4C32CF05F65AC894E5F6 /* Resources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = Vitala;
+			productName = Vitala;
+			productReference = 37832BEE52484B5A998C32E6 /* Vitala.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		46F86FAA6BBF9AC94A7E4595 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					51BC5B318242F73C3825A8CF = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = A1806D8FE767B99D399E13F3 /* Build configuration list for PBXProject "Vitala" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 9C2A08257EA8EE844869F75A;
+			productRefGroup = 2AC8BA37DAC32D5437812408 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				51BC5B318242F73C3825A8CF /* Vitala */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		987A4C32CF05F65AC894E5F6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8EACB49440BC037201F14B3D /* Assets.xcassets in Resources */,
+				A4FB9B4FC911B558F3F4FF69 /* GoogleService-Info.plist in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		6C521AF8D6B34123C882A873 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F68F31ECD2F72197E5A7471 /* MainTabView.swift in Sources */,
+				7865FD4B262D76EDC170894A /* RootView.swift in Sources */,
+				23B34C50BAC9224B5AAB96A3 /* VitalaApp.swift in Sources */,
+				6A28C847CE4F4BE6EE37D473 /* Colors.swift in Sources */,
+				0EB493B19036AE47FB9EE676 /* ActivityLogRow.swift in Sources */,
+				E4FBD524A211D13C29C882AC /* DateNavigator.swift in Sources */,
+				D761F1234358CF17483AF8F0 /* MetricCard.swift in Sources */,
+				B6BA85E4C70CC395DF6FB6B9 /* PrimaryButton.swift in Sources */,
+				2791A449F6E51FFF537A3514 /* ProgressRing.swift in Sources */,
+				F1977842340622D30129BD6B /* QuickLogCard.swift in Sources */,
+				E8BE129ED47D1A35B705A7A9 /* RowItem.swift in Sources */,
+				1176D2149F3F95B1DCAE5792 /* SectionHeader.swift in Sources */,
+				5FEB893284FB69B0F3398C73 /* VitalaTabBar.swift in Sources */,
+				4CD1F876B9663A66DFCE7F04 /* VitalaTextField.swift in Sources */,
+				50B4D1194E43C6C78BA2D82A /* Glass.swift in Sources */,
+				5F52F73F038C9D1DA36B751F /* Spacing.swift in Sources */,
+				59106DB254A176CC6CEA6010 /* Typography.swift in Sources */,
+				F7D9095492939C50FCC64388 /* ActiveWorkoutView.swift in Sources */,
+				F3B674A2C827E5EBDE1D9BC1 /* LogActivityView.swift in Sources */,
+				FA4500B6D813C415DC8E9F1E /* WorkoutDetailView.swift in Sources */,
+				DF482CD3EBD594C00CBD51A2 /* WorkoutsListView.swift in Sources */,
+				DBCB2C9653800CC2AEE78539 /* AuthRootView.swift in Sources */,
+				4DDB24F265EBB57E2A66E26E /* ForgotPasswordView.swift in Sources */,
+				24427FE5EE883B5D0D3A52AD /* SignInView.swift in Sources */,
+				A8C45A549EE784F9C392BE75 /* SignUpView.swift in Sources */,
+				2B3FE731F86B8B8E7B73493A /* DashboardView.swift in Sources */,
+				C808AF22C6B8B15A8519DDA4 /* EditMindfulnessSheet.swift in Sources */,
+				24C4C80657188CCE57DC4585 /* MindfulnessView.swift in Sources */,
+				3A5F6CC2C5C15B00C5FCBFB1 /* SessionPlayerView.swift in Sources */,
+				5769EB71E66B2C95B6E4DDA0 /* AddMealView.swift in Sources */,
+				FC1E12FF035644167A29DAC0 /* CustomFoodSheet.swift in Sources */,
+				D8002925C1BE3DC33FC61B94 /* NutritionView.swift in Sources */,
+				E2E1BBE4913142411BDD5FEA /* OnboardingView.swift in Sources */,
+				1D1FA654F60B92380754CDD3 /* GoalsFocusView.swift in Sources */,
+				DD82CEFC57324EB6B99A22E2 /* PermissionsView.swift in Sources */,
+				9DAF50760CB2ECA82F51BE03 /* PersonalInfoView.swift in Sources */,
+				FA2B6DBE5397332F40124E94 /* ProfileSetupRootView.swift in Sources */,
+				9EA4194BCB44BEEA00434D9D /* ReviewSetupView.swift in Sources */,
+				E25C22785D155889A035FA47 /* ProgressDashboardView.swift in Sources */,
+				C166BAEC950B164A69104AD4 /* EditProfileView.swift in Sources */,
+				4716BE729A91C6DF0D79D6D1 /* ProfileView.swift in Sources */,
+				9AA832E1399E65BBC5B1A897 /* SettingsView.swift in Sources */,
+				79892A3E051E845FAA706846 /* SleepTrackerView.swift in Sources */,
+				0D4EAF5C952A839016AE6B76 /* SleepView.swift in Sources */,
+				C5E5A49DDBC11B6F69D523D2 /* SplashView.swift in Sources */,
+				1005A76EB860BE170C53AAA3 /* WaterTrackerView.swift in Sources */,
+				9A925EC7073BF17BD6FCA43E /* HealthMetric.swift in Sources */,
+				FBE8FF38BA20416C78AB9921 /* Meal.swift in Sources */,
+				D07A4B9DA9FC4851AF9505DB /* MindfulnessSession.swift in Sources */,
+				4A0401EE7584080EF79F6E75 /* SleepLog.swift in Sources */,
+				75EAF8F86BE2FDB380CFA1FC /* User.swift in Sources */,
+				3EBB9D3EB7EFABCF86466036 /* WaterLog.swift in Sources */,
+				805DFC306DDB36324C84A97F /* Workout.swift in Sources */,
+				25CA59A18052FFD57C83ACEA /* AuthService.swift in Sources */,
+				5353B39EA9F234F18FC0D34E /* FirestoreService.swift in Sources */,
+				CC72532DCB566ABF0E4F5987 /* HealthKitService.swift in Sources */,
+				C5E869D5E4C36372806D0EB7 /* NotificationService.swift in Sources */,
+				D8B2B318A44733D905704D28 /* ThemeService.swift in Sources */,
+				47FF15015724287FA68CFF4A /* UnitsService.swift in Sources */,
+				9A78F7DB3B6012831D6EE24A /* AppState.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		D48F58F8CA231B2301441318 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		6AFE22E70BE079CBB63426F8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = "17.0";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		41EC14BFA61A85B336E4F999 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Vitala/Resources/Vitala.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Vitala/Resources/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vitala.healthyliving";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		8668ED08E8535986A57FA16B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Vitala/Resources/Vitala.entitlements";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_ASSET_PATHS = "";
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Vitala/Resources/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "com.vitala.healthyliving";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		A1806D8FE767B99D399E13F3 /* Build configuration list for PBXProject "Vitala" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D48F58F8CA231B2301441318 /* Debug */,
+				6AFE22E70BE079CBB63426F8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FF064009BFBAE8E986428C4F /* Build configuration list for PBXNativeTarget "Vitala" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41EC14BFA61A85B336E4F999 /* Debug */,
+				8668ED08E8535986A57FA16B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+	};
+	rootObject = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+}

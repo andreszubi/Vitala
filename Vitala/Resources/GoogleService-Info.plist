@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  DEMO MODE — UNUSED.
+  Firebase has been removed from this project for the class demo.
+  This file is kept only so the Xcode project's resource list stays valid.
+  Safe to delete.
+-->
+<plist version="1.0">
+<dict>
+    <key>BUNDLE_ID</key>
+    <string>com.vitala.healthyliving</string>
+    <key>PROJECT_ID</key>
+    <string>vitala-demo</string>
+</dict>
+</plist>

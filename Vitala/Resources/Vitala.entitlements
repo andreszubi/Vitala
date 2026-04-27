@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Demo build: no special entitlements required.
+  HealthKit reads/writes will return "not authorized" at runtime, but the app
+  will launch on any simulator without provisioning headaches. To re-enable
+  HealthKit on a real device with a paid developer account, restore:
+
+      <key>com.apple.developer.healthkit</key>
+      <true/>
+-->
+<plist version="1.0">
+<dict>
+</dict>
+</plist>
