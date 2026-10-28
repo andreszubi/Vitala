@@ -5,6 +5,7 @@ import SwiftUI
 /// Settings live behind the avatar on Today.
 struct MainTabView: View {
     @EnvironmentObject var appState: AppState
+    @EnvironmentObject var notifications: NotificationService
 
     var body: some View {
         TabView(selection: $appState.selectedTab) {
@@ -26,6 +27,11 @@ struct MainTabView: View {
         }
         .tint(VitalaColor.primary)
         .onChange(of: appState.selectedTab) { _, _ in Haptics.selection() }
+        .task {
+            // Pick up permission changes made in the Settings app.
+            await notifications.refreshStatus()
+            await notifications.reschedule()
+        }
     }
 
     private func tabLabel(_ tab: AppState.MainTab) -> some View {

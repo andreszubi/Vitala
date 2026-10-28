@@ -69,3 +69,20 @@ struct StorageTests {
         #expect(ProfileStore(files: files, defaults: defaults).profile == nil)
     }
 }
+
+@MainActor
+struct ExportTests {
+    @Test func exportContainsEveryLogAsReadableJSON() async throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VitalaExport-\(UUID().uuidString)")
+        let store = DataStore(files: SecureFileStore(directory: dir),
+                              defaults: UserDefaults(suiteName: "VitalaExport-\(UUID().uuidString)")!)
+        try await store.logWater(WaterEntry(amountMl: 330, loggedAt: .now))
+        try await store.logSleep(SleepEntry(bedTime: .now.addingTimeInterval(-28_800), wakeTime: .now, quality: .great))
+
+        let export = DataExport(profile: UserProfile(id: "1", displayName: "Sam"), store: store)
+        let json = try #require(String(data: try export.jsonData(), encoding: .utf8))
+        #expect(json.contains("\"amountMl\" : 330"))
+        #expect(json.contains("\"quality\" : \"great\""))
+        #expect(json.contains("\"displayName\" : \"Sam\""))
+    }
+}
