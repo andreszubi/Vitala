@@ -1,14 +1,12 @@
 import Foundation
 
-/// LOCAL-ONLY data store for class demo.
-/// In-memory + UserDefaults persistence so the app feels real without
-/// requiring Firebase. Public interface matches the old Firestore version
-/// so views need no changes.
+/// On-device store for everything the user logs. Data lives in a protected
+/// JSON file (see `SecureFileStore`) and is published so screens update as
+/// soon as something is logged elsewhere in the app.
 @MainActor
 final class DataStore: ObservableObject {
     static let shared = DataStore()
 
-    // In-memory caches
     @Published private(set) var summaries: [String: DailySummary] = [:]
     @Published private(set) var workouts: [WorkoutSession] = []
     @Published private(set) var meals: [Meal] = []
@@ -17,9 +15,19 @@ final class DataStore: ObservableObject {
     @Published private(set) var mindfulness: [LoggedMindfulness] = []
     @Published private(set) var customFoods: [FoodItem] = []
 
-    private let storageKey = "vitala.demo.firestore"
+    static let fileName = "logs.json"
+    /// Where data lived before 1.0. Read once, migrated, then removed.
+    static let legacyDefaultsKey = "vitala.demo.firestore"
 
-    private init() {
+    private let files: SecureFileStore
+    private let defaults: UserDefaults
+    /// Set when the data file exists but can't be read; persisting would
+    /// overwrite it, so writes are skipped until the next launch.
+    private var isReadOnly = false
+
+    init(files: SecureFileStore = SecureFileStore(), defaults: UserDefaults = .standard) {
+        self.files = files
+        self.defaults = defaults
         load()
     }
 
@@ -38,11 +46,7 @@ final class DataStore: ObservableObject {
     // MARK: Workouts
 
     func logWorkout(_ session: WorkoutSession) async throws {
-        if let i = workouts.firstIndex(where: { $0.id == session.id }) {
-            workouts[i] = session
-        } else {
-            workouts.append(session)
-        }
+        upsert(session, into: &workouts)
         persist()
     }
 
@@ -58,19 +62,12 @@ final class DataStore: ObservableObject {
     // MARK: Meals
 
     func logMeal(_ meal: Meal) async throws {
-        if let i = meals.firstIndex(where: { $0.id == meal.id }) {
-            meals[i] = meal
-        } else {
-            meals.append(meal)
-        }
+        upsert(meal, into: &meals)
         persist()
     }
 
     func meals(on date: Date) async throws -> [Meal] {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: date)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
-        return meals.filter { $0.date >= start && $0.date < end }
+        meals.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
     }
 
     func deleteMeal(_ meal: Meal) async throws {
@@ -81,29 +78,23 @@ final class DataStore: ObservableObject {
     // MARK: Water
 
     func logWater(_ entry: WaterEntry) async throws {
-        if let i = water.firstIndex(where: { $0.id == entry.id }) {
-            water[i] = entry
-        } else {
-            water.append(entry)
-        }
+        upsert(entry, into: &water)
         persist()
     }
 
     func water(on date: Date) async throws -> [WaterEntry] {
-        let cal = Calendar.current
-        let start = cal.startOfDay(for: date)
-        let end = cal.date(byAdding: .day, value: 1, to: start)!
-        return water.filter { $0.loggedAt >= start && $0.loggedAt < end }
+        water.filter { Calendar.current.isDate($0.loggedAt, inSameDayAs: date) }
+    }
+
+    func deleteWater(_ entry: WaterEntry) async throws {
+        water.removeAll { $0.id == entry.id }
+        persist()
     }
 
     // MARK: Sleep
 
     func logSleep(_ entry: SleepEntry) async throws {
-        if let i = sleep.firstIndex(where: { $0.id == entry.id }) {
-            sleep[i] = entry
-        } else {
-            sleep.append(entry)
-        }
+        upsert(entry, into: &sleep)
         persist()
     }
 
@@ -119,11 +110,7 @@ final class DataStore: ObservableObject {
     // MARK: Mindfulness
 
     func logMindfulness(_ entry: LoggedMindfulness) async throws {
-        if let i = mindfulness.firstIndex(where: { $0.id == entry.id }) {
-            mindfulness[i] = entry
-        } else {
-            mindfulness.append(entry)
-        }
+        upsert(entry, into: &mindfulness)
         persist()
     }
 
@@ -135,11 +122,7 @@ final class DataStore: ObservableObject {
     // MARK: Custom foods (user-created)
 
     func saveCustomFood(_ food: FoodItem) async throws {
-        if let i = customFoods.firstIndex(where: { $0.id == food.id }) {
-            customFoods[i] = food
-        } else {
-            customFoods.append(food)
-        }
+        upsert(food, into: &customFoods)
         persist()
     }
 
@@ -148,10 +131,10 @@ final class DataStore: ObservableObject {
         persist()
     }
 
-    // MARK: Persistence
+    // MARK: Erase
 
-    /// Wipes all demo data. Useful for screenshots / fresh demos.
-    func resetDemoData() {
+    /// Permanently removes every log from this device.
+    func eraseAll() {
         summaries = [:]
         workouts = []
         meals = []
@@ -159,10 +142,14 @@ final class DataStore: ObservableObject {
         sleep = []
         mindfulness = []
         customFoods = []
-        persist()
+        files.delete(Self.fileName)
+        defaults.removeObject(forKey: Self.legacyDefaultsKey)
+        isReadOnly = false
     }
 
-    private struct Snapshot: Codable {
+    // MARK: Persistence
+
+    struct Snapshot: Codable {
         var summaries: [String: DailySummary]
         var workouts: [WorkoutSession]
         var meals: [Meal]
@@ -172,26 +159,50 @@ final class DataStore: ObservableObject {
         var customFoods: [FoodItem]?
     }
 
-    private func persist() {
-        let snap = Snapshot(
-            summaries: summaries,
-            workouts: workouts,
-            meals: meals,
-            water: water,
-            sleep: sleep,
-            mindfulness: mindfulness,
-            customFoods: customFoods
-        )
-        if let data = try? JSONEncoder().encode(snap) {
-            UserDefaults.standard.set(data, forKey: storageKey)
+    var snapshot: Snapshot {
+        Snapshot(summaries: summaries, workouts: workouts, meals: meals, water: water,
+                 sleep: sleep, mindfulness: mindfulness, customFoods: customFoods)
+    }
+
+    private func upsert<T: Identifiable>(_ item: T, into array: inout [T]) {
+        if let i = array.firstIndex(where: { $0.id == item.id }) {
+            array[i] = item
+        } else {
+            array.append(item)
         }
     }
 
+    private func persist() {
+        guard !isReadOnly else { return }
+        try? files.save(snapshot, to: Self.fileName)
+    }
+
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
+        switch files.load(Snapshot.self, from: Self.fileName) {
+        case .loaded(let snap):
+            apply(snap)
+        case .unreadable:
+            isReadOnly = true
+        case .missing:
+            migrateFromUserDefaults()
+        }
+    }
+
+    private func migrateFromUserDefaults() {
+        guard let data = defaults.data(forKey: Self.legacyDefaultsKey),
               let snap = try? JSONDecoder().decode(Snapshot.self, from: data) else {
             return
         }
+        apply(snap)
+        do {
+            try files.save(snapshot, to: Self.fileName)
+            defaults.removeObject(forKey: Self.legacyDefaultsKey)
+        } catch {
+            // Keep the legacy copy; we'll try again next launch.
+        }
+    }
+
+    private func apply(_ snap: Snapshot) {
         summaries = snap.summaries
         workouts = snap.workouts
         meals = snap.meals
@@ -203,6 +214,8 @@ final class DataStore: ObservableObject {
 
     static func dayKey(_ date: Date) -> String {
         let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
         f.dateFormat = "yyyy-MM-dd"
         return f.string(from: date)
     }

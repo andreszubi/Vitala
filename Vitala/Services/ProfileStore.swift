@@ -7,9 +7,17 @@ import SwiftUI
 final class ProfileStore: ObservableObject {
     @Published private(set) var profile: UserProfile?
 
-    private let storageKey = "vitala.demo.profile"
+    static let fileName = "profile.json"
+    /// Where the profile lived before 1.0. Read once, migrated, then removed.
+    static let legacyDefaultsKey = "vitala.demo.profile"
 
-    init() {
+    private let files: SecureFileStore
+    private let defaults: UserDefaults
+    private var isReadOnly = false
+
+    init(files: SecureFileStore = SecureFileStore(), defaults: UserDefaults = .standard) {
+        self.files = files
+        self.defaults = defaults
         load()
     }
 
@@ -31,23 +39,34 @@ final class ProfileStore: ObservableObject {
 
     /// Removes the profile from this device.
     func erase() {
-        UserDefaults.standard.removeObject(forKey: storageKey)
+        files.delete(Self.fileName)
+        defaults.removeObject(forKey: Self.legacyDefaultsKey)
         profile = nil
+        isReadOnly = false
     }
 
     // MARK: Persistence
 
     private func load() {
-        guard let data = UserDefaults.standard.data(forKey: storageKey),
-              let decoded = try? JSONDecoder().decode(UserProfile.self, from: data) else {
-            return
+        switch files.load(UserProfile.self, from: Self.fileName) {
+        case .loaded(let p):
+            profile = p
+        case .unreadable:
+            isReadOnly = true
+        case .missing:
+            guard let data = defaults.data(forKey: Self.legacyDefaultsKey),
+                  let legacy = try? JSONDecoder().decode(UserProfile.self, from: data) else {
+                return
+            }
+            profile = legacy
+            if (try? files.save(legacy, to: Self.fileName)) != nil {
+                defaults.removeObject(forKey: Self.legacyDefaultsKey)
+            }
         }
-        profile = decoded
     }
 
     private func persist(_ profile: UserProfile) {
-        if let data = try? JSONEncoder().encode(profile) {
-            UserDefaults.standard.set(data, forKey: storageKey)
-        }
+        guard !isReadOnly else { return }
+        try? files.save(profile, to: Self.fileName)
     }
 }
