@@ -10,6 +10,13 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
         case .dark:   "Dark"
         }
     }
+    var shortLabel: String {
+        switch self {
+        case .system: "System"
+        case .light:  "Light"
+        case .dark:   "Dark"
+        }
+    }
     var icon: String {
         switch self {
         case .system: "circle.lefthalf.filled"

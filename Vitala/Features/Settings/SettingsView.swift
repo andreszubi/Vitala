@@ -8,7 +8,6 @@ struct SettingsView: View {
     @AppStorage("vitala.reminders") private var remindersOn: Bool = true
 
     var body: some View {
-        NavigationStack {
             Form {
                 Section("Account") {
                     NavigationLink("Edit profile") { EditProfileView() }
@@ -57,7 +56,6 @@ struct SettingsView: View {
                 }
             }
             .navigationTitle("Settings")
-        }
     }
 }
 

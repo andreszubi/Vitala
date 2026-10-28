@@ -1,44 +1,34 @@
 import SwiftUI
 
-/// Custom tab container — bypasses TabView entirely so iOS doesn't auto-
-/// collapse our six tabs into a "More" overflow. All tab views are kept
-/// alive via opacity gating so state (scroll position, NavigationStack
-/// path, etc.) is preserved when switching back to a tab.
+/// Five native tabs. Using the system `TabView` gives VoiceOver, Large
+/// Content Viewer and (on iOS 26+) Liquid Glass for free. Profile and
+/// Settings live behind the avatar on Today.
 struct MainTabView: View {
     @EnvironmentObject var appState: AppState
 
     var body: some View {
-        ZStack {
-            tabContent
+        TabView(selection: $appState.selectedTab) {
+            DashboardView()
+                .tabItem { tabLabel(.home) }
+                .tag(AppState.MainTab.home)
+            NavigationStack { WorkoutsListView() }
+                .tabItem { tabLabel(.activity) }
+                .tag(AppState.MainTab.activity)
+            NavigationStack { NutritionView() }
+                .tabItem { tabLabel(.nutrition) }
+                .tag(AppState.MainTab.nutrition)
+            NavigationStack { MindfulnessView() }
+                .tabItem { tabLabel(.mindfulness) }
+                .tag(AppState.MainTab.mindfulness)
+            NavigationStack { SleepView() }
+                .tabItem { tabLabel(.sleep) }
+                .tag(AppState.MainTab.sleep)
         }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            VitalaTabBar(selection: $appState.selectedTab)
-        }
-        .background(VitalaColor.background.ignoresSafeArea())
         .tint(VitalaColor.primary)
+        .onChange(of: appState.selectedTab) { _, _ in Haptics.selection() }
     }
 
-    private var tabContent: some View {
-        ZStack {
-            tab(.home) { DashboardView() }
-            tab(.activity) { NavigationStack { WorkoutsListView() } }
-            tab(.nutrition) { NavigationStack { NutritionView() } }
-            tab(.mindfulness) { NavigationStack { MindfulnessView() } }
-            tab(.sleep) { NavigationStack { SleepView() } }
-            tab(.profile) { NavigationStack { ProfileView() } }
-        }
-    }
-
-    /// Wraps a tab's content with opacity-based visibility so all tabs stay
-    /// alive (preserving state) but only the active one receives input.
-    @ViewBuilder
-    private func tab<V: View>(_ key: AppState.MainTab,
-                              @ViewBuilder content: () -> V) -> some View {
-        let isActive = appState.selectedTab == key
-        content()
-            .opacity(isActive ? 1 : 0)
-            .allowsHitTesting(isActive)
-            // Defer accessibility too so VoiceOver doesn't read hidden tabs.
-            .accessibilityHidden(!isActive)
+    private func tabLabel(_ tab: AppState.MainTab) -> some View {
+        Label(tab.label, systemImage: tab.icon)
     }
 }

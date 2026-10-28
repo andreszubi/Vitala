@@ -59,7 +59,7 @@ struct QuickLogCard: View {
     }
 }
 
-// MARK: - Convenience wrappers (Button vs NavigationLink)
+// MARK: - Button wrapper
 
 struct QuickLogButton: View {
     let icon: String
@@ -79,26 +79,6 @@ struct QuickLogButton: View {
         .accessibilityLabel(title)
         .accessibilityValue(value ?? "")
         .accessibilityHint(hint ?? "")
-        .accessibilityAddTraits(.isButton)
-    }
-}
-
-struct QuickLogNavLink<Destination: View>: View {
-    let icon: String
-    let title: String
-    let value: String?
-    let tint: Color
-    var progress: Double? = nil
-    @ViewBuilder let destination: () -> Destination
-
-    var body: some View {
-        NavigationLink(destination: destination()) {
-            QuickLogCard(icon: icon, title: title, value: value, tint: tint, progress: progress)
-        }
-        .buttonStyle(PressableButtonStyle())
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
-        .accessibilityValue(value ?? "")
         .accessibilityAddTraits(.isButton)
     }
 }

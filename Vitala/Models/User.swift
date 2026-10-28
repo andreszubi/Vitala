@@ -52,12 +52,37 @@ struct UserProfile: Codable, Identifiable, Hashable {
 
 struct WellnessGoals: Codable, Hashable {
     var dailySteps: Int = 10_000
+    /// Food intake target.
     var dailyCalories: Int = 2_200
     var dailyWaterMl: Int = 2_000
     var weeklyWorkouts: Int = 4
     var sleepHours: Double = 8.0
     var weightTargetKg: Double? = nil
     var primaryFocus: Focus = .balanced
+    /// Move ring: active energy burned.
+    var dailyActiveKcal: Int = 450
+    /// Exercise ring.
+    var dailyExerciseMinutes: Int = 30
+    var dailyMindfulMinutes: Int = 10
+
+    init() {}
+
+    /// Decodes goals saved by older versions, filling in any target that
+    /// didn't exist yet with its default.
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let d = WellnessGoals()
+        dailySteps = try c.decodeIfPresent(Int.self, forKey: .dailySteps) ?? d.dailySteps
+        dailyCalories = try c.decodeIfPresent(Int.self, forKey: .dailyCalories) ?? d.dailyCalories
+        dailyWaterMl = try c.decodeIfPresent(Int.self, forKey: .dailyWaterMl) ?? d.dailyWaterMl
+        weeklyWorkouts = try c.decodeIfPresent(Int.self, forKey: .weeklyWorkouts) ?? d.weeklyWorkouts
+        sleepHours = try c.decodeIfPresent(Double.self, forKey: .sleepHours) ?? d.sleepHours
+        weightTargetKg = try c.decodeIfPresent(Double.self, forKey: .weightTargetKg)
+        primaryFocus = try c.decodeIfPresent(Focus.self, forKey: .primaryFocus) ?? d.primaryFocus
+        dailyActiveKcal = try c.decodeIfPresent(Int.self, forKey: .dailyActiveKcal) ?? d.dailyActiveKcal
+        dailyExerciseMinutes = try c.decodeIfPresent(Int.self, forKey: .dailyExerciseMinutes) ?? d.dailyExerciseMinutes
+        dailyMindfulMinutes = try c.decodeIfPresent(Int.self, forKey: .dailyMindfulMinutes) ?? d.dailyMindfulMinutes
+    }
 
     enum Focus: String, Codable, CaseIterable, Identifiable {
         case loseWeight, buildMuscle, sleepBetter, manageStress, balanced

@@ -2,102 +2,77 @@ import SwiftUI
 
 struct ProfileView: View {
     @EnvironmentObject var profileStore: ProfileStore
-    @EnvironmentObject var appState: AppState
     @EnvironmentObject var themeService: ThemeService
     @EnvironmentObject var unitsService: UnitsService
-    @State private var showSettings = false
-    @State private var showProgress = false
+    @EnvironmentObject var health: HealthKitService
+    @EnvironmentObject var notifications: NotificationService
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ObservedObject private var store = DataStore.shared
+
     @State private var showEdit = false
+
+    private var totalWorkouts: Int { store.workouts.count }
+    private var totalMindfulMinutes: Int { store.mindfulness.reduce(0) { $0 + $1.minutes } }
+    private var streak: Int { Insights.currentStreak(activeDays: Insights.activeDays(store.snapshot)) }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
                 avatarBlock
-                themeCard
-                quickLinks
                 statsBlock
+                quickLinks
+                themeCard
             }
             .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.top, VitalaSpacing.md)
+            .padding(.top, VitalaSpacing.sm)
             .padding(.bottom, VitalaSpacing.xl)
         }
         .background(VitalaColor.background.ignoresSafeArea())
-        .toolbar(.hidden)
-        .sheet(isPresented: $showSettings) { SettingsView() }
-        .sheet(isPresented: $showEdit) { EditProfileView() }
-        .navigationDestination(isPresented: $showProgress) { ProgressDashboardView() }
+        .navigationTitle("Profile")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
+        .sheet(isPresented: $showEdit) {
+            NavigationStack { EditProfileView() }
+        }
     }
 
     private var avatarBlock: some View {
         VStack(spacing: 10) {
-            ZStack {
-                Circle().fill(VitalaColor.primaryGradient).frame(width: 88, height: 88)
-                Text(initials).font(VitalaFont.title(28)).foregroundStyle(.white)
-            }
-            Text(profileStore.profile?.displayName ?? "Friend").font(VitalaFont.title(22))
-            Button("Edit profile") { showEdit = true }
-                .font(VitalaFont.caption(13))
-                .padding(.horizontal, 14).padding(.vertical, 8)
-                .background(VitalaColor.primary.opacity(0.12))
-                .foregroundStyle(VitalaColor.primary)
-                .clipShape(Capsule())
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, VitalaSpacing.md)
-    }
-
-    // MARK: Theme card
-
-    private var themeCard: some View {
-        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            HStack {
-                Text("Appearance")
-                    .font(VitalaFont.headline(18))
-                Spacer()
-                Text(themeService.theme.label)
-                    .font(VitalaFont.caption(13))
+            AvatarView(name: profileStore.profile?.displayName ?? "", size: 88)
+            Text(profileStore.profile?.displayName ?? "")
+                .font(VitalaFont.title(22))
+                .foregroundStyle(VitalaColor.textPrimary)
+                .multilineTextAlignment(.center)
+                .accessibilityAddTraits(.isHeader)
+            if let since = profileStore.profile?.createdAt {
+                Text("With Vitala since \(since.formatted(.dateTime.month(.wide).year()))")
+                    .font(VitalaFont.caption())
                     .foregroundStyle(VitalaColor.textSecondary)
             }
-            HStack(spacing: 8) {
-                ForEach(AppTheme.allCases) { t in
-                    ThemeChip(theme: t,
-                              isSelected: themeService.theme == t) {
-                        withAnimation(.smooth(duration: 0.25)) {
-                            themeService.theme = t
-                        }
-                    }
-                }
+            Button {
+                showEdit = true
+            } label: {
+                Text("Edit profile")
+                    .font(VitalaFont.bodyMedium(15))
+                    .padding(.horizontal, 16)
+                    .frame(minHeight: 44)
+                    .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
+                    .foregroundStyle(VitalaColor.primary)
             }
+            .buttonStyle(PressableButtonStyle())
         }
-        .padding(VitalaSpacing.md)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous))
-        .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
-    }
-
-    // MARK: Quick links
-
-    private var quickLinks: some View {
-        VStack(spacing: 10) {
-            RowItem(icon: "chart.bar.fill", iconTint: VitalaColor.primary, title: "Progress", subtitle: "Steps, calories, streaks")
-                .onTapGesture { showProgress = true }
-            RowItem(icon: "bell.badge.fill", iconTint: VitalaColor.coral, title: "Reminders", subtitle: "Hydration, movement, wind-down")
-                .onTapGesture { showSettings = true }
-            RowItem(icon: "ruler.fill", iconTint: Color(red: 0.36, green: 0.66, blue: 0.51),
-                    title: "Units", subtitle: unitsService.system.shortLabel)
-                .onTapGesture { showSettings = true }
-            RowItem(icon: "heart.text.square.fill", iconTint: VitalaColor.sage, title: "Apple Health", subtitle: "Connected data sources")
-                .onTapGesture { showSettings = true }
-            RowItem(icon: "lock.shield.fill", iconTint: Color(red: 0.45, green: 0.46, blue: 0.78), title: "Privacy", subtitle: "Your data stays yours")
-                .onTapGesture { showSettings = true }
-        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, VitalaSpacing.sm)
     }
 
     private var statsBlock: some View {
-        HStack(spacing: 12) {
-            statBox("12", "workouts")
-            statBox("48", "mindful min")
-            statBox("3", "day streak")
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            statBox("\(totalWorkouts)", totalWorkouts == 1 ? "workout" : "workouts")
+            statBox("\(totalMindfulMinutes)", "mindful min")
+            statBox("\(streak)", "day streak")
         }
     }
 
@@ -108,14 +83,47 @@ struct ProfileView: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vitalaCard(padding: 14)
+        .accessibilityElement(children: .combine)
     }
 
-    private var initials: String {
-        let name = profileStore.profile?.displayName ?? "Friend"
-        let parts = name.split(separator: " ")
-        let first = parts.first?.first.map(String.init) ?? "V"
-        let last = parts.dropFirst().first?.first.map(String.init) ?? ""
-        return (first + last).uppercased()
+    // MARK: Quick links
+
+    private var quickLinks: some View {
+        VStack(spacing: 10) {
+            NavigationLink { ProgressDashboardView() } label: {
+                RowItem(icon: "chart.bar.fill", iconTint: VitalaColor.primary,
+                        title: "Progress", subtitle: "Trends across movement, food, sleep and calm")
+            }
+            NavigationLink { GoalsSettingsView() } label: {
+                RowItem(icon: "target", iconTint: VitalaColor.coralText,
+                        title: "Goals", subtitle: profileStore.profile?.goals.primaryFocus.label ?? "")
+            }
+            NavigationLink { ConnectedServicesView() } label: {
+                RowItem(icon: "heart.text.square.fill", iconTint: VitalaColor.coralText,
+                        title: "Apple Health", subtitle: health.isAuthorized ? "Connected" : "Not connected")
+            }
+            NavigationLink { SettingsView() } label: {
+                RowItem(icon: "gearshape.fill", iconTint: VitalaColor.muted,
+                        title: "Settings", subtitle: "Reminders, units, privacy and your data")
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: Theme card
+
+    private var themeCard: some View {
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            SectionHeader(title: "Appearance", trailing: themeService.theme.label)
+            HStack(spacing: 8) {
+                ForEach(AppTheme.allCases) { t in
+                    ThemeChip(theme: t, isSelected: themeService.theme == t) {
+                        themeService.theme = t
+                    }
+                }
+            }
+        }
+        .vitalaCard()
     }
 }
 
@@ -128,23 +136,26 @@ private struct ThemeChip: View {
         Button(action: action) {
             VStack(spacing: 6) {
                 Image(systemName: theme.icon)
-                    .font(.system(size: 16, weight: .semibold))
-                Text(theme.label.components(separatedBy: " ").first ?? theme.label)
+                    .font(.body.weight(.semibold))
+                Text(theme.shortLabel)
                     .font(VitalaFont.caption(12))
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .padding(.vertical, 6)
             .background(
                 RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
-                    .fill(isSelected ? VitalaColor.primary.opacity(0.15) : Color.clear)
+                    .fill(isSelected ? VitalaColor.primary.opacity(0.14) : Color.clear)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
-                    .stroke(isSelected ? VitalaColor.primary : VitalaColor.muted.opacity(0.25),
+                    .stroke(isSelected ? VitalaColor.primary : VitalaColor.hairline,
                             lineWidth: isSelected ? 1.5 : 1)
             )
             .foregroundStyle(isSelected ? VitalaColor.primary : VitalaColor.textPrimary)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(theme.label)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

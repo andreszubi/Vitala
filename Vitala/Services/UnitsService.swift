@@ -107,6 +107,26 @@ final class UnitsService: ObservableObject {
 
     func volumeUnitLabel() -> String { system == .metric ? "ml" : "fl oz" }
 
+    /// Volume split into a number and a unit for compact display:
+    /// 250 ml → ("250", "ml"), 1500 ml → ("1.5", "L"), imperial → ("51", "fl oz").
+    func volumeParts(ml: Int) -> (value: String, unit: String) {
+        switch system {
+        case .metric:
+            if ml >= 1000 {
+                return ((Double(ml) / 1000).formatted(.number.precision(.fractionLength(1))), "L")
+            }
+            return ("\(ml)", "ml")
+        case .imperial:
+            return ("\(Int((Double(ml) * 0.033814).rounded()))", "fl oz")
+        }
+    }
+
+    /// "1.5 L" / "250 ml" / "51 fl oz".
+    func compactVolume(ml: Int) -> String {
+        let parts = volumeParts(ml: ml)
+        return "\(parts.value) \(parts.unit)"
+    }
+
     /// Quick-add water amounts in the current unit system, with the underlying ml value.
     /// Returned tuples are (display label, ml value).
     func quickWaterOptions() -> [(label: String, ml: Int)] {
