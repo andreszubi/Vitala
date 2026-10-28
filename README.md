@@ -1,104 +1,89 @@
-# Vitala — Healthy Living App (Class Demo Build)
+# Vitala — Healthy living, gently
 
-A SwiftUI iOS 17+ app: onboarding, profile setup, dashboard with Activity rings, workouts, nutrition, water, sleep, mindfulness, progress, and settings.
+A calm iPhone companion for movement, food, water, sleep and mindful breathing. Private by design: no account, no servers, everything on the device, with optional Apple Health sync.
 
-**This build is in demo mode** — no Firebase, no auth screen. The app launches a local demo user automatically, persists everything to `UserDefaults`, and goes straight from the onboarding into the main experience. Everything else (HealthKit, charts, the full screen flow) works normally. See **[Re-enabling Firebase](#re-enabling-firebase-optional)** at the bottom if you want to flip auth + cloud sync back on later.
+Author: Andres Zubizarreta
 
-## What's inside
+<p align="center">
+  <img src="docs/app-store/screenshots-overview.png" alt="Vitala screens: Today, Activity, Nutrition, Sleep, Breathing, Progress" width="100%">
+</p>
+
+## Features
+
+- **Today** — Move, Exercise and Steps rings against your own goals; one-tap logging for water, meals, mindful minutes and sleep; real streaks and weekly workout progress.
+- **Activity** — guided yoga, strength, HIIT, mobility and running sessions with per-exercise countdowns; log any activity with type, duration, energy and distance.
+- **Nutrition** — meals by type from a food list or your own custom foods, servings, macros, and a calorie target suggested from your profile (Mifflin–St Jeor × activity).
+- **Mindful** — nine guided breathing sessions with category-specific rhythms and prompts, plus calming sound synthesised live on the device (spa pad, ocean, binaural tones).
+- **Sleep** — bedtime, wake time and quality with validation, a 7-night chart and history.
+- **Progress** — 7- and 30-day trends for steps, exercise, food, water, sleep and mindful minutes; a 28-day consistency grid.
+- **Profile** — reachable from every tab; optional profile photo; goals; reminders with per-reminder times; export to JSON; erase all data.
+- **Apple Health** — reads steps, energy, exercise, distance, heart rate, sleep and mindful minutes; writes water, sleep, mindful sessions and workouts, with edits and deletes kept in sync.
+
+## Design and accessibility
+
+- Native **Liquid Glass** on iOS 26 and later — tab bar, buttons, filter chips, players, keyboard bar and scroll-edge effects — with a material fallback on iOS 17–25.
+- Layered **Icon Composer** app icon that iOS renders as glass in Light, Dark, Clear and Tinted.
+- Every text colour meets **WCAG AA** in Light and Dark (enforced by `ContrastTests`).
+- **Dynamic Type** everywhere, with layouts that reflow at accessibility sizes; **VoiceOver** labels, headers, custom actions and Audio Graph chart descriptions; 44 pt targets; **Reduce Motion** respected.
+- UI tests run Xcode's **accessibility audit** on every main screen at default and large text sizes.
+
+## Requirements
+
+- Xcode 26 or later (built and tested with Xcode 27.1)
+- iOS 17.0+ deployment target, iPhone only for 1.0
+
+## Getting started
+
+1. Open `Vitala.xcodeproj`.
+2. Vitala target → **Signing & Capabilities** → choose your Team (HealthKit requires a paid developer account on device).
+3. Run on an iPhone simulator or device.
+
+The project uses folder-synchronised groups, so new files in `Vitala/`, `VitalaTests/` or `VitalaUITests/` are picked up automatically.
+
+### Handy launch arguments (Debug builds only)
+
+| Argument | Effect |
+|---|---|
+| `-resetData` | Start from a clean first-launch state |
+| `-seedSampleData` | Skip onboarding and load two weeks of realistic logs |
+
+Add them in **Product › Scheme › Edit Scheme › Run › Arguments**. They're compiled out of Release builds.
+
+## Tests
+
+```bash
+xcodebuild test -project Vitala.xcodeproj -scheme Vitala \
+  -destination 'platform=iOS Simulator,name=iPhone 17'
+```
+
+- `VitalaTests` (Swift Testing): storage and migration, Health sync helpers, insights and streaks, calorie suggestion, units, nutrition grouping, export, profile photos, colour contrast, and offline rendering of the ambient sound.
+- `VitalaUITests`: launch test and accessibility audits. `ScreenshotTests` regenerates App Store screenshots (see `docs/APP_STORE.md`).
+
+## Project structure
 
 ```
 Vitala/
-├── Vitala.xcodeproj/        # Generated — open this
-├── Vitala/
-│   ├── App/                 # VitalaApp, RootView, MainTabView
-│   ├── DesignSystem/        # Colors, Typography, Spacing, Components
-│   ├── Models/              # User, Workout, Meal, Water, Sleep, Mindfulness
-│   ├── Services/            # AuthService, FirestoreService, HealthKitService, NotificationService
-│   ├── ViewModels/          # AppState (root navigation)
-│   ├── Features/            # 19 screens grouped by feature
-│   └── Resources/           # Info.plist, Vitala.entitlements, Assets.xcassets, GoogleService-Info.plist
-├── project.yml              # XcodeGen spec (optional regeneration)
-├── scripts/generate_pbxproj.py   # Project regenerator
-└── README.md
+├── App/            App entry, root routing, tab bar, app info, debug launch options
+├── DesignSystem/   Colours, type ramp, glass helpers, brand mark, chart accessibility, components
+├── Features/       Onboarding, ProfileSetup, Dashboard, Activity, Nutrition, Water, Sleep,
+│                   Mindfulness, Progress, Settings
+├── Models/         Profile and goals, workouts, meals, water, sleep, mindfulness
+├── Services/       DataStore, ProfileStore, SecureFileStore, HealthKitService,
+│                   NotificationService, AmbientSoundPlayer, Insights, DataExport, Units, Theme
+├── ViewModels/     AppState (top-level routing and tabs)
+└── Resources/      Info.plist, entitlements, privacy manifest, assets, AppIcon.icon
+docs/               Release plan, App Store kit, privacy policy, support page, screenshots
 ```
-
-## Screens (19)
-
-Splash → Onboarding (3 pages) → Sign in / Sign up / Forgot password → Profile setup (Personal info, Goals + focus, Permissions, Review) → Main app:
-- **Dashboard** — Activity rings, quick stats, quick log shortcuts, streaks
-- **Activity** — Workouts list with filters, detail, active workout timer with HK logging
-- **Nutrition** — Daily summary, macros, per-meal log, add-meal search
-- **Water** — Animated glass tracker with quick-add amounts
-- **Sleep** — Bedtime/wake picker, quality, last-7-night chart
-- **Mindfulness** — Library, breathing player with phase animation, HK mindful session logging
-- **Progress** — Charts (steps, calories), consistency heatmap
-- **Profile / Settings / Edit profile / Goals / Privacy / Terms**
-
-## Setup (one-time)
-
-### 1. Open and run
-
-1. Open `Vitala.xcodeproj` in **Xcode 15+**.
-2. Select the **Vitala** target → **Signing & Capabilities** → pick your developer **Team** so Xcode can auto-provision. (HealthKit capability is already in `Vitala.entitlements`.)
-3. Pick an **iPhone 15 / 17** simulator and press **⌘R**.
-
-That's it. No Firebase, no `GoogleService-Info.plist`, no accounts to create. The app launches with a local demo user.
-
-> **HealthKit on simulator** returns empty data — the dashboard rings will sit at 0 until you run on a real device. Everything you log inside the app (water, meals, sleep, mindful sessions, workouts) is saved locally and persists between launches.
-
-### Resetting the demo
-
-- **In-app:** Profile → **Sign out** wipes the demo user and returns you to onboarding.
-- **From scratch:** Delete the app from the simulator/device, or in Xcode use **Device → Erase All Content and Settings** on the simulator.
 
 ## Architecture notes
 
-- **State machine**: `AppState.route` drives the top-level flow (splash → onboarding → profileSetup → main). `RootView` switches on it. The auth route is intentionally skipped in demo mode but the case still exists so it's a one-line revert.
-- **Auth (demo mode)**: `AuthService` is now a local UserDefaults-backed store. On first launch it auto-creates a "Demo User" profile. Sign in / sign up calls succeed instantly with whatever values you pass. Sign out wipes the local profile and re-runs onboarding.
-- **Data (demo mode)**: `FirestoreService` keeps everything in memory plus a single `vitala.demo.firestore` JSON blob in `UserDefaults`. Same public methods as the Firebase version (`logMeal`, `logWater`, `meals(on:)`, etc.), so views are identical.
-- **HealthKit**: `HealthKitService` requests read access for steps, energy, distance, exercise minutes, heart rate, sleep, mindful minutes; write access for water, mindful sessions, and workouts. The dashboard reads daily aggregates via `HKStatisticsQuery`. Workout completion logs an `HKWorkout` via `HKWorkoutBuilder`. Water logs as `HKQuantitySample` of `dietaryWater`. **Unaffected by demo mode.**
-- **Design system**: Custom `VitalaColor`, `VitalaFont`, `VitalaSpacing`, `VitalaRadius` plus a `vitalaCard()` view modifier and reusable components (`PrimaryButton`, `VitalaTextField`, `MetricCard`, `ActivityRings`, `RowItem`, etc.).
-- **Charts**: Apple's Swift Charts framework powers the Sleep and Progress charts.
+- **Local-first storage.** `DataStore` and `ProfileStore` persist JSON (and the profile photo) through `SecureFileStore`: atomic writes in Application Support with iOS Data Protection. A file that exists but can't be read is never overwritten. Pre-1.0 `UserDefaults` data migrates once on first launch.
+- **Apple Health sync.** `DataStore` mirrors every log into Health. Samples carry a sync identifier derived from the entry's id, so edits replace and deletes remove — no duplicates.
+- **Insights.** Streaks, weekly counts and daily totals are pure functions in `Insights`, shared by Today, Profile and Progress.
+- **Sound.** `AmbientSoundPlayer` renders audio in real time with `AVAudioEngine`; the render loop never allocates or locks.
 
-## Re-enabling Firebase (optional)
+## Release
 
-If after the demo you want to flip the real backend back on:
+See [`docs/APP_STORE.md`](docs/APP_STORE.md) for the submission checklist, listing copy, privacy answers and review notes, and [`docs/AGILE_PLAN.md`](docs/AGILE_PLAN.md) for the release plan and sprint log.
 
-1. Restore the Firebase imports and original implementation in `Services/AuthService.swift` and `Services/FirestoreService.swift` (the demo versions kept the same method signatures, so views don't need to change).
-2. Add `import FirebaseCore` and `FirebaseApp.configure()` back to `App/VitalaApp.swift`'s `init()`.
-3. In `ViewModels/AppState.swift`, restore the `else if authProfile == nil { route = .auth }` branch and change `completeOnboarding()` to set `route = .auth`.
-4. In `scripts/generate_pbxproj.py`, change `FIREBASE_PRODUCTS = []` back to `["FirebaseAuth", "FirebaseFirestore", "FirebaseFirestoreSwift"]`.
-5. Replace `Vitala/Resources/GoogleService-Info.plist` with the real one from Firebase console (see git history for the original setup steps).
-6. Run `python3 scripts/generate_pbxproj.py` and re-open Xcode.
-
-## Regenerating the Xcode project
-
-If you add files manually and want to refresh the project:
-
-```bash
-python3 scripts/generate_pbxproj.py
-```
-
-Or, if you prefer XcodeGen:
-
-```bash
-brew install xcodegen
-xcodegen
-```
-
-Both produce a working `Vitala.xcodeproj`.
-
-## Known caveats
-
-- **HealthKit on simulator**: read APIs return empty data. Use a real device to see real values populate the dashboard rings and metrics.
-- **Sign in with Apple**: there's a button in `SignInView` but it's unwired. Hook it to Firebase OAuthProvider when you're ready.
-- **Notifications**: scheduled at 11:00, 15:30, and 21:30 daily once the user grants permission during onboarding. Adjust in `NotificationService`.
-- **Firestore Codable**: relies on Firebase iOS SDK 10.17+ (where `FirebaseFirestoreSwift` was merged into `FirebaseFirestore`). The pinned minimum is 10.29.0.
-
-## Next steps to consider
-
-- Pull workouts/meals from a real backend (Strapi, Supabase, custom API) instead of in-app sample libraries
-- Add Sign in with Apple via `ASAuthorizationAppleIDProvider`
-- Build a watchOS companion that mirrors the workout timer
-- Localize strings (English-only today; the project is set up for string catalogs)
-- Replace the SF Symbol artwork in workouts/meals with proper imagery
+© 2026 Andres Zubizarreta
