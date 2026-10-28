@@ -1,8 +1,26 @@
 {
   "fill" : {
-    "automatic-gradient" : "display-p3:0.22745,0.47843,0.41176,1.00000"
+    "automatic-gradient" : "display-p3:0.20000,0.44706,0.38431,1.00000"
   },
   "groups" : [
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "vein.svg",
+          "name" : "vein"
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.45
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : false,
+        "value" : 0
+      }
+    },
     {
       "layers" : [
         {
@@ -12,13 +30,32 @@
         }
       ],
       "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+        "kind" : "layer-color",
+        "opacity" : 0.7
       },
       "specular" : true,
       "translucency" : {
         "enabled" : true,
-        "value" : 0.35
+        "value" : 0.25
+      }
+    },
+    {
+      "layers" : [
+        {
+          "glass" : true,
+          "image-name" : "halo.svg",
+          "name" : "halo",
+          "opacity" : 0.55
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.35
+      },
+      "specular" : true,
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.6
       }
     }
   ],
