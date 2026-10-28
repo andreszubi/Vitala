@@ -79,6 +79,11 @@ struct ZenBackground: View {
                                 }
                                 .blur(radius: 18)
                                 .blendMode(.plusLighter)
+                                Canvas(rendersAsynchronously: true) { context, size in
+                                    ZenPainter.auroraDetail(context, size, t)
+                                }
+                                .blur(radius: 2.5)
+                                .blendMode(.plusLighter)
                             }
                         }
                     }
@@ -313,25 +318,32 @@ enum ZenPainter {
         drawStars(ctx, size, t, count: 90, maxY: 0.7, brightness: 0.7)
     }
 
+    private static let auroraRibbonStyles: [(y: Double, color: Color, speed: Double)] = [
+        (0.22, Color(hex: "#5CF2B4"), 0.11), (0.3, Color(hex: "#38C9C9"), 0.08), (0.38, Color(hex: "#9B7CF2"), 0.06),
+    ]
+
+    /// The middle line and thickness of ribbon `i` at horizontal position `u`.
+    private static func auroraRibbon(_ i: Int, _ u: Double, _ t: Double, _ h: Double) -> (centre: Double, thickness: Double) {
+        let r = auroraRibbonStyles[i]
+        let centre = h * r.y + h * 0.05 * sin(twoPi * (u * 0.8 + t * r.speed) + Double(i))
+            + h * 0.02 * sin(twoPi * (u * 2.1 - t * r.speed * 1.7))
+        let thickness = h * (0.06 + 0.04 * sin(twoPi * (u * 1.4 + t * 0.05 * Double(i + 1))))
+        return (centre, thickness)
+    }
+
     /// Three soft ribbons of green, teal and violet light drifting across the
     /// sky. Drawn sharp-edged; the view blurs them into a glow.
     static func auroraRibbons(_ context: GraphicsContext, _ size: CGSize, _ t: Double) {
         let w = size.width, h = size.height
         var lights = context
         lights.blendMode = .plusLighter
-        let ribbons: [(y: Double, color: Color, speed: Double)] = [
-            (0.22, Color(hex: "#5CF2B4"), 0.11), (0.3, Color(hex: "#38C9C9"), 0.08), (0.38, Color(hex: "#9B7CF2"), 0.06),
-        ]
-        for (i, ribbon) in ribbons.enumerated() {
+        for (i, ribbon) in auroraRibbonStyles.enumerated() {
             var top: [CGPoint] = [], bottom: [CGPoint] = []
             var x = -20.0
             while x <= w + 20 {
-                let u = x / w
-                let centre = h * ribbon.y + h * 0.05 * sin(twoPi * (u * 0.8 + t * ribbon.speed) + Double(i))
-                    + h * 0.02 * sin(twoPi * (u * 2.1 - t * ribbon.speed * 1.7))
-                let thickness = h * (0.06 + 0.04 * sin(twoPi * (u * 1.4 + t * 0.05 * Double(i + 1))))
-                top.append(CGPoint(x: x, y: centre - thickness))
-                bottom.append(CGPoint(x: x, y: centre + thickness * 0.4))
+                let r = auroraRibbon(i, x / w, t, h)
+                top.append(CGPoint(x: x, y: r.centre - r.thickness))
+                bottom.append(CGPoint(x: x, y: r.centre + r.thickness * 0.4))
                 x += 10
             }
             var band = Path()
@@ -343,6 +355,50 @@ enum ZenPainter {
                                  .init(color: ribbon.color.opacity(0.55), location: 0.65),
                                  .init(color: ribbon.color.opacity(0.1), location: 1)]),
                 startPoint: CGPoint(x: 0, y: h * (ribbon.y - 0.12)), endPoint: CGPoint(x: 0, y: h * (ribbon.y + 0.06))))
+        }
+    }
+
+    /// Fine detail over the soft ribbons: a glowing line along each ribbon's
+    /// lower edge, and faint streaks of light rising from it that sway and
+    /// fade slowly. Spacing, width and height are irregular, so they read as
+    /// rays rather than stripes. Lightly blurred by the view.
+    static func auroraDetail(_ context: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        var lights = context
+        lights.blendMode = .plusLighter
+        for (i, ribbon) in auroraRibbonStyles.enumerated() {
+            // The lower edge, brightest where the ribbon is thickest.
+            var edge = Path()
+            var x = -20.0
+            edge.move(to: CGPoint(x: x, y: auroraRibbon(i, x / w, t, h).centre))
+            while x <= w + 20 {
+                let r = auroraRibbon(i, x / w, t, h)
+                edge.addLine(to: CGPoint(x: x, y: r.centre + r.thickness * 0.15))
+                x += 8
+            }
+            lights.stroke(edge, with: .color(ribbon.color.opacity(i == 2 ? 0.12 : 0.22)), lineWidth: 2.5)
+
+            // Rays rise from the green and teal ribbons only; violet stays soft.
+            guard i < 2 else { continue }
+            let count = i == 0 ? 70 : 55
+            for k in 0..<count {
+                let seed = k * 3 + i * 1_000
+                let u = hash(seed, 1) + 0.012 * sin(t * (0.05 + 0.04 * hash(seed, 2)) + Double(k))
+                let r = auroraRibbon(i, u, t, h)
+                // Each ray brightens and fades on its own slow cycle.
+                let pulse = 0.5 + 0.5 * sin(t * (0.15 + 0.35 * hash(seed, 3)) + hash(seed, 4) * twoPi)
+                let alpha = (0.05 + 0.2 * hash(seed, 5)) * pulse
+                guard alpha > 0.02 else { continue }
+                let width = 1.5 + 3.5 * hash(seed, 6)
+                let base = r.centre + r.thickness * 0.3
+                let top = r.centre - r.thickness * (0.8 + 1.4 * hash(seed, 7))
+                let rect = CGRect(x: u * w - width / 2, y: top, width: width, height: base - top)
+                lights.fill(Path(roundedRect: rect, cornerRadius: width / 2), with: .linearGradient(
+                    Gradient(stops: [.init(color: ribbon.color.opacity(0), location: 0),
+                                     .init(color: ribbon.color.opacity(alpha), location: 0.75),
+                                     .init(color: ribbon.color.opacity(0), location: 1)]),
+                    startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: base)))
+            }
         }
     }
 
