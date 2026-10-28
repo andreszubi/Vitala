@@ -11,6 +11,7 @@ struct DashboardView: View {
     /// workout, water entry, etc. is logged from another screen.
     @ObservedObject private var store = DataStore.shared
 
+    @AppStorage("vitala.healthPromptDismissed") private var healthPromptDismissed = false
     @State private var showingWater = false
     @State private var showingMeal = false
     @State private var showingSleep = false
@@ -72,7 +73,7 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: VitalaSpacing.lg) {
                     header
-                    if health.isAvailable && !health.isAuthorized {
+                    if health.isAvailable && !health.isAuthorized && !healthPromptDismissed {
                         connectHealthCard
                     }
                     ringsCard
@@ -141,11 +142,18 @@ struct DashboardView: View {
                 Text("See your steps, heart rate and sleep here, and keep what you log in Vitala in your Health record.")
                     .font(VitalaFont.caption(13))
                     .foregroundStyle(VitalaColor.textSecondary)
-                Button("Connect") {
-                    Task { await health.requestAuthorization() }
+                HStack(spacing: VitalaSpacing.lg) {
+                    Button("Connect") {
+                        Task { await health.requestAuthorization() }
+                    }
+                    .foregroundStyle(VitalaColor.primary)
+                    Button("Not now") {
+                        withAnimation { healthPromptDismissed = true }
+                    }
+                    .foregroundStyle(VitalaColor.textSecondary)
+                    .accessibilityHint("You can connect later from Profile")
                 }
                 .font(VitalaFont.bodyMedium(15))
-                .foregroundStyle(VitalaColor.primary)
                 .buttonStyle(TapTargetButtonStyle())
             }
             Spacer(minLength: 0)

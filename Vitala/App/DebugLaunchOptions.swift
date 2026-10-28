@@ -97,6 +97,7 @@ enum DebugLaunchOptions {
         try? files.save(profile, to: ProfileStore.fileName)
         UserDefaults.standard.set(true, forKey: "vitala.hasSeenOnboarding")
         UserDefaults.standard.set(true, forKey: "vitala.hasCompletedProfile")
+        UserDefaults.standard.set(true, forKey: "vitala.healthPromptDismissed")
     }
 }
 #endif

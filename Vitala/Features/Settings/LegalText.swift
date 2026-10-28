@@ -13,6 +13,9 @@ enum LegalText {
     Apple Health
     If you choose to connect Apple Health, Vitala reads steps, active energy, exercise minutes, walking and running distance, heart rate, sleep and mindful minutes to show your daily progress, and writes the water, sleep, mindful sessions and workouts you log in Vitala. Health data is never used for advertising or shared with anyone. You can change or revoke access at any time in Settings › Health › Data Access & Devices › Vitala.
 
+    Photos
+    If you add a profile photo, you choose it with the system photo picker. Vitala only receives the single photo you select, never your library.
+
     Notifications
     Reminders are scheduled on your device. Nothing is sent to a server.
 
