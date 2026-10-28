@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Log a new custom activity, OR edit/delete an existing one when `editing`
 /// is non-nil. The form fields pre-populate from the editing session.
+/// Present inside a `NavigationStack`.
 struct LogActivityView: View {
     @EnvironmentObject var units: UnitsService
     @Environment(\.dismiss) var dismiss
@@ -23,117 +24,119 @@ struct LogActivityView: View {
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
 
+    private var trimmedName: String { name.trimmingCharacters(in: .whitespaces) }
+    private var distanceIsValid: Bool { distance.isEmpty || units.parseDistanceToKm(distance) != nil }
+    private var canSave: Bool { !trimmedName.isEmpty && distanceIsValid && !saving }
+
     var body: some View {
-        NavigationStack {
-            Form {
-                Section("Activity") {
-                    TextField("Name (e.g. Pickleball, Hike, Cycling)", text: $name)
-                        .textInputAutocapitalization(.words)
-                    Picker("Type", selection: $category) {
-                        ForEach(Workout.Category.allCases) { c in
-                            Label(c.label.capitalized, systemImage: c.icon).tag(c)
-                        }
+        Form {
+            Section("Activity") {
+                TextField("Name", text: $name, prompt: Text("Pickleball, hike, cycling…"))
+                    .textInputAutocapitalization(.words)
+                Picker("Type", selection: $category) {
+                    ForEach(Workout.Category.allCases) { c in
+                        Label(c.label, systemImage: c.icon).tag(c)
                     }
                 }
+            }
 
-                Section("When") {
-                    DatePicker("Started", selection: $startedAt,
-                               in: ...Date.now,
-                               displayedComponents: [.date, .hourAndMinute])
+            Section("When") {
+                DatePicker("Started", selection: $startedAt,
+                           in: ...Date.now,
+                           displayedComponents: [.date, .hourAndMinute])
+            }
+
+            Section {
+                Stepper(value: $durationMinutes, in: 1...600, step: 5) {
+                    LabeledContent("Duration", value: "\(durationMinutes) min")
                 }
-
-                Section("How long & how hard") {
-                    Stepper("Duration: \(durationMinutes) min",
-                            value: $durationMinutes, in: 1...600, step: 5)
-                    Stepper("Calories: \(calories) kcal",
-                            value: $calories, in: 0...3_000, step: 10)
-                    HStack {
-                        Text("Distance (optional)")
-                        Spacer()
-                        TextField(units.distanceUnitLabel(), text: $distance)
-                            .multilineTextAlignment(.trailing)
-                            .keyboardType(.decimalPad)
-                            .frame(width: 90)
-                    }
+                Stepper(value: $calories, in: 0...3_000, step: 10) {
+                    LabeledContent("Active energy", value: "\(calories) kcal")
                 }
-
-                Section("Notes") {
-                    TextField("Anything you want to remember", text: $notes, axis: .vertical)
-                        .lineLimit(3...6)
+                HStack {
+                    Text("Distance")
+                    Spacer()
+                    TextField("Distance", text: $distance, prompt: Text("Optional"))
+                        .multilineTextAlignment(.trailing)
+                        .keyboardType(.decimalPad)
+                        .frame(maxWidth: 110)
+                    Text(units.distanceUnitLabel())
+                        .foregroundStyle(VitalaColor.textSecondary)
+                        .accessibilityHidden(true)
                 }
+            } header: {
+                Text("How long & how hard")
+            } footer: {
+                if !distanceIsValid {
+                    Text("Enter a distance greater than zero, or leave it empty.")
+                        .foregroundStyle(VitalaColor.danger)
+                }
+            }
 
+            Section("Notes") {
+                TextField("Notes", text: $notes, prompt: Text("Anything you want to remember"), axis: .vertical)
+                    .lineLimit(3...6)
+            }
+
+            if editing != nil {
                 Section {
-                    Button {
-                        Task { await save() }
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
                     } label: {
-                        if saving {
-                            HStack { ProgressView(); Text("Saving…") }
-                                .frame(maxWidth: .infinity)
-                        } else {
-                            Text(editing == nil ? "Save activity" : "Save changes").bold()
-                                .frame(maxWidth: .infinity)
-                        }
-                    }
-                    .disabled(name.trimmingCharacters(in: .whitespaces).isEmpty || saving)
-                    .foregroundStyle(VitalaColor.primary)
-
-                    if editing != nil {
-                        Button(role: .destructive) {
-                            showDeleteConfirm = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text("Delete activity")
-                            }
+                        Label("Delete activity", systemImage: "trash")
                             .frame(maxWidth: .infinity)
-                        }
                     }
-                }
-            }
-            .navigationTitle(editing == nil ? "Log activity" : "Edit activity")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-            }
-            .confirmationDialog("Delete this activity?",
-                                isPresented: $showDeleteConfirm,
-                                titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    Task { await delete() }
-                }
-                Button("Cancel", role: .cancel) {}
-            }
-            .onAppear {
-                guard !didLoad else { return }
-                didLoad = true
-                if let s = editing {
-                    name = s.workoutName
-                    startedAt = s.startedAt
-                    durationMinutes = max(1, s.durationSeconds / 60)
-                    calories = s.caloriesBurned
-                    notes = s.notes ?? ""
-                    // Sessions logged before 1.0 didn't store a type; guess from the name.
-                    category = s.category ?? guessCategory(from: s.workoutName)
-                    if let km = s.distanceKm {
-                        distance = String(format: "%.2f", units.displayDistance(km: km))
-                    }
-                } else if let d = forDate, !Calendar.current.isDateInToday(d) {
-                    // Anchor a backdated log to the selected day, but keep the
-                    // current time so the time-of-day picker isn't midnight.
-                    let cal = Calendar.current
-                    let comps = cal.dateComponents([.hour, .minute], from: .now)
-                    var anchor = cal.startOfDay(for: d)
-                    anchor = cal.date(byAdding: .hour, value: comps.hour ?? 9, to: anchor) ?? anchor
-                    anchor = cal.date(byAdding: .minute, value: comps.minute ?? 0, to: anchor) ?? anchor
-                    startedAt = min(anchor, .now)
                 }
             }
         }
+        .scrollContentBackground(.hidden)
+        .background(VitalaColor.background.ignoresSafeArea())
+        .navigationTitle(editing == nil ? "Log activity" : "Edit activity")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Save") { Task { await save() } }
+                    .disabled(!canSave)
+            }
+        }
+        .confirmationDialog("Delete this activity?",
+                            isPresented: $showDeleteConfirm,
+                            titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                Task { await delete() }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .onAppear(perform: load)
     }
 
     // MARK: Actions
+
+    private func load() {
+        guard !didLoad else { return }
+        didLoad = true
+        if let s = editing {
+            name = s.workoutName
+            startedAt = s.startedAt
+            durationMinutes = max(1, s.durationSeconds / 60)
+            calories = s.caloriesBurned
+            notes = s.notes ?? ""
+            // Sessions logged before 1.0 didn't store a type; guess from the name.
+            category = s.category ?? guessCategory(from: s.workoutName)
+            if let km = s.distanceKm {
+                distance = String(format: "%.2f", units.displayDistance(km: km))
+            }
+        } else if let d = forDate, !Calendar.current.isDateInToday(d) {
+            // Anchor a backdated log to the selected day, but keep the
+            // current time so the time-of-day picker isn't midnight.
+            let cal = Calendar.current
+            let comps = cal.dateComponents([.hour, .minute], from: .now)
+            startedAt = cal.date(bySettingHour: comps.hour ?? 9, minute: comps.minute ?? 0, second: 0, of: d) ?? d
+        }
+    }
 
     private func save() async {
         saving = true
@@ -141,7 +144,7 @@ struct LogActivityView: View {
         let session = WorkoutSession(
             id: editing?.id ?? UUID().uuidString,
             workoutId: editing?.workoutId ?? "custom-\(UUID().uuidString.prefix(8))",
-            workoutName: name.trimmingCharacters(in: .whitespaces),
+            workoutName: trimmedName,
             startedAt: startedAt,
             endedAt: endedAt,
             durationSeconds: durationMinutes * 60,
@@ -151,6 +154,7 @@ struct LogActivityView: View {
             distanceKm: units.parseDistanceToKm(distance)
         )
         try? await DataStore.shared.logWorkout(session)
+        Haptics.success()
         saving = false
         dismiss()
     }
@@ -177,6 +181,6 @@ struct LogActivityView: View {
 }
 
 #Preview {
-    LogActivityView()
+    NavigationStack { LogActivityView() }
         .environmentObject(UnitsService())
 }

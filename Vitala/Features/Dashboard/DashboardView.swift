@@ -103,7 +103,7 @@ struct DashboardView: View {
                 NavigationStack { SleepTrackerView() }
             }
             .sheet(item: $editingWorkout) { session in
-                LogActivityView(editing: session)
+                NavigationStack { LogActivityView(editing: session) }
             }
         }
     }

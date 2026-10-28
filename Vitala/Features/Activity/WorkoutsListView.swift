@@ -5,6 +5,7 @@ struct WorkoutsListView: View {
     @State private var showingLogActivity = false
     @State private var editingSession: WorkoutSession? = nil
     @State private var selectedDate: Date = .now
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @ObservedObject private var store = DataStore.shared
 
@@ -19,6 +20,12 @@ struct WorkoutsListView: View {
             .sorted { $0.startedAt > $1.startedAt }
     }
 
+    private var columns: [GridItem] {
+        typeSize.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
@@ -26,15 +33,8 @@ struct WorkoutsListView: View {
                     title: "Activity",
                     subtitle: "Pick a session — or log your own.",
                     trailing: AnyView(
-                        Button {
+                        HeaderActionButton(title: "Log", accessibilityLabel: "Log an activity") {
                             showingLogActivity = true
-                        } label: {
-                            Label("Log", systemImage: "plus.circle.fill")
-                                .font(VitalaFont.bodyMedium(15))
-                                .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(VitalaColor.primary.opacity(0.12))
-                                .foregroundStyle(VitalaColor.primary)
-                                .clipShape(Capsule())
                         }
                     )
                 )
@@ -44,23 +44,19 @@ struct WorkoutsListView: View {
 
                 sessionsForDateSection
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        chip(label: "All", isOn: category == nil) { category = nil }
-                        ForEach(Workout.Category.allCases) { c in
-                            chip(label: c.label, icon: c.icon, isOn: category == c) { category = c }
+                VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+                    SectionHeader(title: "Library", trailing: "\(workouts.count) sessions")
+                    categoryFilter
+                    LazyVGrid(columns: columns, spacing: 14) {
+                        ForEach(workouts) { w in
+                            NavigationLink(destination: WorkoutDetailView(workout: w)) {
+                                WorkoutCard(workout: w)
+                            }
+                            .buttonStyle(PressableButtonStyle())
                         }
                     }
-                    .padding(.horizontal, 2)
-                }
-
-                SectionHeader(title: "Library")
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 14) {
-                    ForEach(workouts) { w in
-                        NavigationLink(destination: WorkoutDetailView(workout: w)) {
-                            WorkoutCard(workout: w)
-                        }
-                        .buttonStyle(.plain)
+                    if workouts.isEmpty {
+                        EmptyStateRow(text: "No sessions in this category yet.", icon: "sparkles")
                     }
                 }
             }
@@ -68,25 +64,19 @@ struct WorkoutsListView: View {
             .padding(.bottom, VitalaSpacing.xl)
         }
         .background(VitalaColor.background.ignoresSafeArea())
-        .toolbar(.hidden)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingLogActivity) {
-            LogActivityView(forDate: selectedDate)
+            NavigationStack { LogActivityView(forDate: selectedDate) }
         }
         .sheet(item: $editingSession) { session in
-            LogActivityView(editing: session)
+            NavigationStack { LogActivityView(editing: session) }
         }
     }
 
     private var sessionsForDateSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text("Sessions").font(VitalaFont.headline(18))
-                Spacer()
-                if !sessionsOnSelectedDate.isEmpty {
-                    Text("\(sessionsOnSelectedDate.count) logged")
-                        .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-                }
-            }
+            SectionHeader(title: "Sessions",
+                          trailing: sessionsOnSelectedDate.isEmpty ? nil : "\(sessionsOnSelectedDate.count) logged")
 
             if sessionsOnSelectedDate.isEmpty {
                 EmptyStateRow(text: "No activities logged on this day.",
@@ -105,19 +95,45 @@ struct WorkoutsListView: View {
         }
     }
 
-    private func chip(label: String, icon: String? = nil, isOn: Bool, action: @escaping () -> Void) -> some View {
+    private var categoryFilter: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                FilterChip(label: "All", isOn: category == nil) { category = nil }
+                ForEach(Workout.Category.allCases) { c in
+                    FilterChip(label: c.label, icon: c.icon, isOn: category == c) { category = c }
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Filter by type")
+    }
+}
+
+/// Capsule filter used above libraries.
+struct FilterChip: View {
+    let label: String
+    var icon: String? = nil
+    let isOn: Bool
+    let action: () -> Void
+
+    var body: some View {
         Button(action: action) {
             HStack(spacing: 6) {
-                if let icon { Image(systemName: icon).font(.system(size: 12, weight: .semibold)) }
+                if let icon {
+                    Image(systemName: icon).font(.caption.weight(.semibold)).accessibilityHidden(true)
+                }
                 Text(label).font(VitalaFont.caption(13))
             }
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .background(isOn ? VitalaColor.primary : VitalaColor.surface)
+            .padding(.horizontal, 14)
+            .frame(minHeight: 44)
+            .background(Capsule().fill(isOn ? AnyShapeStyle(VitalaColor.primaryGradient) : AnyShapeStyle(VitalaColor.surface)))
+            .overlay(Capsule().stroke(isOn ? .clear : VitalaColor.hairline, lineWidth: 1))
             .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
-            .clipShape(Capsule())
-            .overlay(Capsule().stroke(Color.black.opacity(0.05), lineWidth: 1))
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
 
@@ -127,36 +143,39 @@ struct WorkoutCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             ZStack {
-                RoundedRectangle(cornerRadius: 16)
+                RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
                     .fill(LinearGradient(colors: [Color(hex: workout.coverTint),
                                                   Color(hex: workout.coverTint).opacity(0.7)],
-                                          startPoint: .topLeading, endPoint: .bottomTrailing))
+                                         startPoint: .topLeading, endPoint: .bottomTrailing))
                 Image(systemName: workout.imageSystemName)
                     .font(.system(size: 42, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.95))
+                    .foregroundStyle(.white)
+                    .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             }
             .frame(height: 110)
+            .accessibilityHidden(true)
 
-            Text(workout.name).font(VitalaFont.bodyMedium(15))
+            Text(workout.name)
+                .font(VitalaFont.bodyMedium(15))
                 .foregroundStyle(VitalaColor.textPrimary)
-                .lineLimit(1)
+                .lineLimit(2, reservesSpace: true)
             HStack(spacing: 6) {
-                Image(systemName: "clock").font(.system(size: 11))
+                Image(systemName: "clock").font(.caption2).accessibilityHidden(true)
                 Text("\(workout.durationMinutes) min")
                     .font(VitalaFont.caption(12))
-                Spacer()
-                Text(workout.difficulty.label.capitalized)
+                Spacer(minLength: 4)
+                Text(workout.difficulty.label)
                     .font(VitalaFont.caption(11))
                     .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(VitalaColor.primary.opacity(0.12))
+                    .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
                     .foregroundStyle(VitalaColor.primary)
-                    .clipShape(Capsule())
             }
             .foregroundStyle(VitalaColor.textSecondary)
         }
         .padding(10)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-        .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+        .surfaceCard()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(workout.name)
+        .accessibilityValue("\(workout.category.label), \(workout.durationMinutes) minutes, \(workout.difficulty.label)")
     }
 }

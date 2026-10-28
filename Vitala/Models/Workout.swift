@@ -15,7 +15,12 @@ struct Workout: Codable, Identifiable, Hashable {
     enum Category: String, Codable, CaseIterable, Identifiable {
         case yoga, strength, cardio, hiit, pilates, mobility, walking, running
         var id: String { rawValue }
-        var label: String { rawValue.capitalized }
+        var label: String {
+            switch self {
+            case .hiit: "HIIT"
+            default: rawValue.capitalized
+            }
+        }
         var icon: String {
             switch self {
             case .yoga: "figure.yoga"
