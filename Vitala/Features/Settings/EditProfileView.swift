@@ -69,6 +69,7 @@ struct EditProfileView: View {
                     .disabled(trimmedName.isEmpty)
             }
         }
+        .keyboardDoneButton()
         .onAppear(perform: load)
     }
 

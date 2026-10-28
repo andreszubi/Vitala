@@ -10,11 +10,7 @@ struct DateNavigator: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button(action: previousDay) {
-                chevron("chevron.left")
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Previous day")
+            GlassIconButton(systemName: "chevron.left", label: "Previous day", action: previousDay)
 
             Button {
                 showPicker = true
@@ -28,21 +24,18 @@ struct DateNavigator: View {
                         .font(VitalaFont.bodyMedium(15))
                         .foregroundStyle(VitalaColor.textPrimary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 44)
-                .padding(.horizontal, 14)
-                .surfaceCard()
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .padding(.horizontal, 6)
             }
-            .buttonStyle(.plain)
+            .buttonBorderShape(.capsule)
+            .glassButtonStyle()
+            .frame(minHeight: 44)
             .accessibilityLabel("Showing \(label)")
             .accessibilityHint("Opens a calendar to choose another day")
 
-            Button(action: nextDay) {
-                chevron("chevron.right")
-                    .opacity(isToday ? 0.35 : 1)
-            }
-            .buttonStyle(.plain)
-            .disabled(isToday)
-            .accessibilityLabel("Next day")
+            GlassIconButton(systemName: "chevron.right", label: "Next day", action: nextDay)
+                .disabled(isToday)
+                .opacity(isToday ? 0.35 : 1)
         }
         .sheet(isPresented: $showPicker) {
             NavigationStack {
@@ -75,16 +68,6 @@ struct DateNavigator: View {
         if cal.isDateInToday(date) { return "Today" }
         if cal.isDateInYesterday(date) { return "Yesterday" }
         return date.formatted(date: .abbreviated, time: .omitted)
-    }
-
-    private func chevron(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.subheadline.weight(.semibold))
-            .frame(width: 44, height: 44)
-            .background(Circle().fill(VitalaColor.surface))
-            .overlay(Circle().stroke(VitalaColor.hairline, lineWidth: 1))
-            .foregroundStyle(VitalaColor.textPrimary)
-            .contentShape(Circle())
     }
 
     private func previousDay() {

@@ -64,7 +64,7 @@ struct WaterTrackerView: View {
                 .padding(.horizontal, VitalaSpacing.lg)
                 .padding(.vertical, VitalaSpacing.md)
             }
-            .background(VitalaColor.background.ignoresSafeArea())
+            .sheetBackground()
             .navigationTitle("Water")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

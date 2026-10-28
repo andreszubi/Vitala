@@ -66,16 +66,7 @@ struct OnboardingView: View {
     private var topBar: some View {
         HStack {
             if page > 0 {
-                Button {
-                    go(to: page - 1)
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .font(.body.weight(.semibold))
-                        .frame(width: 44, height: 44)
-                        .contentShape(Rectangle())
-                }
-                .foregroundStyle(VitalaColor.textPrimary)
-                .accessibilityLabel("Back")
+                GlassIconButton(systemName: "chevron.left", label: "Back") { go(to: page - 1) }
             }
             Spacer()
             if !isFormPage {
@@ -151,6 +142,7 @@ struct OnboardingView: View {
             .padding(.bottom, VitalaSpacing.xl)
         }
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
     }
 
     // MARK: Actions

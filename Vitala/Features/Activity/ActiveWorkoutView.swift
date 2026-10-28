@@ -83,14 +83,7 @@ struct ActiveWorkoutView: View {
 
     private var topBar: some View {
         HStack {
-            Button { confirmingEnd = true } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(VitalaColor.surface))
-                    .foregroundStyle(VitalaColor.textPrimary)
-            }
-            .accessibilityLabel("End workout")
+            GlassIconButton(systemName: "xmark", label: "End workout") { confirmingEnd = true }
             Spacer()
             Text(workout.name)
                 .font(VitalaFont.bodyMedium(15))
@@ -169,36 +162,18 @@ struct ActiveWorkoutView: View {
 
     private var controls: some View {
         HStack(spacing: 20) {
-            Button { move(by: -1) } label: {
-                Image(systemName: "backward.fill")
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(VitalaColor.surface))
-                    .foregroundStyle(VitalaColor.textPrimary)
+            GlassIconButton(systemName: "backward.fill", label: "Previous exercise", size: 60) { move(by: -1) }
+                .disabled(index == 0)
+                .opacity(index == 0 ? 0.4 : 1)
+            GlassIconButton(systemName: isRunning ? "pause.fill" : "play.fill",
+                            label: isRunning ? "Pause" : "Resume",
+                            size: 84, prominent: true, tint: VitalaColor.primaryFill) { togglePause() }
+            GlassIconButton(systemName: isLast ? "checkmark" : "forward.fill",
+                            label: isLast ? "Finish workout" : "Next exercise", size: 60) {
+                isLast ? save() : move(by: 1)
             }
-            .disabled(index == 0)
-            .opacity(index == 0 ? 0.4 : 1)
-            .accessibilityLabel("Previous exercise")
-
-            Button { togglePause() } label: {
-                Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                    .font(.title)
-                    .frame(width: 80, height: 80)
-                    .background(Circle().fill(VitalaColor.primaryGradient))
-                    .foregroundStyle(.white)
-                    .shadow(color: VitalaColor.primaryFill.opacity(0.35), radius: 12, y: 6)
-            }
-            .accessibilityLabel(isRunning ? "Pause" : "Resume")
-
-            Button { isLast ? save() : move(by: 1) } label: {
-                Image(systemName: isLast ? "checkmark" : "forward.fill")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(VitalaColor.surface))
-                    .foregroundStyle(VitalaColor.textPrimary)
-            }
-            .accessibilityLabel(isLast ? "Finish workout" : "Next exercise")
         }
-        .buttonStyle(PressableButtonStyle())
+        .glassGroup(spacing: 20)
     }
 
     // MARK: Logic

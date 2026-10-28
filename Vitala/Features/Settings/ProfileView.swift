@@ -94,6 +94,7 @@ struct ProfileView: View {
                 RowItem(icon: "chart.bar.fill", iconTint: VitalaColor.primary,
                         title: "Progress", subtitle: "Trends across movement, food, sleep and calm")
             }
+            .accessibilityIdentifier("profile.progress")
             NavigationLink { GoalsSettingsView() } label: {
                 RowItem(icon: "target", iconTint: VitalaColor.coralText,
                         title: "Goals", subtitle: profileStore.profile?.goals.primaryFocus.label ?? "")
@@ -106,6 +107,7 @@ struct ProfileView: View {
                 RowItem(icon: "gearshape.fill", iconTint: VitalaColor.muted,
                         title: "Settings", subtitle: "Reminders, units, privacy and your data")
             }
+            .accessibilityIdentifier("profile.settings")
         }
         .buttonStyle(.plain)
     }

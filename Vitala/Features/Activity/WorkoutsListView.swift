@@ -103,6 +103,7 @@ struct WorkoutsListView: View {
                     FilterChip(label: c.label, icon: c.icon, isOn: category == c) { category = c }
                 }
             }
+            .glassGroup()
             .padding(.vertical, 2)
         }
         .accessibilityElement(children: .contain)
@@ -110,29 +111,46 @@ struct WorkoutsListView: View {
     }
 }
 
-/// Capsule filter used above libraries.
+/// Capsule filter used above libraries. Native glass on iOS 26+.
 struct FilterChip: View {
     let label: String
     var icon: String? = nil
     let isOn: Bool
     let action: () -> Void
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                if let icon {
-                    Image(systemName: icon).font(.caption.weight(.semibold)).accessibilityHidden(true)
-                }
-                Text(label).font(VitalaFont.caption(13))
+    private var content: some View {
+        HStack(spacing: 6) {
+            if let icon {
+                Image(systemName: icon).font(.caption.weight(.semibold)).accessibilityHidden(true)
             }
-            .padding(.horizontal, 14)
-            .frame(minHeight: 44)
-            .background(Capsule().fill(isOn ? AnyShapeStyle(VitalaColor.primaryGradient) : AnyShapeStyle(VitalaColor.surface)))
-            .overlay(Capsule().stroke(isOn ? .clear : VitalaColor.hairline, lineWidth: 1))
-            .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
-            .contentShape(Capsule())
+            Text(label).font(VitalaFont.caption(13))
         }
-        .buttonStyle(.plain)
+    }
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                Button(action: action) {
+                    content
+                        .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
+                        .frame(minHeight: 28)
+                }
+                .buttonBorderShape(.capsule)
+                .glassButtonStyle(prominent: isOn, tint: isOn ? VitalaColor.primaryFill : nil)
+            } else {
+                Button(action: action) {
+                    content
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(isOn ? AnyShapeStyle(VitalaColor.primaryGradient) : AnyShapeStyle(VitalaColor.surface)))
+                        .overlay(Capsule().stroke(isOn ? .clear : VitalaColor.hairline, lineWidth: 1))
+                        .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .frame(minHeight: 44)
         .accessibilityAddTraits(isOn ? .isSelected : [])
     }
 }
@@ -159,16 +177,16 @@ struct WorkoutCard: View {
                 .font(VitalaFont.bodyMedium(15))
                 .foregroundStyle(VitalaColor.textPrimary)
                 .lineLimit(2, reservesSpace: true)
-            HStack(spacing: 6) {
-                Image(systemName: "clock").font(.caption2).accessibilityHidden(true)
-                Text("\(workout.durationMinutes) min")
-                    .font(VitalaFont.caption(12))
-                Spacer(minLength: 4)
-                Text(workout.difficulty.label)
-                    .font(VitalaFont.caption(11))
-                    .padding(.horizontal, 8).padding(.vertical, 3)
-                    .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
-                    .foregroundStyle(VitalaColor.primary)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    duration
+                    Spacer(minLength: 4)
+                    difficulty
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    duration
+                    difficulty
+                }
             }
             .foregroundStyle(VitalaColor.textSecondary)
         }
@@ -177,5 +195,23 @@ struct WorkoutCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(workout.name)
         .accessibilityValue("\(workout.category.label), \(workout.durationMinutes) minutes, \(workout.difficulty.label)")
+    }
+
+    private var duration: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "clock").font(.caption2).accessibilityHidden(true)
+            Text("\(workout.durationMinutes) min")
+                .font(VitalaFont.caption(12))
+                .fixedSize()
+        }
+    }
+
+    private var difficulty: some View {
+        Text(workout.difficulty.label)
+            .font(VitalaFont.caption(11))
+            .fixedSize()
+            .padding(.horizontal, 8).padding(.vertical, 3)
+            .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
+            .foregroundStyle(VitalaColor.primary)
     }
 }

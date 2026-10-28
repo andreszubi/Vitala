@@ -38,15 +38,9 @@ struct ProfileSetupRootView: View {
 
     private var header: some View {
         HStack(spacing: VitalaSpacing.sm) {
-            Button {
+            GlassIconButton(systemName: "chevron.left", label: "Back") {
                 withAnimation(reduceMotion ? nil : .default) { step = max(0, step - 1) }
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
             }
-            .foregroundStyle(VitalaColor.textPrimary)
             .opacity(step > 0 ? 1 : 0)
             .disabled(step == 0)
             .accessibilityHidden(step == 0)

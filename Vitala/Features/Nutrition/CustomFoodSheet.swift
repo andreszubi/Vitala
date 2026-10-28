@@ -79,6 +79,7 @@ struct CustomFoodSheet: View {
         }
         .scrollContentBackground(.hidden)
         .background(VitalaColor.background.ignoresSafeArea())
+        .keyboardDoneButton()
         .navigationTitle("Custom food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

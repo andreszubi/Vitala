@@ -26,6 +26,7 @@ struct MainTabView: View {
                 .tag(AppState.MainTab.sleep)
         }
         .tint(VitalaColor.primary)
+        .minimizingTabBar()
         .onChange(of: appState.selectedTab) { _, _ in Haptics.selection() }
         .task {
             // Pick up permission changes made in the Settings app.

@@ -108,17 +108,16 @@ struct AddMealView: View {
             .padding(.bottom, VitalaSpacing.lg)
         }
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
         .background(VitalaColor.background.ignoresSafeArea())
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search foods")
-        .safeAreaInset(edge: .bottom) {
+        .bottomActionBar {
             PrimaryButton(title: saveLabel,
                           icon: "checkmark",
                           isLoading: saving,
                           isEnabled: !selected.isEmpty) {
                 Task { await save() }
             }
-            .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.vertical, VitalaSpacing.sm)
         }
         .navigationTitle(editing == nil ? "Log a meal" : "Edit meal")
         .navigationBarTitleDisplayMode(.inline)

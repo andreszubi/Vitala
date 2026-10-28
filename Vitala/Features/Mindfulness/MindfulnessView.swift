@@ -125,6 +125,7 @@ struct MindfulnessView: View {
                         FilterChip(label: c.label, isOn: category == c) { category = c }
                     }
                 }
+                .glassGroup()
                 .padding(.vertical, 2)
             }
             .accessibilityElement(children: .contain)

@@ -43,6 +43,7 @@ struct EditMindfulnessSheet: View {
         }
         .scrollContentBackground(.hidden)
         .background(VitalaColor.background.ignoresSafeArea())
+        .keyboardDoneButton()
         .navigationTitle("Edit session")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

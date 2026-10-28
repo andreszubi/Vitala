@@ -19,29 +19,48 @@ struct PrimaryButton: View {
     var isEnabled: Bool = true
     let action: () -> Void
 
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: VitalaSpacing.xs) {
-                if isLoading {
-                    ProgressView().tint(.white)
-                } else {
-                    if let icon { Image(systemName: icon).accessibilityHidden(true) }
-                    Text(title).font(VitalaFont.bodyMedium(17))
-                }
+    private var label: some View {
+        HStack(spacing: VitalaSpacing.xs) {
+            if isLoading {
+                ProgressView().tint(.white)
+            } else {
+                if let icon { Image(systemName: icon).accessibilityHidden(true) }
+                Text(title).font(VitalaFont.bodyMedium(17))
             }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .padding(.horizontal, VitalaSpacing.md)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(VitalaColor.primaryGradient)
-                    .opacity(isEnabled ? 1 : 0.4)
-            )
-            .foregroundStyle(.white)
-            .shadow(color: VitalaColor.primaryFill.opacity(isEnabled ? 0.3 : 0), radius: 12, x: 0, y: 6)
-            .contentShape(Capsule())
         }
-        .buttonStyle(PressableButtonStyle())
+        .multilineTextAlignment(.center)
+    }
+
+    var body: some View {
+        Group {
+            if #available(iOS 26.0, *) {
+                // Native Liquid Glass, tinted with the brand fill.
+                Button(action: action) {
+                    label
+                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .controlSize(.large)
+                .tint(VitalaColor.primaryFill)
+            } else {
+                Button(action: action) {
+                    label
+                        .frame(maxWidth: .infinity, minHeight: 56)
+                        .padding(.horizontal, VitalaSpacing.md)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(VitalaColor.primaryGradient)
+                                .opacity(isEnabled ? 1 : 0.4)
+                        )
+                        .foregroundStyle(.white)
+                        .shadow(color: VitalaColor.primaryFill.opacity(isEnabled ? 0.3 : 0), radius: 12, x: 0, y: 6)
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+        }
         .disabled(!isEnabled || isLoading)
         .accessibilityLabel(title)
         .accessibilityValue(isLoading ? "In progress" : "")
@@ -58,21 +77,36 @@ struct SecondaryButton: View {
         role == .destructive ? VitalaColor.danger : VitalaColor.primary
     }
 
-    var body: some View {
-        Button(role: role, action: action) {
-            HStack(spacing: VitalaSpacing.xs) {
-                if let icon { Image(systemName: icon).accessibilityHidden(true) }
-                Text(title).font(VitalaFont.bodyMedium(17))
-            }
-            .multilineTextAlignment(.center)
-            .frame(maxWidth: .infinity, minHeight: 56)
-            .padding(.horizontal, VitalaSpacing.md)
-            .foregroundStyle(tint)
-            .background(Capsule(style: .continuous).fill(tint.opacity(0.10)))
-            .overlay(Capsule(style: .continuous).stroke(tint.opacity(0.35), lineWidth: 1))
-            .contentShape(Capsule())
+    private var label: some View {
+        HStack(spacing: VitalaSpacing.xs) {
+            if let icon { Image(systemName: icon).accessibilityHidden(true) }
+            Text(title).font(VitalaFont.bodyMedium(17))
         }
-        .buttonStyle(PressableButtonStyle())
+        .multilineTextAlignment(.center)
+        .foregroundStyle(tint)
+    }
+
+    var body: some View {
+        if #available(iOS 26.0, *) {
+            Button(role: role, action: action) {
+                label
+                    .frame(maxWidth: .infinity, minHeight: 36)
+                    .padding(.vertical, 6)
+            }
+            .buttonStyle(.glass)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+        } else {
+            Button(role: role, action: action) {
+                label
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .padding(.horizontal, VitalaSpacing.md)
+                    .background(Capsule(style: .continuous).fill(tint.opacity(0.10)))
+                    .overlay(Capsule(style: .continuous).stroke(tint.opacity(0.35), lineWidth: 1))
+                    .contentShape(Capsule())
+            }
+            .buttonStyle(PressableButtonStyle())
+        }
     }
 }
 
@@ -99,16 +133,30 @@ struct HeaderActionButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
-            Label(title, systemImage: icon)
-                .font(VitalaFont.bodyMedium(15))
-                .padding(.horizontal, 14)
-                .frame(minHeight: 44)
-                .foregroundStyle(.white)
-                .background(Capsule().fill(VitalaColor.primaryGradient))
-                .contentShape(Capsule())
+        Group {
+            if #available(iOS 26.0, *) {
+                Button(action: action) {
+                    Label(title, systemImage: icon)
+                        .font(VitalaFont.bodyMedium(15))
+                        .frame(minHeight: 30)
+                }
+                .buttonStyle(.glassProminent)
+                .buttonBorderShape(.capsule)
+                .tint(VitalaColor.primaryFill)
+            } else {
+                Button(action: action) {
+                    Label(title, systemImage: icon)
+                        .font(VitalaFont.bodyMedium(15))
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .foregroundStyle(.white)
+                        .background(Capsule().fill(VitalaColor.primaryGradient))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
         }
-        .buttonStyle(PressableButtonStyle())
+        .frame(minHeight: 44)
         .accessibilityLabel(accessibilityLabel ?? title)
     }
 }

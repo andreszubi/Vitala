@@ -74,6 +74,7 @@ struct QuickLogButton: View {
         Button(action: action) {
             QuickLogCard(icon: icon, title: title, value: value, tint: tint, progress: progress)
         }
+        .accessibilityIdentifier("quicklog.\(title.lowercased())")
         .buttonStyle(PressableButtonStyle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(title)

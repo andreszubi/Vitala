@@ -20,12 +20,10 @@ struct WorkoutDetailView: View {
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
-        .safeAreaInset(edge: .bottom) {
+        .bottomActionBar {
             PrimaryButton(title: "Start session", icon: "play.fill") {
                 startSession = true
             }
-            .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.vertical, VitalaSpacing.sm)
         }
         .fullScreenCover(isPresented: $startSession) {
             ActiveWorkoutView(workout: workout)

@@ -83,6 +83,7 @@ struct PersonalInfoView: View {
             .padding(.bottom, VitalaSpacing.xl)
         }
         .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
         .onAppear { reloadFromDraft() }
         .onChange(of: units.system) { _, _ in reloadFromDraft() }
     }

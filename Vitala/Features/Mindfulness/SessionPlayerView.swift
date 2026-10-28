@@ -112,14 +112,7 @@ struct SessionPlayerView: View {
 
     private var topBar: some View {
         HStack {
-            Button { endTapped() } label: {
-                Image(systemName: "xmark")
-                    .font(.body.weight(.semibold))
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(.white.opacity(0.2)))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityLabel("End session")
+            GlassIconButton(systemName: "xmark", label: "End session", foreground: .white) { endTapped() }
             Spacer()
             Text(session.category.label)
                 .font(VitalaFont.caption())
@@ -180,32 +173,12 @@ struct SessionPlayerView: View {
 
     private var controls: some View {
         HStack(spacing: 28) {
-            Button { restart() } label: {
-                Image(systemName: "arrow.counterclockwise")
-                    .font(.title3)
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(.white.opacity(0.2)))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityLabel("Restart")
-            Button { togglePlay() } label: {
-                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title)
-                    .frame(width: 80, height: 80)
-                    .background(Circle().fill(.white))
-                    .foregroundStyle(Color(hex: session.tint))
-            }
-            .accessibilityLabel(isPlaying ? "Pause" : "Resume")
-            Button { endTapped() } label: {
-                Image(systemName: "checkmark")
-                    .font(.title3.weight(.semibold))
-                    .frame(width: 56, height: 56)
-                    .background(Circle().fill(.white.opacity(0.2)))
-                    .foregroundStyle(.white)
-            }
-            .accessibilityLabel("Finish")
+            GlassIconButton(systemName: "arrow.counterclockwise", label: "Restart", size: 60, foreground: .white) { restart() }
+            GlassIconButton(systemName: isPlaying ? "pause.fill" : "play.fill",
+                            label: isPlaying ? "Pause" : "Resume", size: 84, foreground: .white) { togglePlay() }
+            GlassIconButton(systemName: "checkmark", label: "Finish", size: 60, foreground: .white) { endTapped() }
         }
-        .buttonStyle(PressableButtonStyle())
+        .glassGroup(spacing: 28)
     }
 
     // MARK: Logic

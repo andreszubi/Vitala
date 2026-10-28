@@ -110,6 +110,7 @@ struct LogActivityView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
+        .keyboardDoneButton()
         .onAppear(perform: load)
     }
 
