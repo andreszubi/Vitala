@@ -76,6 +76,8 @@ private struct StepProgressBar: View {
                     .frame(height: 6)
             }
         }
+        .padding(.vertical, 19)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Step \(step + 1) of \(total)")
     }

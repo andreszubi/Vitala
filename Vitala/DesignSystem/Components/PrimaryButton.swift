@@ -12,6 +12,16 @@ struct PressableButtonStyle: ButtonStyle {
     }
 }
 
+/// Plain text button whose hit area is at least 44×44 points.
+struct TapTargetButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .frame(minWidth: 44, minHeight: 44)
+            .contentShape(Rectangle())
+            .opacity(configuration.isPressed ? 0.55 : 1)
+    }
+}
+
 struct PrimaryButton: View {
     let title: String
     var icon: String? = nil

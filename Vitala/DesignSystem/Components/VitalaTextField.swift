@@ -35,6 +35,7 @@ struct VitalaTextField: View {
                         TextField(title, text: $text, prompt: Text(placeholder))
                     }
                 }
+                .accessibilityLabel(title)
                 .focused($focused)
                 .keyboardType(keyboard)
                 .textContentType(contentType)

@@ -221,7 +221,10 @@ struct SleepView: View {
                     }
                 }
                 .frame(height: 180)
-                .accessibilityLabel("Hours slept, last 7 nights")
+                .dailyChartAccessibility(DailyChartDescriptor(
+                    title: "Hours slept", unit: "hours",
+                    points: lastSevenDays.reversed().map { (Calendar.current.startOfDay(for: $0.wakeTime), $0.hours) },
+                    goal: sleepGoal))
             }
         }
         .vitalaCard()

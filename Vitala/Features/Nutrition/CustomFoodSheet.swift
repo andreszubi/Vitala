@@ -75,6 +75,7 @@ struct CustomFoodSheet: View {
                 EmptyView()
             } footer: {
                 Text("Custom foods are saved to your library and appear in search.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
         }
         .scrollContentBackground(.hidden)

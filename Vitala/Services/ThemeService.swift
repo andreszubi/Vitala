@@ -5,7 +5,7 @@ enum AppTheme: String, CaseIterable, Identifiable, Codable {
     var id: String { rawValue }
     var label: String {
         switch self {
-        case .system: "Match system"
+        case .system: "System"
         case .light:  "Light"
         case .dark:   "Dark"
         }

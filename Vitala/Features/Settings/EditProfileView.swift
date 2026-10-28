@@ -44,6 +44,7 @@ struct EditProfileView: View {
                 Text("About you")
             } footer: {
                 Text("Used only on this device to personalise your targets.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
 
             Section("Body") {

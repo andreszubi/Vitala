@@ -67,6 +67,7 @@ struct SettingsView: View {
                 Text("Your data")
             } footer: {
                 Text("Vitala keeps everything on this iPhone. Export creates a JSON file you can save anywhere.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
 
             Section("About") {
@@ -128,6 +129,7 @@ struct RemindersView: View {
                     }
                 } footer: {
                     Text("Vitala asks once. You can change this later in Settings.")
+                        .foregroundStyle(VitalaColor.textSecondary)
                 }
             }
 
@@ -139,6 +141,7 @@ struct RemindersView: View {
                 }
             } footer: {
                 Text("Reminders repeat daily at the times you choose.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
             .disabled(notifications.authorizationStatus == .denied)
         }
@@ -269,6 +272,7 @@ struct ConnectedServicesView: View {
                 }
             } footer: {
                 Text("Vitala reads steps, active energy, exercise minutes, distance, heart rate, sleep and mindful minutes, and saves the water, sleep, mindful sessions and workouts you log. Change what Vitala can access in Settings › Health › Data Access & Devices › Vitala.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
         }
         .scrollContentBackground(.hidden)

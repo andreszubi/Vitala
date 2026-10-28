@@ -11,6 +11,8 @@ struct SectionHeader: View {
             Text(title)
                 .font(VitalaFont.headline(18))
                 .foregroundStyle(VitalaColor.textPrimary)
+                .fixedSize(horizontal: false, vertical: true)
+                .layoutPriority(1)
                 .accessibilityAddTraits(.isHeader)
             Spacer(minLength: VitalaSpacing.xs)
             if let trailing {
@@ -23,7 +25,7 @@ struct SectionHeader: View {
                 Button(actionTitle, action: action)
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.primary)
-                    .frame(minHeight: 44)
+                    .buttonStyle(TapTargetButtonStyle())
             }
         }
     }

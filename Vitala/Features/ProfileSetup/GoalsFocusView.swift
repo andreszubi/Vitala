@@ -74,7 +74,7 @@ struct GoalTargetsEditor: View {
                     }
                     .font(VitalaFont.caption(13))
                     .foregroundStyle(VitalaColor.primary)
-                    .frame(minHeight: 44)
+                    .buttonStyle(TapTargetButtonStyle())
                     .accessibilityHint("Based on your height, weight, age and activity level")
                 }
             }

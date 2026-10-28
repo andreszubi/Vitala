@@ -51,7 +51,7 @@ struct ProgressRingSingle: View {
     var body: some View {
         GeometryReader { geo in
             // Keep the centre label clear of the stroke at any ring size.
-            let inset = max(geo.size.width, 1) * 0.2
+            let inset = max(geo.size.width, 1) * 0.15
 
             ZStack {
                 Circle()
@@ -67,7 +67,7 @@ struct ProgressRingSingle: View {
                 // full-size value.
                 VStack(spacing: 2) {
                     Text(value)
-                        .font(VitalaFont.title(26))
+                        .font(VitalaFont.headline(17))
                         .foregroundStyle(VitalaColor.textPrimary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.4)

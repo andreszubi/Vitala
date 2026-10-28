@@ -35,13 +35,13 @@ struct WaterTrackerView: View {
                     LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(units.quickWaterOptions(), id: \.label) { option in
                             amountButton(label: option.label, icon: "drop.fill") { log(ml: option.ml) }
-                                .accessibilityLabel("Add \(option.label)")
+                                .accessibilityHint("Adds this amount to today")
                         }
                         amountButton(label: "Custom", icon: "plus") {
                             customAmount = ""
                             showingCustom = true
                         }
-                        .accessibilityLabel("Add a custom amount")
+                        .accessibilityHint("Adds an amount you type")
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -99,9 +99,8 @@ struct WaterTrackerView: View {
             .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitalaColor.surface.opacity(0.85)))
         }
         .frame(maxWidth: .infinity)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Water today")
-        .accessibilityValue("\(units.compactVolume(ml: total)) of \(units.compactVolume(ml: goal)), \(Int(progress * 100)) percent")
+        .accessibilityElement(children: .combine)
+        .accessibilityValue("\(Int(progress * 100)) percent of today's goal")
     }
 
     private func amountButton(label: String, icon: String, action: @escaping () -> Void) -> some View {

@@ -117,14 +117,14 @@ struct ProgressDashboardView: View {
                         }
                 }
             }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Days with any log, last 4 weeks")
+            .accessibilityValue("Active on \(activeCount) of 28 days")
             Text("Each square is a day you logged anything — water, a meal, a workout, sleep or a mindful pause.")
                 .font(VitalaFont.caption(12))
                 .foregroundStyle(VitalaColor.textSecondary)
         }
         .vitalaCard()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Consistency")
-        .accessibilityValue("Active on \(activeCount) of the last 28 days")
     }
 }
 
@@ -182,7 +182,7 @@ private struct TrendCard: View {
                     }
                 }
                 .frame(height: 160)
-                .accessibilityLabel("\(title) per day")
+                .dailyChartAccessibility(DailyChartDescriptor(title: title, unit: unit, points: points, goal: goal))
 
                 if goal != nil {
                     Text("Goal met on \(daysOnGoal) of \(points.count) days")

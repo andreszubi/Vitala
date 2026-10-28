@@ -73,7 +73,7 @@ struct OnboardingView: View {
                 Button("Skip") { go(to: marketingPages.count) }
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textSecondary)
-                    .frame(minWidth: 44, minHeight: 44)
+                    .buttonStyle(TapTargetButtonStyle())
                     .accessibilityHint("Skips to setting up your name")
             }
         }
@@ -91,6 +91,8 @@ struct OnboardingView: View {
             }
         }
         .animation(reduceMotion ? nil : .spring(duration: 0.3), value: page)
+        .padding(.vertical, 18)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Page \(page + 1) of \(totalPages)")
     }

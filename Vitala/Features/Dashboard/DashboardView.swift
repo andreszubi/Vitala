@@ -152,7 +152,7 @@ struct DashboardView: View {
                 }
                 .font(VitalaFont.bodyMedium(15))
                 .foregroundStyle(VitalaColor.primary)
-                .frame(minHeight: 44)
+                .buttonStyle(TapTargetButtonStyle())
             }
             Spacer(minLength: 0)
         }
@@ -320,7 +320,10 @@ struct AvatarView: View {
 
     var body: some View {
         Text(initials)
-            .font(.system(size: size * 0.38, weight: .semibold, design: .rounded))
+            .font(size > 64 ? VitalaFont.title(28) : VitalaFont.headline(18))
+            .lineLimit(1)
+            .minimumScaleFactor(0.3)
+            .padding(size * 0.14)
             .foregroundStyle(.white)
             .frame(width: size, height: size)
             .background(Circle().fill(VitalaColor.primaryGradient))

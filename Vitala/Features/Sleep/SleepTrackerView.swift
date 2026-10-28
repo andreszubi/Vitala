@@ -89,7 +89,7 @@ struct SleepTrackerView: View {
                     Text(DashboardView.hoursText(hours))
                         .font(VitalaFont.title(28))
                         .foregroundStyle(VitalaColor.primary)
-                        .accessibilityLabel("Duration, \(DashboardView.hoursText(hours))")
+                        .accessibilityHint("Time asleep")
                     Spacer()
                 }
             }
@@ -192,7 +192,7 @@ private struct QualityChip: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(quality.label) sleep")
+        .accessibilityHint("Sleep quality")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
