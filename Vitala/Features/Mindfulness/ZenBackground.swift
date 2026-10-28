@@ -66,8 +66,20 @@ struct ZenBackground: View {
                         // A fixed moment when motion is reduced; otherwise wall-clock seconds.
                         let t = reduceMotion ? 40 : timeline.date.timeIntervalSinceReferenceDate
                             .truncatingRemainder(dividingBy: 86_400)
-                        Canvas(rendersAsynchronously: true) { context, size in
-                            ZenPainter.motion(scene, context, size, t)
+                        ZStack {
+                            Canvas(rendersAsynchronously: true) { context, size in
+                                ZenPainter.motion(scene, context, size, t)
+                            }
+                            if scene == .aurora {
+                                // Drawn sharp, then softened by a blur the GPU
+                                // applies to the whole layer, which is far cheaper
+                                // than blurring inside the Canvas every frame.
+                                Canvas(rendersAsynchronously: true) { context, size in
+                                    ZenPainter.auroraRibbons(context, size, t)
+                                }
+                                .blur(radius: 18)
+                                .blendMode(.plusLighter)
+                            }
                         }
                     }
                 }
@@ -298,10 +310,14 @@ enum ZenPainter {
     // MARK: Aurora
 
     private static func aurora(_ ctx: GraphicsContext, _ size: CGSize, _ t: Double) {
-        let w = size.width, h = size.height
         drawStars(ctx, size, t, count: 90, maxY: 0.7, brightness: 0.7)
+    }
 
-        var lights = ctx
+    /// Three soft ribbons of green, teal and violet light drifting across the
+    /// sky. Drawn sharp-edged; the view blurs them into a glow.
+    static func auroraRibbons(_ context: GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        var lights = context
         lights.blendMode = .plusLighter
         let ribbons: [(y: Double, color: Color, speed: Double)] = [
             (0.22, Color(hex: "#5CF2B4"), 0.11), (0.3, Color(hex: "#38C9C9"), 0.08), (0.38, Color(hex: "#9B7CF2"), 0.06),
@@ -316,18 +332,17 @@ enum ZenPainter {
                 let thickness = h * (0.06 + 0.04 * sin(twoPi * (u * 1.4 + t * 0.05 * Double(i + 1))))
                 top.append(CGPoint(x: x, y: centre - thickness))
                 bottom.append(CGPoint(x: x, y: centre + thickness * 0.4))
-                x += 12
+                x += 10
             }
             var band = Path()
             band.addLines(top)
             band.addLines(bottom.reversed())
             band.closeSubpath()
-            // Fades to nothing at the top and bottom edges, so no blur is needed.
             lights.fill(band, with: .linearGradient(
                 Gradient(stops: [.init(color: ribbon.color.opacity(0), location: 0),
-                                 .init(color: ribbon.color.opacity(0.45), location: 0.6),
-                                 .init(color: ribbon.color.opacity(0), location: 1)]),
-                startPoint: CGPoint(x: 0, y: h * (ribbon.y - 0.12)), endPoint: CGPoint(x: 0, y: h * (ribbon.y + 0.05))))
+                                 .init(color: ribbon.color.opacity(0.55), location: 0.65),
+                                 .init(color: ribbon.color.opacity(0.1), location: 1)]),
+                startPoint: CGPoint(x: 0, y: h * (ribbon.y - 0.12)), endPoint: CGPoint(x: 0, y: h * (ribbon.y + 0.06))))
         }
     }
 
