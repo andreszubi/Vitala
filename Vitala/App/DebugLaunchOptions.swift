@@ -50,8 +50,12 @@ enum DebugLaunchOptions {
         var sleep: [SleepEntry] = []
         var mindful: [LoggedMindfulness] = []
         var journal: [JournalEntry] = []
-        let notes = ["Slept well and woke up before the alarm.", "Busy day, but the evening walk helped.",
-                     "Grateful for a long call with a friend.", "Felt scattered this morning."]
+        let notes = [
+            "Slept well and woke up before the alarm.\n\nTen minutes of box breathing before coffee made the morning feel unhurried. Today I want to take the stairs, drink more water, and call home this evening.",
+            "Busy day, but the evening walk helped. Noticed I breathe faster when I check email.",
+            "Grateful for a long call with a friend.",
+            "Felt scattered this morning. A slow exhale before each meeting helped.",
+        ]
         let food = FoodLibrary.common
 
         for d in 0..<14 {

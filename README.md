@@ -5,7 +5,7 @@ A calm iPhone companion for movement, food, water, sleep, mindful breathing and 
 Author: Andres Zubizarreta
 
 <p align="center">
-  <img src="docs/app-store/screenshots-overview.png" alt="Vitala screens: Today, Activity, Nutrition, Sleep, Breathing, Progress" width="100%">
+  <img src="docs/app-store/screenshots-overview.png" alt="Vitala screens: Today, Activity, Nutrition, Sleep, Breathing, Journal, Progress" width="100%">
 </p>
 
 ## Features

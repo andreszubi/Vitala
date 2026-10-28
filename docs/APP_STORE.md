@@ -131,8 +131,9 @@ No demo account is needed.
 4. `04-Sleep.png` — latest night, 7-night chart
 5. `05-Breathing.png` — guided breathing with sound
 6. `06-Progress.png` — consistency and trends
+7. `07-Journal.png` — a mood journal entry
 
-Optional seventh shot: the Mindfulness tab scrolled to the Journal, or the journal entry sheet, to show the mood journal. Add a capture step to `ScreenshotTests` before regenerating.
+Suggested upload order: Today, Activity, Nutrition, Sleep, Breathing, Journal, Progress (the order of `screenshots-overview.png`).
 
 Regenerate after UI changes:
 

@@ -184,6 +184,7 @@ struct MindfulnessView: View {
                                noun: "journal entry",
                                onEdit: { journalSheet = .edit(entry) },
                                onDelete: { deleteJournal(entry) })
+                            .accessibilityIdentifier("journal.entry")
                     }
                 }
             }
