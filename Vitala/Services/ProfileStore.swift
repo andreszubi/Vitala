@@ -7,9 +7,9 @@ import SwiftUI
 final class ProfileStore: ObservableObject {
     @Published private(set) var profile: UserProfile?
 
-    static let fileName = "profile.json"
+    nonisolated static let fileName = "profile.json"
     /// Where the profile lived before 1.0. Read once, migrated, then removed.
-    static let legacyDefaultsKey = "vitala.demo.profile"
+    nonisolated static let legacyDefaultsKey = "vitala.demo.profile"
 
     private let files: SecureFileStore
     private let defaults: UserDefaults

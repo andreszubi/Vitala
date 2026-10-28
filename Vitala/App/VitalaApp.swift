@@ -10,7 +10,9 @@ struct VitalaApp: App {
     @StateObject private var themeService = ThemeService()
 
     init() {
-        UINavigationBar.appearance().largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        #if DEBUG
+        DebugLaunchOptions.apply()
+        #endif
     }
 
     var body: some Scene {

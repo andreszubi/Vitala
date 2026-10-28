@@ -15,9 +15,9 @@ final class DataStore: ObservableObject {
     @Published private(set) var mindfulness: [LoggedMindfulness] = []
     @Published private(set) var customFoods: [FoodItem] = []
 
-    static let fileName = "logs.json"
+    nonisolated static let fileName = "logs.json"
     /// Where data lived before 1.0. Read once, migrated, then removed.
-    static let legacyDefaultsKey = "vitala.demo.firestore"
+    nonisolated static let legacyDefaultsKey = "vitala.demo.firestore"
 
     private let files: SecureFileStore
     private let defaults: UserDefaults
