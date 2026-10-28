@@ -139,4 +139,15 @@ final class UnitsService: ObservableObject {
     }
 
     func distanceUnitLabel() -> String { system == .metric ? "km" : "mi" }
+
+    /// Convert km -> display value (km or mi).
+    func displayDistance(km: Double) -> Double {
+        system == .metric ? km : km * 0.621371
+    }
+
+    /// Parse user input in the current system back to km. Empty or invalid → nil.
+    func parseDistanceToKm(_ text: String) -> Double? {
+        guard let v = Double(text.replacingOccurrences(of: ",", with: ".")), v > 0 else { return nil }
+        return system == .metric ? v : v / 0.621371
+    }
 }

@@ -5,7 +5,7 @@ import Foundation
 /// soon as something is logged elsewhere in the app.
 @MainActor
 final class DataStore: ObservableObject {
-    static let shared = DataStore()
+    static let shared = DataStore(health: .shared)
 
     @Published private(set) var summaries: [String: DailySummary] = [:]
     @Published private(set) var workouts: [WorkoutSession] = []
@@ -21,13 +21,18 @@ final class DataStore: ObservableObject {
 
     private let files: SecureFileStore
     private let defaults: UserDefaults
+    /// Mirrors logs into Apple Health when the user has connected it.
+    private let health: HealthKitService?
     /// Set when the data file exists but can't be read; persisting would
     /// overwrite it, so writes are skipped until the next launch.
     private var isReadOnly = false
 
-    init(files: SecureFileStore = SecureFileStore(), defaults: UserDefaults = .standard) {
+    init(files: SecureFileStore = SecureFileStore(),
+         defaults: UserDefaults = .standard,
+         health: HealthKitService? = nil) {
         self.files = files
         self.defaults = defaults
+        self.health = health
         load()
     }
 
@@ -48,6 +53,7 @@ final class DataStore: ObservableObject {
     func logWorkout(_ session: WorkoutSession) async throws {
         upsert(session, into: &workouts)
         persist()
+        if let health { Task { await health.save(workout: session) } }
     }
 
     func recentWorkouts(limit: Int = 20) async throws -> [WorkoutSession] {
@@ -57,6 +63,7 @@ final class DataStore: ObservableObject {
     func deleteWorkout(_ session: WorkoutSession) async throws {
         workouts.removeAll { $0.id == session.id }
         persist()
+        if let health { Task { await health.delete(workout: session) } }
     }
 
     // MARK: Meals
@@ -80,6 +87,7 @@ final class DataStore: ObservableObject {
     func logWater(_ entry: WaterEntry) async throws {
         upsert(entry, into: &water)
         persist()
+        if let health { Task { await health.save(water: entry) } }
     }
 
     func water(on date: Date) async throws -> [WaterEntry] {
@@ -89,6 +97,7 @@ final class DataStore: ObservableObject {
     func deleteWater(_ entry: WaterEntry) async throws {
         water.removeAll { $0.id == entry.id }
         persist()
+        if let health { Task { await health.delete(water: entry) } }
     }
 
     // MARK: Sleep
@@ -96,6 +105,7 @@ final class DataStore: ObservableObject {
     func logSleep(_ entry: SleepEntry) async throws {
         upsert(entry, into: &sleep)
         persist()
+        if let health { Task { await health.save(sleep: entry) } }
     }
 
     func recentSleep(limit: Int = 14) async throws -> [SleepEntry] {
@@ -105,6 +115,7 @@ final class DataStore: ObservableObject {
     func deleteSleep(_ entry: SleepEntry) async throws {
         sleep.removeAll { $0.id == entry.id }
         persist()
+        if let health { Task { await health.delete(sleep: entry) } }
     }
 
     // MARK: Mindfulness
@@ -112,11 +123,13 @@ final class DataStore: ObservableObject {
     func logMindfulness(_ entry: LoggedMindfulness) async throws {
         upsert(entry, into: &mindfulness)
         persist()
+        if let health { Task { await health.save(mindfulness: entry) } }
     }
 
     func deleteMindfulness(_ entry: LoggedMindfulness) async throws {
         mindfulness.removeAll { $0.id == entry.id }
         persist()
+        if let health { Task { await health.delete(mindfulness: entry) } }
     }
 
     // MARK: Custom foods (user-created)
@@ -133,7 +146,8 @@ final class DataStore: ObservableObject {
 
     // MARK: Erase
 
-    /// Permanently removes every log from this device.
+    /// Permanently removes every log from this device. Copies already saved
+    /// to Apple Health stay there — they belong to the user's Health record.
     func eraseAll() {
         summaries = [:]
         workouts = []

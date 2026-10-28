@@ -29,3 +29,22 @@ struct UnitsServiceTests {
         units.system = .metric
     }
 }
+
+@MainActor
+struct DistanceParsingTests {
+    @Test func parsesCommaDecimalsAndRejectsEmpty() throws {
+        let units = UnitsService()
+        units.system = .metric
+        #expect(units.parseDistanceToKm("5,5") == 5.5)
+        #expect(units.parseDistanceToKm("") == nil)
+        #expect(units.parseDistanceToKm("0") == nil)
+    }
+
+    @Test func imperialMilesConvertToKm() throws {
+        let units = UnitsService()
+        units.system = .imperial
+        let km = try #require(units.parseDistanceToKm("3.1"))
+        #expect(abs(km - 4.989) < 0.01)
+        units.system = .metric
+    }
+}

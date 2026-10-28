@@ -1,10 +1,8 @@
 import SwiftUI
-import HealthKit
 
 /// Log a new custom activity, OR edit/delete an existing one when `editing`
 /// is non-nil. The form fields pre-populate from the editing session.
 struct LogActivityView: View {
-    @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var units: UnitsService
     @Environment(\.dismiss) var dismiss
 
@@ -116,8 +114,11 @@ struct LogActivityView: View {
                     durationMinutes = max(1, s.durationSeconds / 60)
                     calories = s.caloriesBurned
                     notes = s.notes ?? ""
-                    // Best guess on category from name (we don't store it on the session).
-                    category = guessCategory(from: s.workoutName)
+                    // Sessions logged before 1.0 didn't store a type; guess from the name.
+                    category = s.category ?? guessCategory(from: s.workoutName)
+                    if let km = s.distanceKm {
+                        distance = String(format: "%.2f", units.displayDistance(km: km))
+                    }
                 } else if let d = forDate, !Calendar.current.isDateInToday(d) {
                     // Anchor a backdated log to the selected day, but keep the
                     // current time so the time-of-day picker isn't midnight.
@@ -145,19 +146,11 @@ struct LogActivityView: View {
             endedAt: endedAt,
             durationSeconds: durationMinutes * 60,
             caloriesBurned: calories,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            category: category,
+            distanceKm: units.parseDistanceToKm(distance)
         )
         try? await DataStore.shared.logWorkout(session)
-
-        // Best-effort HealthKit write — fire-and-forget.
-        let activity = hkActivity(for: category)
-        let kcal = Double(calories)
-        Task.detached { [health] in
-            try? await health.logWorkout(activity: activity,
-                                         start: startedAt,
-                                         end: endedAt,
-                                         kcal: kcal)
-        }
         saving = false
         dismiss()
     }
@@ -181,23 +174,9 @@ struct LogActivityView: View {
         if lower.contains("stretch") || lower.contains("mobility") { return .mobility }
         return .cardio
     }
-
-    private func hkActivity(for category: Workout.Category) -> HKWorkoutActivityType {
-        switch category {
-        case .yoga: return .yoga
-        case .strength: return .functionalStrengthTraining
-        case .cardio: return .mixedCardio
-        case .hiit: return .highIntensityIntervalTraining
-        case .pilates: return .pilates
-        case .mobility: return .flexibility
-        case .walking: return .walking
-        case .running: return .running
-        }
-    }
 }
 
 #Preview {
     LogActivityView()
-        .environmentObject(HealthKitService.shared)
         .environmentObject(UnitsService())
 }

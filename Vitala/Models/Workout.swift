@@ -57,6 +57,9 @@ struct WorkoutSession: Codable, Identifiable, Hashable {
     var durationSeconds: Int
     var caloriesBurned: Int
     var notes: String?
+    /// Optional so sessions logged before 1.0 still decode.
+    var category: Workout.Category? = nil
+    var distanceKm: Double? = nil
 }
 
 /// Sample library shipped with the app for offline / first-launch use.

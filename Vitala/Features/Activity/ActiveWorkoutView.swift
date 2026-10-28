@@ -1,10 +1,8 @@
 import SwiftUI
-import HealthKit
 
 struct ActiveWorkoutView: View {
     let workout: Workout
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var health: HealthKitService
 
     @State private var index: Int = 0
     @State private var elapsed: Int = 0
@@ -133,32 +131,12 @@ struct ActiveWorkoutView: View {
             startedAt: startedAt,
             endedAt: endedAt,
             durationSeconds: elapsed,
-            caloriesBurned: workout.caloriesBurned
+            caloriesBurned: workout.caloriesBurned,
+            category: workout.category
         )
-        let activity = hkActivity()
-        let kcal = Double(workout.caloriesBurned)
         Task {
             try? await DataStore.shared.logWorkout(session)
         }
-        // Fire-and-forget HK write so dismiss isn't blocked if HK hangs.
-        Task.detached { [health] in
-            try? await health.logWorkout(activity: activity,
-                                         start: startedAt, end: endedAt,
-                                         kcal: kcal)
-        }
         dismiss()
-    }
-
-    private func hkActivity() -> HKWorkoutActivityType {
-        switch workout.category {
-        case .yoga: return .yoga
-        case .strength: return .functionalStrengthTraining
-        case .cardio: return .mixedCardio
-        case .hiit: return .highIntensityIntervalTraining
-        case .pilates: return .pilates
-        case .mobility: return .flexibility
-        case .walking: return .walking
-        case .running: return .running
-        }
     }
 }

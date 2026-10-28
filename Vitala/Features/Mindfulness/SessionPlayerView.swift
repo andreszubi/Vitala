@@ -157,10 +157,6 @@ struct SessionPlayerView: View {
         Task {
             try? await DataStore.shared.logMindfulness(entry)
         }
-        // Fire-and-forget HK write so dismiss isn't blocked.
-        Task.detached { [health, startedAt, endedAt] in
-            try? await health.logMindfulness(start: startedAt, end: endedAt)
-        }
         dismiss()
     }
 

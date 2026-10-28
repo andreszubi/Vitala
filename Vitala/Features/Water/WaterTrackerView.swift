@@ -88,10 +88,6 @@ struct WaterTrackerView: View {
         Task {
             try? await DataStore.shared.logWater(entry)
         }
-        // Fire-and-forget HK write so the UI is responsive even if HK hangs.
-        Task.detached { [health] in
-            try? await health.logWater(ml: Double(ml))
-        }
     }
 }
 

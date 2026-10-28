@@ -39,17 +39,9 @@
         <string>UIInterfaceOrientationLandscapeRight</string>
     </array>
 
-    <!-- HealthKit privacy strings (kept so prompts have copy if you re-enable
-         the entitlement on a real device). Harmless when entitlement is absent. -->
     <key>NSHealthShareUsageDescription</key>
-    <string>Vitala reads steps, heart rate, workouts, and sleep from Apple Health to show your wellness picture.</string>
+    <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, and mindful minutes from Apple Health to show your daily progress.</string>
     <key>NSHealthUpdateUsageDescription</key>
-    <string>Vitala can save water, mindful sessions, and workouts you log here back to Apple Health.</string>
-    <key>NSCameraUsageDescription</key>
-    <string>Used so you can take a profile photo.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Used so you can pick a profile photo from your library.</string>
-    <key>NSMotionUsageDescription</key>
-    <string>Used to count steps when Apple Health isn't available.</string>
+    <string>Vitala saves the water, sleep, mindful sessions, and workouts you log to Apple Health so your records stay in one place.</string>
 </dict>
 </plist>
