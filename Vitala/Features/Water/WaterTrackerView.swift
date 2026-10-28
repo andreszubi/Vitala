@@ -1,125 +1,161 @@
 import SwiftUI
 
+/// Today's water. Presented as a sheet; wraps its own NavigationStack so it
+/// always has a Done button.
 struct WaterTrackerView: View {
     @EnvironmentObject var profileStore: ProfileStore
-    @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var units: UnitsService
     @Environment(\.dismiss) var dismiss
-    @State private var entries: [WaterEntry] = []
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ObservedObject private var store = DataStore.shared
 
+    @State private var showingCustom = false
+    @State private var customAmount = ""
+
+    private var entries: [WaterEntry] {
+        store.water
+            .filter { Calendar.current.isDateInToday($0.loggedAt) }
+            .sorted { $0.loggedAt > $1.loggedAt }
+    }
     private var goal: Int { profileStore.profile?.goals.dailyWaterMl ?? 2000 }
     private var total: Int { entries.reduce(0) { $0 + $1.amountMl } }
-    private var progress: Double { min(1, Double(total) / Double(goal)) }
+    private var progress: Double { min(1, Double(total) / Double(max(goal, 1))) }
 
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
-                ScreenHeader(title: "Water", subtitle: "Tiny sips, all day long.")
-                    .padding(.top, VitalaSpacing.md)
-
-                VStack(spacing: VitalaSpacing.sm) {
-                    ZStack {
-                        WaterGlass(progress: progress)
-                            .frame(width: 200, height: 240)
-                        VStack(spacing: 2) {
-                            Text(units.formatVolume(ml: Double(total)))
-                                .font(VitalaFont.title(34))
-                                .foregroundStyle(VitalaColor.textPrimary)
-                            Text("of \(units.formatVolume(ml: Double(goal)))")
-                                .font(VitalaFont.caption())
-                                .foregroundStyle(VitalaColor.textSecondary)
-                        }
-                    }
-                }
-                .frame(maxWidth: .infinity)
-
-                SectionHeader(title: "Quick add")
-                LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                    ForEach(units.quickWaterOptions(), id: \.label) { option in
-                        Button {
-                            log(ml: option.ml)
-                        } label: {
-                            VStack(spacing: 6) {
-                                Image(systemName: "drop.fill")
-                                    .foregroundStyle(Color(red: 0.34, green: 0.62, blue: 0.86))
-                                Text(option.label).font(VitalaFont.caption(13))
-                                    .foregroundStyle(VitalaColor.textPrimary)
-                            }
-                            .frame(maxWidth: .infinity).padding(.vertical, 14)
-                            .background(VitalaColor.surface)
-                            .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-
-                if !entries.isEmpty {
-                    SectionHeader(title: "Today's log")
-                    ForEach(entries.sorted { $0.loggedAt > $1.loggedAt }) { e in
-                        HStack {
-                            Image(systemName: "drop.fill").foregroundStyle(Color(red: 0.34, green: 0.62, blue: 0.86))
-                            Text(units.formatVolume(ml: Double(e.amountMl))).font(VitalaFont.bodyMedium(15))
-                            Spacer()
-                            Text(e.loggedAt, style: .time).font(VitalaFont.caption())
-                                .foregroundStyle(VitalaColor.textSecondary)
-                        }
-                        .padding(.vertical, 10).padding(.horizontal, 12)
-                        .background(VitalaColor.surface)
-                        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.sm))
-                    }
-                }
-            }
-            .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.bottom, VitalaSpacing.xl)
-        }
-        .background(VitalaColor.background.ignoresSafeArea())
-        .task { await load() }
+    private var columns: [GridItem] {
+        Array(repeating: GridItem(.flexible(), spacing: 10), count: typeSize.isAccessibilitySize ? 2 : 3)
     }
 
-    private func load() async {
-        if let e = try? await DataStore.shared.water(on: .now) {
-            entries = e
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
+                    glassSummary
+
+                    SectionHeader(title: "Quick add")
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(units.quickWaterOptions(), id: \.label) { option in
+                            amountButton(label: option.label, icon: "drop.fill") { log(ml: option.ml) }
+                                .accessibilityLabel("Add \(option.label)")
+                        }
+                        amountButton(label: "Custom", icon: "plus") {
+                            customAmount = ""
+                            showingCustom = true
+                        }
+                        .accessibilityLabel("Add a custom amount")
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionHeader(title: "Today's log",
+                                      trailing: entries.isEmpty ? nil : "\(entries.count) \(entries.count == 1 ? "drink" : "drinks")")
+                        if entries.isEmpty {
+                            EmptyStateRow(text: "Nothing yet — every sip counts.", icon: "drop")
+                        } else {
+                            ForEach(entries) { e in
+                                LogRow(icon: "drop.fill",
+                                       tint: VitalaColor.water,
+                                       title: units.formatVolume(ml: Double(e.amountMl)),
+                                       subtitle: e.loggedAt.formatted(date: .omitted, time: .shortened),
+                                       noun: "water entry",
+                                       onDelete: { Task { try? await store.deleteWater(e) } })
+                            }
+                        }
+                    }
+                }
+                .padding(.horizontal, VitalaSpacing.lg)
+                .padding(.vertical, VitalaSpacing.md)
+            }
+            .background(VitalaColor.background.ignoresSafeArea())
+            .navigationTitle("Water")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+            .alert("Add water", isPresented: $showingCustom) {
+                TextField("Amount in \(units.volumeUnitLabel())", text: $customAmount)
+                    .keyboardType(.decimalPad)
+                Button("Add") { logCustom() }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("How much did you drink, in \(units.volumeUnitLabel())?")
+            }
         }
+    }
+
+    private var glassSummary: some View {
+        ZStack {
+            WaterGlass(progress: progress)
+                .frame(width: 180, height: 220)
+            VStack(spacing: 2) {
+                Text(units.compactVolume(ml: total))
+                    .font(VitalaFont.title(30))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                Text("of \(units.compactVolume(ml: goal))")
+                    .font(VitalaFont.caption())
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitalaColor.surface.opacity(0.85)))
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Water today")
+        .accessibilityValue("\(units.compactVolume(ml: total)) of \(units.compactVolume(ml: goal)), \(Int(progress * 100)) percent")
+    }
+
+    private func amountButton(label: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .foregroundStyle(VitalaColor.water)
+                    .accessibilityHidden(true)
+                Text(label).font(VitalaFont.caption(13))
+                    .foregroundStyle(VitalaColor.textPrimary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 64)
+            .surfaceCard()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
     }
 
     private func log(ml: Int) {
+        guard ml > 0 else { return }
         let entry = WaterEntry(amountMl: ml, loggedAt: .now)
-        entries.append(entry)
-        Task {
-            try? await DataStore.shared.logWater(entry)
-        }
+        Task { try? await store.logWater(entry) }
+        Haptics.success()
+        AccessibilityNotification.Announcement("Added \(units.formatVolume(ml: Double(ml)))").post()
+    }
+
+    private func logCustom() {
+        guard let value = Double(customAmount.replacingOccurrences(of: ",", with: ".")), value > 0 else { return }
+        let ml = units.system == .metric ? value : value / 0.033814
+        log(ml: Int(ml.rounded()))
     }
 }
 
 /// Decorative animated glass that fills with water.
 struct WaterGlass: View {
     let progress: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
-            let w = geo.size.width
             let h = geo.size.height
             ZStack(alignment: .bottom) {
-                // Glass outline
                 RoundedRectangle(cornerRadius: 40, style: .continuous)
-                    .stroke(VitalaColor.muted.opacity(0.4), lineWidth: 3)
-
-                // Water level
+                    .fill(VitalaColor.water.opacity(0.08))
                 RoundedRectangle(cornerRadius: 40, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [Color(red: 0.5, green: 0.78, blue: 0.95),
-                                 Color(red: 0.27, green: 0.55, blue: 0.84)],
-                        startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [VitalaColor.water.opacity(0.55), VitalaColor.water],
+                                         startPoint: .top, endPoint: .bottom))
                     .frame(height: max(0, h * CGFloat(progress)))
-                    .animation(.easeInOut(duration: 0.8), value: progress)
-
-                // Highlight
+                    .animation(reduceMotion ? nil : .easeInOut(duration: 0.8), value: progress)
                 RoundedRectangle(cornerRadius: 40, style: .continuous)
-                    .stroke(LinearGradient(colors: [.white.opacity(0.6), .clear],
-                                           startPoint: .topLeading, endPoint: .bottomTrailing),
-                            lineWidth: 1.5)
+                    .stroke(VitalaColor.water.opacity(0.45), lineWidth: 3)
             }
-            .frame(width: w, height: h)
+            .clipShape(RoundedRectangle(cornerRadius: 40, style: .continuous))
         }
+        .accessibilityHidden(true)
     }
 }

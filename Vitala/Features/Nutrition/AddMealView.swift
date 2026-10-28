@@ -1,141 +1,116 @@
 import SwiftUI
 
+/// Log or edit a meal. Present inside a `NavigationStack`.
 struct AddMealView: View {
     @Environment(\.dismiss) var dismiss
+    @ObservedObject private var store = DataStore.shared
 
     /// If non-nil, the form is in edit mode for this meal.
     var editing: Meal? = nil
+    /// Meal type to start with when logging a new meal.
+    var initialType: Meal.MealType? = nil
     /// Optional default date (used when logging from a past-day Nutrition view).
     var forDate: Date? = nil
 
     @State private var query: String = ""
-    @State private var mealType: Meal.MealType = .lunch
+    @State private var mealType: Meal.MealType = .suggested()
     @State private var selected: [FoodItem] = []
     @State private var saving = false
-    @State private var customFoods: [FoodItem] = []
     @State private var showCustomSheet = false
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
 
-    private var allKnownFoods: [FoodItem] {
-        customFoods + FoodLibrary.common
-    }
+    private var customFoods: [FoodItem] { store.customFoods }
 
     private var results: [FoodItem] {
-        if query.trimmingCharacters(in: .whitespaces).isEmpty { return allKnownFoods }
-        return allKnownFoods.filter { $0.name.localizedCaseInsensitiveContains(query) }
+        let trimmed = query.trimmingCharacters(in: .whitespaces)
+        let library = FoodLibrary.common
+        guard !trimmed.isEmpty else { return library }
+        return (customFoods + library).filter {
+            $0.name.localizedCaseInsensitiveContains(trimmed) || ($0.brand?.localizedCaseInsensitiveContains(trimmed) ?? false)
+        }
     }
+
+    private var selectedCalories: Int { selected.reduce(0) { $0 + $1.calories } }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitalaSpacing.md) {
-                Text(editing == nil ? "Log a meal" : "Edit meal")
-                    .font(VitalaFont.title(26))
-                    .padding(.top, VitalaSpacing.md)
-
-                Picker("", selection: $mealType) {
+                Picker("Meal", selection: $mealType) {
                     ForEach(Meal.MealType.allCases) { t in
                         Text(t.label).tag(t)
                     }
                 }
                 .pickerStyle(.segmented)
+                .padding(.top, VitalaSpacing.sm)
 
-                HStack {
-                    Image(systemName: "magnifyingglass").foregroundStyle(VitalaColor.muted)
-                    TextField("Search foods", text: $query)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                if !selected.isEmpty {
+                    SectionHeader(title: "In this meal", trailing: "\(selectedCalories) kcal")
+                    ForEach(FoodGroup.grouping(selected)) { group in
+                        SelectedFoodRow(group: group,
+                                        onAdd: { selected.append(group.item.newInstance()) },
+                                        onRemove: { removeOne(of: group) })
+                    }
                 }
-                .padding(14)
-                .background(VitalaColor.surface)
-                .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
 
                 Button {
                     showCustomSheet = true
                 } label: {
                     HStack(spacing: 10) {
                         Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 20))
+                            .font(.title3)
+                            .accessibilityHidden(true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Add custom food")
                                 .font(VitalaFont.bodyMedium(15))
-                            Text("Doesn't show up in search? Create your own.")
+                            Text("Can't find it? Create your own.")
                                 .font(VitalaFont.caption(12))
                                 .foregroundStyle(VitalaColor.textSecondary)
                         }
                         Spacer()
                         Image(systemName: "chevron.right")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(VitalaColor.muted)
+                            .accessibilityHidden(true)
                     }
                     .padding(12)
+                    .frame(minHeight: 44)
                     .foregroundStyle(VitalaColor.primary)
-                    .background(VitalaColor.primary.opacity(0.08))
-                    .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
+                    .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
+                        .fill(VitalaColor.primary.opacity(0.08)))
+                    .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
-
-                if !selected.isEmpty {
-                    SectionHeader(title: "Selected (\(selected.count))")
-                    // Enumerated id keeps SwiftUI happy even if legacy items
-                    // share the same FoodItem.id.
-                    ForEach(Array(selected.enumerated()), id: \.offset) { idx, item in
-                        SelectedFoodRow(item: item) {
-                            if selected.indices.contains(idx) {
-                                selected.remove(at: idx)
-                            }
-                        }
-                    }
-                }
+                .buttonStyle(PressableButtonStyle())
 
                 if !customFoods.isEmpty && query.isEmpty {
                     SectionHeader(title: "Your foods")
                     ForEach(customFoods) { item in
-                        FoodPickerRow(item: item, isCustom: true) {
-                            selected.append(item.newInstance())
-                        } onDelete: {
-                            Task {
-                                try? await DataStore.shared.deleteCustomFood(item)
-                                await loadCustom()
-                            }
-                        }
+                        foodButton(item, isCustom: true)
                     }
                 }
 
                 SectionHeader(title: query.isEmpty ? "Common foods" : "Results")
-                ForEach(results.filter { item in customFoods.first(where: { $0.id == item.id }) == nil }) { item in
-                    Button {
-                        selected.append(item.newInstance())
-                    } label: {
-                        FoodRow(item: item)
-                    }
-                    .buttonStyle(.plain)
+                if results.isEmpty {
+                    EmptyStateRow(text: "No matches. Try another word or add a custom food.", icon: "magnifyingglass")
+                }
+                ForEach(results) { item in
+                    foodButton(item, isCustom: customFoods.contains { $0.id == item.id })
                 }
 
                 if editing != nil {
-                    Button(role: .destructive) {
+                    SecondaryButton(title: "Delete this meal", icon: "trash", role: .destructive) {
                         showDeleteConfirm = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash")
-                            Text("Delete this meal").font(VitalaFont.bodyMedium(15))
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(VitalaColor.coral.opacity(0.12))
-                        .foregroundStyle(VitalaColor.coral)
-                        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
                     }
-                    .buttonStyle(.plain)
                     .padding(.top, VitalaSpacing.sm)
                 }
-
-                Spacer().frame(height: 80)
             }
             .padding(.horizontal, VitalaSpacing.lg)
+            .padding(.bottom, VitalaSpacing.lg)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(VitalaColor.background.ignoresSafeArea())
-        .overlay(alignment: .bottom) {
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always), prompt: "Search foods")
+        .safeAreaInset(edge: .bottom) {
             PrimaryButton(title: saveLabel,
                           icon: "checkmark",
                           isLoading: saving,
@@ -143,15 +118,20 @@ struct AddMealView: View {
                 Task { await save() }
             }
             .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.bottom, VitalaSpacing.lg)
-            .background(.ultraThinMaterial)
+            .padding(.vertical, VitalaSpacing.sm)
         }
-        .navigationTitle("")
+        .navigationTitle(editing == nil ? "Log a meal" : "Edit meal")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("Cancel") { dismiss() }
+            }
+        }
         .sheet(isPresented: $showCustomSheet) {
-            CustomFoodSheet { newItem in
-                selected.append(newItem)
-                Task { await loadCustom() }
+            NavigationStack {
+                CustomFoodSheet { newItem in
+                    selected.append(newItem.newInstance())
+                }
             }
         }
         .confirmationDialog("Delete this meal?",
@@ -162,24 +142,67 @@ struct AddMealView: View {
             }
             Button("Cancel", role: .cancel) {}
         }
-        .task { await loadCustom() }
         .onAppear {
             guard !didLoad else { return }
             didLoad = true
             if let m = editing {
                 mealType = m.type
                 selected = m.items
+            } else if let initialType {
+                mealType = initialType
+            }
+        }
+    }
+
+    private func foodButton(_ item: FoodItem, isCustom: Bool) -> some View {
+        Button {
+            selected.append(item.newInstance())
+            Haptics.selection()
+            AccessibilityNotification.Announcement("Added \(item.name)").post()
+        } label: {
+            FoodRow(item: item)
+                .overlay(alignment: .topTrailing) {
+                    if isCustom {
+                        Text("Custom")
+                            .font(VitalaFont.caption(10))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Capsule().fill(VitalaColor.primary.opacity(0.14)))
+                            .foregroundStyle(VitalaColor.primary)
+                            .padding(6)
+                    }
+                }
+        }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityLabel("\(item.name), \(item.servingSize), \(item.calories) kilocalories")
+        .accessibilityHint("Adds one serving")
+        .contextMenu {
+            if isCustom {
+                Button(role: .destructive) { deleteCustom(item) } label: {
+                    Label("Delete custom food", systemImage: "trash")
+                }
+            }
+        }
+        .accessibilityActions {
+            if isCustom {
+                Button("Delete custom food") { deleteCustom(item) }
             }
         }
     }
 
     private var saveLabel: String {
         if saving { return "Saving…" }
-        return editing == nil ? "Save meal" : "Save changes"
+        let base = editing == nil ? "Save meal" : "Save changes"
+        return selected.isEmpty ? base : "\(base) · \(selectedCalories) kcal"
     }
 
-    private func loadCustom() async {
-        customFoods = DataStore.shared.customFoods
+    private func removeOne(of group: FoodGroup) {
+        if let i = selected.lastIndex(where: { FoodGroup.key($0) == group.id }) {
+            selected.remove(at: i)
+        }
+    }
+
+    private func deleteCustom(_ item: FoodItem) {
+        Task { try? await store.deleteCustomFood(item) }
     }
 
     private func save() async {
@@ -192,10 +215,7 @@ struct AddMealView: View {
             // For backdated logs anchor to the selected day at the current time.
             let cal = Calendar.current
             let comps = cal.dateComponents([.hour, .minute], from: .now)
-            var anchor = cal.startOfDay(for: target)
-            anchor = cal.date(byAdding: .hour, value: comps.hour ?? 12, to: anchor) ?? anchor
-            anchor = cal.date(byAdding: .minute, value: comps.minute ?? 0, to: anchor) ?? anchor
-            return min(anchor, .now)
+            return cal.date(bySettingHour: comps.hour ?? 12, minute: comps.minute ?? 0, second: 0, of: target) ?? target
         }()
         let meal = Meal(
             id: editing?.id ?? UUID().uuidString,
@@ -204,82 +224,63 @@ struct AddMealView: View {
             items: selected,
             notes: editing?.notes
         )
-        try? await DataStore.shared.logMeal(meal)
+        try? await store.logMeal(meal)
+        Haptics.success()
         dismiss()
     }
 
     private func deleteMeal() async {
         guard let m = editing else { return }
-        try? await DataStore.shared.deleteMeal(m)
+        try? await store.deleteMeal(m)
         dismiss()
     }
 }
 
 private struct SelectedFoodRow: View {
-    let item: FoodItem
+    let group: FoodGroup
+    let onAdd: () -> Void
     let onRemove: () -> Void
+
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: item.icon).foregroundStyle(VitalaColor.primary).frame(width: 28)
+        HStack(spacing: 10) {
+            Image(systemName: group.item.icon)
+                .foregroundStyle(VitalaColor.primary)
+                .frame(width: 28)
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(VitalaFont.bodyMedium(15))
-                Text("\(item.calories) kcal · \(Int(item.proteinG))g P · \(Int(item.carbsG))g C · \(Int(item.fatG))g F")
+                Text(group.item.name).font(VitalaFont.bodyMedium(15))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                Text("\(group.item.calories * group.count) kcal · \(Int(group.item.proteinG * Double(group.count)))g protein")
                     .font(VitalaFont.caption(12))
                     .foregroundStyle(VitalaColor.textSecondary)
             }
-            Spacer()
+            .accessibilityElement(children: .combine)
+            Spacer(minLength: 4)
             Button(action: onRemove) {
                 Image(systemName: "minus.circle.fill")
-                    .foregroundStyle(VitalaColor.coral)
+                    .font(.title3)
+                    .foregroundStyle(VitalaColor.coralText)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
+            .accessibilityLabel("Remove one \(group.item.name)")
+            Text("\(group.count)")
+                .font(VitalaFont.bodyMedium(16))
+                .monospacedDigit()
+                .frame(minWidth: 20)
+                .accessibilityLabel("\(group.count) servings")
+            Button(action: onAdd) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(VitalaColor.primary)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Add one \(group.item.name)")
         }
-        .padding(.vertical, 8).padding(.horizontal, 12)
-        .background(VitalaColor.primary.opacity(0.06))
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.sm))
-    }
-}
-
-private struct FoodPickerRow: View {
-    let item: FoodItem
-    var isCustom: Bool = false
-    let onSelect: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(VitalaColor.sage.opacity(0.18))
-                    .frame(width: 38, height: 38)
-                Image(systemName: item.icon).foregroundStyle(VitalaColor.primary)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(item.name).font(VitalaFont.bodyMedium(15))
-                    if isCustom {
-                        Text("Custom").font(VitalaFont.caption(10))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(VitalaColor.primary.opacity(0.15))
-                            .foregroundStyle(VitalaColor.primary)
-                            .clipShape(Capsule())
-                    }
-                }
-                Text(item.servingSize).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
-            }
-            Spacer()
-            Text("\(item.calories) kcal").font(VitalaFont.bodyMedium(14))
-                .foregroundStyle(VitalaColor.textPrimary)
-        }
-        .padding(.vertical, 8).padding(.horizontal, 12)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.sm))
-        .contentShape(Rectangle())
-        .onTapGesture { onSelect() }
-        .contextMenu {
-            if isCustom {
-                Button(role: .destructive, action: onDelete) {
-                    Label("Delete", systemImage: "trash")
-                }
-            }
-        }
+        .padding(.leading, 12)
+        .padding(.vertical, 4)
+        .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
+            .fill(VitalaColor.primary.opacity(0.06)))
     }
 }
