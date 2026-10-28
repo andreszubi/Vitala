@@ -10,7 +10,7 @@ Vitala is built so your wellness data stays yours.
 
 ## What Vitala stores
 
-Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep and mindful sessions you log — is stored **only on your iPhone**, in Vitala's private app storage, protected by iOS Data Protection.
+Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep, mindful sessions and journal entries you log — is stored **only on your iPhone**, in Vitala's private app storage, protected by iOS Data Protection.
 
 Vitala has no account system and no servers of its own. We never receive, sell or share your data.
 

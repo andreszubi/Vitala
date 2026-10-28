@@ -14,6 +14,7 @@ final class DataStore: ObservableObject {
     @Published private(set) var water: [WaterEntry] = []
     @Published private(set) var sleep: [SleepEntry] = []
     @Published private(set) var mindfulness: [LoggedMindfulness] = []
+    @Published private(set) var journal: [JournalEntry] = []
     @Published private(set) var customFoods: [FoodItem] = []
     /// Foods recently added from the online database, newest first, so
     /// they can be found again instantly and offline.
@@ -158,6 +159,18 @@ final class DataStore: ObservableObject {
         if let health { Task { await health.delete(mindfulness: entry) } }
     }
 
+    // MARK: Journal
+
+    func saveJournal(_ entry: JournalEntry) async throws {
+        upsert(entry, into: &journal)
+        persist()
+    }
+
+    func deleteJournal(_ entry: JournalEntry) async throws {
+        journal.removeAll { $0.id == entry.id }
+        persist()
+    }
+
     // MARK: Custom foods (user-created)
 
     func saveCustomFood(_ food: FoodItem) async throws {
@@ -194,6 +207,7 @@ final class DataStore: ObservableObject {
         water = []
         sleep = []
         mindfulness = []
+        journal = []
         customFoods = []
         recentFoods = []
         files.delete(Self.fileName)
@@ -212,12 +226,13 @@ final class DataStore: ObservableObject {
         var mindfulness: [LoggedMindfulness]
         var customFoods: [FoodItem]?
         var recentFoods: [FoodItem]? = nil
+        var journal: [JournalEntry]? = nil
     }
 
     var snapshot: Snapshot {
         Snapshot(summaries: summaries, workouts: workouts, meals: meals, water: water,
                  sleep: sleep, mindfulness: mindfulness, customFoods: customFoods,
-                 recentFoods: recentFoods)
+                 recentFoods: recentFoods, journal: journal)
     }
 
     private func upsert<T: Identifiable>(_ item: T, into array: inout [T]) {
@@ -267,6 +282,7 @@ final class DataStore: ObservableObject {
         mindfulness = snap.mindfulness
         customFoods = snap.customFoods ?? []
         recentFoods = snap.recentFoods ?? []
+        journal = snap.journal ?? []
     }
 
     static func dayKey(_ date: Date) -> String {

@@ -23,6 +23,24 @@ struct StorageTests {
         #expect(relaunched.meals.count == 1)
     }
 
+    @Test func journalSurvivesRelaunchAndErase() async throws {
+        let (files, defaults) = makeSandbox()
+        let store = DataStore(files: files, defaults: defaults)
+        try await store.saveJournal(JournalEntry(date: .now, mood: .calm, text: "Felt lighter.\nSecond line",
+                                                 sessionId: "s1", sessionTitle: "Box breathing"))
+        let relaunched = DataStore(files: files, defaults: defaults)
+        #expect(relaunched.journal.first?.mood == .calm)
+        #expect(relaunched.journal.first?.preview == "Felt lighter.")
+        #expect(relaunched.journal.first?.sessionTitle == "Box breathing")
+        relaunched.eraseAll()
+        #expect(DataStore(files: files, defaults: defaults).journal.isEmpty)
+    }
+
+    @Test func journalPreviewIsShortAndNeverEmpty() {
+        #expect(JournalEntry(date: .now, mood: .okay, text: "  \n ").preview == "No notes")
+        #expect(JournalEntry(date: .now, mood: .okay, text: String(repeating: "a", count: 200)).preview.count == 80)
+    }
+
     @Test func migratesLegacyUserDefaultsBlob() throws {
         let (files, defaults) = makeSandbox()
         let legacy = DataStore.Snapshot(summaries: [:], workouts: [], meals: [],

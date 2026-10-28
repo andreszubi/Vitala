@@ -184,6 +184,12 @@ final class AccessibilityAuditTests: XCTestCase {
         audit(app, "Log activity", isSheet: true)
         app.navigationBars["Log activity"].buttons["Cancel"].tap()
 
+        openTab(app, "Mindful")
+        app.buttons["New journal entry"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["New entry"].waitForExistence(timeout: 5))
+        audit(app, "Journal entry", isSheet: true)
+        app.navigationBars["New entry"].buttons["Cancel"].tap()
+
         openTab(app, "Today")
         app.buttons["profile.button"].firstMatch.tap()
         app.buttons["Edit profile"].tap()
