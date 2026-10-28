@@ -1,14 +1,14 @@
 import SwiftUI
 
 struct DashboardView: View {
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var units: UnitsService
     @EnvironmentObject var appState: AppState
 
     /// Observe the local store so the dashboard re-renders whenever a meal,
     /// workout, water entry, etc. is logged from another screen.
-    @ObservedObject private var store = FirestoreService.shared
+    @ObservedObject private var store = DataStore.shared
 
     @State private var showingWater = false
     @State private var showingMindfulness = false
@@ -109,7 +109,7 @@ struct DashboardView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(greeting + ",").font(VitalaFont.body(15))
                     .foregroundStyle(VitalaColor.textSecondary)
-                Text(auth.profile?.displayName.split(separator: " ").first.map(String.init) ?? "Friend")
+                Text(profileStore.profile?.displayName.split(separator: " ").first.map(String.init) ?? "Friend")
                     .font(VitalaFont.title(28))
                     .foregroundStyle(VitalaColor.textPrimary)
             }
@@ -124,7 +124,7 @@ struct DashboardView: View {
     }
 
     private var ringsCard: some View {
-        let goals = auth.profile?.goals ?? WellnessGoals()
+        let goals = profileStore.profile?.goals ?? WellnessGoals()
         let s = health.todaySummary
         // Combine HealthKit's reading with locally-logged activity so custom
         // activities show up immediately even when HK isn't available.
@@ -173,7 +173,7 @@ struct DashboardView: View {
         let mindfulMins = max(s.mindfulMinutes, todayMindfulMin)
         let sleepHrs = max(s.sleepHours, lastSleepHours)
         let waterMl = max(s.waterMl, todayWaterMl)
-        let goalWaterMl = auth.profile?.goals.dailyWaterMl ?? 2000
+        let goalWaterMl = profileStore.profile?.goals.dailyWaterMl ?? 2000
 
         // Compact volume value: "250 ml" / "2.0 L" / "8 oz" — without the unit suffix
         // (the unit goes in the card's `unit:` slot to keep typography tidy).
@@ -221,9 +221,9 @@ struct DashboardView: View {
         let waterColor = Color(red: 0.34, green: 0.62, blue: 0.86)
         let sleepColor = Color(red: 0.45, green: 0.46, blue: 0.78)
 
-        let goalWater = auth.profile?.goals.dailyWaterMl ?? 2000
-        let goalCal = auth.profile?.goals.dailyCalories ?? 2200
-        let goalSleepHours = auth.profile?.goals.sleepHours ?? 8
+        let goalWater = profileStore.profile?.goals.dailyWaterMl ?? 2000
+        let goalCal = profileStore.profile?.goals.dailyCalories ?? 2200
+        let goalSleepHours = profileStore.profile?.goals.sleepHours ?? 8
 
         // Compact value strings (designed to fit a half-width tile).
         let waterCurrent = compactVolume(ml: todayWaterMl)

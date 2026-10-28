@@ -6,7 +6,7 @@ struct WorkoutsListView: View {
     @State private var editingSession: WorkoutSession? = nil
     @State private var selectedDate: Date = .now
 
-    @ObservedObject private var store = FirestoreService.shared
+    @ObservedObject private var store = DataStore.shared
 
     private var workouts: [Workout] {
         guard let category else { return WorkoutLibrary.all }

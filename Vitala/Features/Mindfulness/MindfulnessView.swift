@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct MindfulnessView: View {
-    @ObservedObject private var store = FirestoreService.shared
+    @ObservedObject private var store = DataStore.shared
 
     @State private var category: MindfulnessSession.Category? = nil
     @State private var historyDate: Date = .now

@@ -138,7 +138,7 @@ struct ActiveWorkoutView: View {
         let activity = hkActivity()
         let kcal = Double(workout.caloriesBurned)
         Task {
-            try? await FirestoreService.shared.logWorkout(session)
+            try? await DataStore.shared.logWorkout(session)
         }
         // Fire-and-forget HK write so dismiss isn't blocked if HK hangs.
         Task.detached { [health] in

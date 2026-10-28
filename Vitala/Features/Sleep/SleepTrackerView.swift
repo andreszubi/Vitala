@@ -3,7 +3,7 @@ import Charts
 
 /// Log a new sleep entry, OR edit / delete an existing one when `editing` is set.
 struct SleepTrackerView: View {
-    @ObservedObject private var store = FirestoreService.shared
+    @ObservedObject private var store = DataStore.shared
     @Environment(\.dismiss) var dismiss
 
     /// If non-nil, the form is in edit mode for this entry.
@@ -164,13 +164,13 @@ struct SleepTrackerView: View {
             quality: quality,
             notes: notes.isEmpty ? nil : notes
         )
-        try? await FirestoreService.shared.logSleep(entry)
+        try? await DataStore.shared.logSleep(entry)
         dismiss()
     }
 
     private func delete() async {
         guard let e = editing else { return }
-        try? await FirestoreService.shared.deleteSleep(e)
+        try? await DataStore.shared.deleteSleep(e)
         dismiss()
     }
 }

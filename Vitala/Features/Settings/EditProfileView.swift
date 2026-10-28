@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct EditProfileView: View {
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var units: UnitsService
     @Environment(\.dismiss) var dismiss
 
-    @State private var draft = UserProfile(id: "", email: "", displayName: "")
+    @State private var draft = UserProfile(id: "", displayName: "")
     @State private var heightText = ""
     @State private var weightText = ""
 
@@ -14,10 +14,6 @@ struct EditProfileView: View {
             Form {
                 Section("Identity") {
                     TextField("Name", text: $draft.displayName)
-                    TextField("Email", text: $draft.email)
-                        .keyboardType(.emailAddress)
-                        .textInputAutocapitalization(.never)
-                        .disabled(true)
                 }
                 Section("About you") {
                     DatePicker("Birthday",
@@ -55,7 +51,7 @@ struct EditProfileView: View {
                 }
             }
             .onAppear {
-                if let p = auth.profile {
+                if let p = profileStore.profile {
                     draft = p
                     if let cm = p.heightCm {
                         if units.system == .metric {
@@ -82,7 +78,7 @@ struct EditProfileView: View {
         }
         draft.weightKg = units.parseWeightToKg(weightText)
         Task {
-            try? await auth.saveProfile(draft)
+            try? await profileStore.saveProfile(draft)
             dismiss()
         }
     }

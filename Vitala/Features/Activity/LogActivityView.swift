@@ -147,7 +147,7 @@ struct LogActivityView: View {
             caloriesBurned: calories,
             notes: notes.isEmpty ? nil : notes
         )
-        try? await FirestoreService.shared.logWorkout(session)
+        try? await DataStore.shared.logWorkout(session)
 
         // Best-effort HealthKit write — fire-and-forget.
         let activity = hkActivity(for: category)
@@ -164,7 +164,7 @@ struct LogActivityView: View {
 
     private func delete() async {
         guard let s = editing else { return }
-        try? await FirestoreService.shared.deleteWorkout(s)
+        try? await DataStore.shared.deleteWorkout(s)
         dismiss()
     }
 

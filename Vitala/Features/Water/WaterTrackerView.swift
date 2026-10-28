@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct WaterTrackerView: View {
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var units: UnitsService
     @Environment(\.dismiss) var dismiss
     @State private var entries: [WaterEntry] = []
 
-    private var goal: Int { auth.profile?.goals.dailyWaterMl ?? 2000 }
+    private var goal: Int { profileStore.profile?.goals.dailyWaterMl ?? 2000 }
     private var total: Int { entries.reduce(0) { $0 + $1.amountMl } }
     private var progress: Double { min(1, Double(total) / Double(goal)) }
 
@@ -77,7 +77,7 @@ struct WaterTrackerView: View {
     }
 
     private func load() async {
-        if let e = try? await FirestoreService.shared.water(on: .now) {
+        if let e = try? await DataStore.shared.water(on: .now) {
             entries = e
         }
     }
@@ -86,7 +86,7 @@ struct WaterTrackerView: View {
         let entry = WaterEntry(amountMl: ml, loggedAt: .now)
         entries.append(entry)
         Task {
-            try? await FirestoreService.shared.logWater(entry)
+            try? await DataStore.shared.logWater(entry)
         }
         // Fire-and-forget HK write so the UI is responsive even if HK hangs.
         Task.detached { [health] in

@@ -62,7 +62,7 @@ struct SettingsView: View {
 }
 
 struct GoalsSettingsView: View {
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var units: UnitsService
     @State private var draft: WellnessGoals = .init()
 
@@ -94,9 +94,9 @@ struct GoalsSettingsView: View {
             Section {
                 Button("Save changes") {
                     Task {
-                        if var profile = auth.profile {
+                        if var profile = profileStore.profile {
                             profile.goals = draft
-                            try? await auth.saveProfile(profile)
+                            try? await profileStore.saveProfile(profile)
                         }
                     }
                 }
@@ -104,7 +104,7 @@ struct GoalsSettingsView: View {
         }
         .navigationTitle("Goals")
         .onAppear {
-            if let g = auth.profile?.goals { draft = g }
+            if let g = profileStore.profile?.goals { draft = g }
         }
     }
 }

@@ -95,7 +95,7 @@ struct AddMealView: View {
                             selected.append(item.newInstance())
                         } onDelete: {
                             Task {
-                                try? await FirestoreService.shared.deleteCustomFood(item)
+                                try? await DataStore.shared.deleteCustomFood(item)
                                 await loadCustom()
                             }
                         }
@@ -179,7 +179,7 @@ struct AddMealView: View {
     }
 
     private func loadCustom() async {
-        customFoods = FirestoreService.shared.customFoods
+        customFoods = DataStore.shared.customFoods
     }
 
     private func save() async {
@@ -204,13 +204,13 @@ struct AddMealView: View {
             items: selected,
             notes: editing?.notes
         )
-        try? await FirestoreService.shared.logMeal(meal)
+        try? await DataStore.shared.logMeal(meal)
         dismiss()
     }
 
     private func deleteMeal() async {
         guard let m = editing else { return }
-        try? await FirestoreService.shared.deleteMeal(m)
+        try? await DataStore.shared.deleteMeal(m)
         dismiss()
     }
 }

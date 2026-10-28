@@ -2,12 +2,12 @@ import SwiftUI
 
 struct ProfileSetupRootView: View {
     @State private var step: Int = 0
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var notifications: NotificationService
 
-    @State private var draft: UserProfile = .init(id: "", email: "", displayName: "")
+    @State private var draft: UserProfile = .init(id: "", displayName: "")
 
     var body: some View {
         ZStack {
@@ -29,13 +29,13 @@ struct ProfileSetupRootView: View {
             }
         }
         .onAppear {
-            if let p = auth.profile { draft = p }
+            if let p = profileStore.profile { draft = p }
         }
     }
 
     private func finish() {
         Task {
-            try? await auth.saveProfile(draft)
+            try? await profileStore.saveProfile(draft)
             appState.completeProfileSetup()
         }
     }

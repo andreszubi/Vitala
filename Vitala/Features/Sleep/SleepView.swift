@@ -4,8 +4,8 @@ import Charts
 /// Sleep tab home — last night, weekly stats, 7-night chart, and full history
 /// with tap-to-edit / swipe-to-delete.
 struct SleepView: View {
-    @ObservedObject private var store = FirestoreService.shared
-    @EnvironmentObject var auth: AuthService
+    @ObservedObject private var store = DataStore.shared
+    @EnvironmentObject var profileStore: ProfileStore
 
     @State private var historyDate: Date = .now
     @State private var editingEntry: SleepEntry? = nil
@@ -28,7 +28,7 @@ struct SleepView: View {
     }
 
     private var sleepGoal: Double {
-        auth.profile?.goals.sleepHours ?? 8.0
+        profileStore.profile?.goals.sleepHours ?? 8.0
     }
 
     private var consistency: Double {

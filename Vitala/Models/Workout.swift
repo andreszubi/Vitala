@@ -47,7 +47,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     var icon: String
 }
 
-/// A logged workout session. Persisted to Firestore.
+/// A logged workout session.
 struct WorkoutSession: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var workoutId: String

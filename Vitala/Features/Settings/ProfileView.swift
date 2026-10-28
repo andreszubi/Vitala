@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var themeService: ThemeService
     @EnvironmentObject var unitsService: UnitsService
@@ -16,7 +16,6 @@ struct ProfileView: View {
                 themeCard
                 quickLinks
                 statsBlock
-                signOutButton
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.top, VitalaSpacing.md)
@@ -35,8 +34,7 @@ struct ProfileView: View {
                 Circle().fill(VitalaColor.primaryGradient).frame(width: 88, height: 88)
                 Text(initials).font(VitalaFont.title(28)).foregroundStyle(.white)
             }
-            Text(auth.profile?.displayName ?? "Friend").font(VitalaFont.title(22))
-            Text(auth.profile?.email ?? "").font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
+            Text(profileStore.profile?.displayName ?? "Friend").font(VitalaFont.title(22))
             Button("Edit profile") { showEdit = true }
                 .font(VitalaFont.caption(13))
                 .padding(.horizontal, 14).padding(.vertical, 8)
@@ -112,15 +110,8 @@ struct ProfileView: View {
         .vitalaCard(padding: 14)
     }
 
-    private var signOutButton: some View {
-        SecondaryButton(title: "Sign out", icon: "rectangle.portrait.and.arrow.right") {
-            auth.signOut()
-            appState.resetForSignOut()
-        }
-    }
-
     private var initials: String {
-        let name = auth.profile?.displayName ?? "Friend"
+        let name = profileStore.profile?.displayName ?? "Friend"
         let parts = name.split(separator: " ")
         let first = parts.first?.first.map(String.init) ?? "V"
         let last = parts.dropFirst().first?.first.map(String.init) ?? ""

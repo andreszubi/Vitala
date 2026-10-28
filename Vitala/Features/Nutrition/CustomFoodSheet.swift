@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// Modal form for adding a user-created food item.
-/// On save, the item is persisted to FirestoreService.customFoods AND
+/// On save, the item is persisted to DataStore.customFoods AND
 /// returned via the `onAdd` callback so the caller can add it to the
 /// in-progress meal immediately.
 struct CustomFoodSheet: View {
@@ -120,7 +120,7 @@ struct CustomFoodSheet: View {
             icon: icon
         )
         Task {
-            try? await FirestoreService.shared.saveCustomFood(item)
+            try? await DataStore.shared.saveCustomFood(item)
             onAdd(item)
             dismiss()
         }

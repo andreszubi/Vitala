@@ -86,12 +86,12 @@ struct EditMindfulnessSheet: View {
         updated.title = title.trimmingCharacters(in: .whitespaces)
         updated.minutes = minutes
         updated.completedAt = completedAt
-        try? await FirestoreService.shared.logMindfulness(updated)
+        try? await DataStore.shared.logMindfulness(updated)
         dismiss()
     }
 
     private func delete() async {
-        try? await FirestoreService.shared.deleteMindfulness(entry)
+        try? await DataStore.shared.deleteMindfulness(entry)
         dismiss()
     }
 }

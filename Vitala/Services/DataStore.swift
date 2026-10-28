@@ -5,8 +5,8 @@ import Foundation
 /// requiring Firebase. Public interface matches the old Firestore version
 /// so views need no changes.
 @MainActor
-final class FirestoreService: ObservableObject {
-    static let shared = FirestoreService()
+final class DataStore: ObservableObject {
+    static let shared = DataStore()
 
     // In-memory caches
     @Published private(set) var summaries: [String: DailySummary] = [:]

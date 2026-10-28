@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct NutritionView: View {
-    @EnvironmentObject var auth: AuthService
-    @ObservedObject private var store = FirestoreService.shared
+    @EnvironmentObject var profileStore: ProfileStore
+    @ObservedObject private var store = DataStore.shared
 
     @State private var date: Date = .now
     @State private var editingMeal: Meal? = nil
@@ -15,7 +15,7 @@ struct NutritionView: View {
     }
 
     private var totalCalories: Int { meals.reduce(0) { $0 + $1.totalCalories } }
-    private var goalCalories: Int { auth.profile?.goals.dailyCalories ?? 2200 }
+    private var goalCalories: Int { profileStore.profile?.goals.dailyCalories ?? 2200 }
 
     var body: some View {
         ScrollView {

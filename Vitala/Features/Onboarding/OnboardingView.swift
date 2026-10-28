@@ -2,12 +2,11 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
     @State private var page: Int = 0
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var email: String = ""
 
     private let marketingPages: [OnboardingPage] = [
         .init(icon: "leaf.fill", tint: VitalaColor.primary,
@@ -25,8 +24,6 @@ struct OnboardingView: View {
     private var isFormPage: Bool { page == marketingPages.count }
     private var canContinueFromForm: Bool {
         !firstName.trimmingCharacters(in: .whitespaces).isEmpty
-            && !lastName.trimmingCharacters(in: .whitespaces).isEmpty
-            && email.contains("@") && email.contains(".")
     }
 
     var body: some View {
@@ -54,14 +51,11 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            // Pre-populate from existing demo profile so users can edit instead of retype.
-            if let p = auth.profile {
+            // Pre-populate if a profile already exists so users can edit instead of retype.
+            if let p = profileStore.profile {
                 let parts = p.displayName.split(separator: " ", maxSplits: 1).map(String.init)
                 if firstName.isEmpty { firstName = parts.first ?? "" }
                 if lastName.isEmpty  { lastName  = parts.count > 1 ? parts[1] : "" }
-                if email.isEmpty && !p.email.isEmpty && !p.email.contains("demo@vitala.app") {
-                    email = p.email
-                }
             }
         }
     }
@@ -113,21 +107,17 @@ struct OnboardingView: View {
                     Text("Let's get to know you")
                         .font(VitalaFont.title(28))
                         .foregroundStyle(VitalaColor.textPrimary)
-                    Text("Your name and email help personalize Vitala. They stay on this device.")
+                    Text("Vitala uses your name to personalize your day. Everything you enter stays on this device.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
                 .padding(.top, VitalaSpacing.md)
 
                 VStack(spacing: VitalaSpacing.sm) {
-                    HStack(spacing: 12) {
-                        VitalaTextField(title: "First name", text: $firstName,
-                                        icon: "person", contentType: .givenName)
-                        VitalaTextField(title: "Last name", text: $lastName,
-                                        icon: "person", contentType: .familyName)
-                    }
-                    VitalaTextField(title: "Email", text: $email, icon: "envelope",
-                                    keyboard: .emailAddress, contentType: .emailAddress)
+                    VitalaTextField(title: "First name", text: $firstName,
+                                    icon: "person", contentType: .givenName)
+                    VitalaTextField(title: "Last name (optional)", text: $lastName,
+                                    icon: "person", contentType: .familyName)
                 }
             }
             .padding(.horizontal, VitalaSpacing.lg)
@@ -144,12 +134,11 @@ struct OnboardingView: View {
     private func saveAndContinue() async {
         let display = "\(firstName.trimmingCharacters(in: .whitespaces)) \(lastName.trimmingCharacters(in: .whitespaces))"
             .trimmingCharacters(in: .whitespaces)
-        if var p = auth.profile {
+        if var p = profileStore.profile {
             p.displayName = display
-            p.email = email.trimmingCharacters(in: .whitespaces)
-            try? await auth.saveProfile(p)
+            try? await profileStore.saveProfile(p)
         } else {
-            await auth.signUp(email: email, password: "demo", displayName: display)
+            profileStore.createProfile(displayName: display)
         }
         appState.completeOnboarding()
     }
@@ -194,5 +183,5 @@ private struct OnboardingPageView: View {
 #Preview {
     OnboardingView()
         .environmentObject(AppState())
-        .environmentObject(AuthService())
+        .environmentObject(ProfileStore())
 }

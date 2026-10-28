@@ -155,7 +155,7 @@ struct SessionPlayerView: View {
         let entry = LoggedMindfulness(sessionId: session.id, title: session.title,
                                       minutes: max(1, elapsed / 60), completedAt: endedAt)
         Task {
-            try? await FirestoreService.shared.logMindfulness(entry)
+            try? await DataStore.shared.logMindfulness(entry)
         }
         // Fire-and-forget HK write so dismiss isn't blocked.
         Task.detached { [health, startedAt, endedAt] in

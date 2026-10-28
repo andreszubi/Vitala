@@ -1,11 +1,9 @@
 import Foundation
 
-/// User profile stored in Firestore. Mirrors the auth user with extra wellness fields.
+/// The user's on-device profile and wellness goals.
 struct UserProfile: Codable, Identifiable, Hashable {
-    var id: String                  // Firebase Auth UID
-    var email: String
+    var id: String
     var displayName: String
-    var avatarURL: String?
     var dateOfBirth: Date?
     var gender: Gender = .unspecified
     var heightCm: Double?
