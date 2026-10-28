@@ -42,7 +42,7 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 
 ### Promotional text (≤170)
 
-> Water, meals, movement, sleep and breathing in one calm daily rhythm. Private by design — everything stays on your iPhone.
+> Water, meals, movement, sleep, breathing and journaling in one calm daily rhythm. Private by design — everything stays on your iPhone.
 
 ### Description
 
@@ -58,22 +58,28 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > • Log any activity with type, duration, energy and distance
 >
 > EAT WELL
-> • Log breakfast, lunch, dinner and snacks from a food list or your own custom foods
+> • Search hundreds of thousands of foods with real portions, or scan a barcode to log packaged food
+> • Log breakfast, lunch, dinner and snacks, with custom and recent foods that work offline
 > • See calories, protein, carbs and fat against a target suggested from your profile
 >
 > BREATHE
 > • Nine guided breathing sessions for focus, stress, sleep and gratitude, each with its own rhythm
 > • Calming spa sound, ocean waves and optional binaural tones, generated live on your iPhone
 >
+> REFLECT
+> • Keep a private mood journal: pick how you feel, write whatever's on your mind
+> • Journal right after a breathing session, or any time; look back day by day
+>
 > SLEEP
-> • Log bedtime, wake time and how it felt; track your 7-night trend against your goal
+> • Log bedtime, wake time and how it felt, or let nights from Apple Watch and the iPhone sleep schedule fill in automatically
+> • Track your 7-night trend against your goal
 >
 > PROGRESS
 > • 7- and 30-day trends for steps, exercise, food, water, sleep and mindful minutes
 > • A 28-day consistency view of every day you showed up
 >
 > WORKS WITH APPLE HEALTH
-> Connect Apple Health to see steps, heart rate and sleep in Vitala, and to save the water, sleep, mindful sessions and workouts you log back to Health. Health is optional — Vitala works fully without it.
+> Connect Apple Health to see steps, heart rate, sleep and food from your other apps in Vitala, and to save the water, sleep, mindful sessions and workouts you log back to Health. Health is optional — Vitala works fully without it.
 >
 > PRIVATE BY DESIGN
 > No account. No servers. No ads or tracking. Everything stays on your iPhone, and you can export or erase it any time.
@@ -86,7 +92,7 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 ### Keywords (≤100 characters)
 
 ```
-wellness,habit,water,hydration,sleep,meditation,breathing,calorie,fitness,mindfulness,health,journal
+wellness,habit,water,hydration,sleep,meditation,breathing,calorie,fitness,mindfulness,mood,journal
 ```
 
 ## 4. App Privacy ("nutrition label")
@@ -103,9 +109,9 @@ Paste into **App Review Information › Notes**:
 
 > Vitala does not require an account or sign-in; all features are available immediately after onboarding (enter any first name).
 >
-> HealthKit: Vitala reads steps, active energy, exercise minutes, walking/running distance, heart rate, sleep analysis and mindful minutes to show daily progress, and writes dietary water, sleep analysis, mindful sessions and workouts that the user logs in the app. HealthKit is optional; the Connect button is on the Today screen and in Profile › Apple Health. HealthKit data is never shared, sold or used for advertising, and never leaves the device through Vitala.
+> HealthKit: Vitala reads steps, active energy, exercise minutes, walking/running distance, heart rate, sleep analysis, mindful minutes, and dietary energy, protein, carbohydrates and fat recorded by other apps to show daily progress and history, and writes dietary water, sleep analysis, mindful sessions and workouts that the user logs in the app. HealthKit is optional; the Connect button is on the Today screen and in Profile › Apple Health. HealthKit data is never shared, sold or used for advertising, and never leaves the device through Vitala.
 >
-> Mindfulness sessions play ambient sound synthesised on the device; no audio files or third-party content are included.
+> Mindfulness sessions play ambient sound synthesised on the device; no audio files or third-party content are included. Journal entries (a mood and free text) are stored only on the device and are not written to HealthKit.
 >
 > Notifications are optional daily reminders the user configures in Settings › Reminders.
 >
@@ -126,6 +132,8 @@ No demo account is needed.
 5. `05-Breathing.png` — guided breathing with sound
 6. `06-Progress.png` — consistency and trends
 
+Optional seventh shot: the Mindfulness tab scrolled to the Journal, or the journal entry sheet, to show the mood journal. Add a capture step to `ScreenshotTests` before regenerating.
+
 Regenerate after UI changes:
 
 ```bash
@@ -140,7 +148,9 @@ Set a clean status bar first with `xcrun simctl status_bar booted override --tim
 ## 7. Device QA checklist (TestFlight)
 
 - [ ] Fresh install → onboarding → profile setup → Today, with no crashes
-- [ ] Apple Health: Connect shows the permission sheet; steps and heart rate appear; a logged water entry, sleep entry, mindful session and workout appear in the Health app; editing one replaces it and deleting removes it
+- [ ] Apple Health: Connect shows the permission sheet (including nutrition); steps and heart rate appear; a logged water entry, sleep entry, mindful session and workout appear in the Health app; editing one replaces it and deleting removes it
+- [ ] Apple Health import: Apple Watch or sleep-schedule nights appear in Sleep, and food from another app appears in Nutrition, marked "Apple Health" and not editable; a night logged in Vitala replaces the overlapping Health night
+- [ ] Journal: write an entry from the Mindfulness header, choose a mood, save, edit and delete it; finish a session and use Write in journal from the completion screen
 - [ ] Reminders: allow notifications, set a time a minute ahead, receive it; turn it off and confirm nothing arrives
 - [ ] Breathing session: sound starts, follows the breath, pauses with the session, works with AirPods; switching to Silent stops it
 - [ ] Profile photo: add, change and remove
