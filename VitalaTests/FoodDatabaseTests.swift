@@ -108,6 +108,38 @@ struct BarcodeTests {
         #expect(food.foodItem(portion: food.defaultPortion, quantity: 1).calories == 160)
     }
 
+    @Test func usdaDetailedNutrientsScaleAndMissingOnesStayUnlisted() throws {
+        let json = #"{"foods":[{"fdcId":1,"description":"OAT MILK","dataType":"Branded","brandName":"OATLY","servingSize":240,"servingSizeUnit":"ml","foodNutrients":[{"nutrientId":1008,"value":50},{"nutrientId":1003,"value":1},{"nutrientId":1004,"value":2.5},{"nutrientId":1005,"value":6.7},{"nutrientId":2000,"value":3},{"nutrientId":1258,"value":0.2},{"nutrientId":1292,"value":1.5},{"nutrientId":1293,"value":0.7},{"nutrientId":1257,"value":0},{"nutrientId":1093,"value":42}]}]}"#
+        let oat = try #require(try FoodDatabaseClient.parse(Data(json.utf8)).first)
+        let item = oat.foodItem(portion: oat.defaultPortion, quantity: 1)   // 240 ml
+        #expect(item.sugarG == 7.2)
+        #expect(item.saturatedFatG == 0.5)
+        #expect(item.monounsaturatedFatG == 3.6)
+        #expect(item.polyunsaturatedFatG == 1.7)
+        #expect(item.transFatG == 0)
+        #expect(item.sodiumMg == 101)
+        #expect(item.unsaturatedFatG == 5.3)
+        #expect(item.fullName == "Oatly Oat milk")
+
+        // A food that lists none of these: unknown, not zero.
+        let plain = #"{"foods":[{"fdcId":2,"description":"Banana, raw","dataType":"Foundation","foodNutrients":[{"nutrientId":1008,"value":97}]}]}"#
+        let bananaFood = try #require(try FoodDatabaseClient.parse(Data(plain.utf8)).first)
+        let banana = bananaFood.foodItem(portion: bananaFood.defaultPortion, quantity: 1)
+        #expect(banana.sugarG == nil && banana.saturatedFatG == nil && banana.sodiumMg == nil)
+        #expect(banana.unsaturatedFatG == nil)
+    }
+
+    @Test func openFoodFactsDetailedNutrients() throws {
+        let json = #"{"status":1,"product":{"product_name":"Pre-biotic fiber formula","brands":"Loam","serving_quantity":10,"serving_size":"1 scoop (10 g)","nutriments":{"energy-kcal_100g":250,"proteins_100g":0,"carbohydrates_100g":80,"fat_100g":0,"fiber_100g":60,"sugars_100g":2,"saturated-fat_100g":0,"monounsaturated-fat_100g":0,"polyunsaturated-fat_100g":0,"trans-fat_100g":0,"salt_100g":0.375}}}"#
+        let food = try #require(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "850000000001"))
+        let item = food.foodItem(portion: food.defaultPortion, quantity: 1)
+        #expect(item.fullName == "Loam Pre-biotic fiber formula")
+        #expect(item.fiberG == 6)
+        #expect(item.sugarG == 0.2)
+        #expect(item.sodiumMg == 15)              // from salt: 0.375 g × 400 per 100 g
+        #expect(item.displayIcon != "barcode")
+    }
+
     @Test func unknownProductReturnsNil() {
         let json = #"{"code":"0000","status":0,"status_verbose":"product not found"}"#
         #expect(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "0000") == nil)

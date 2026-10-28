@@ -235,7 +235,7 @@ struct AddMealView: View {
                 }
         }
         .buttonStyle(PressableButtonStyle())
-        .accessibilityLabel("\(item.name), \(item.servingSize), \(item.calories) kilocalories")
+        .accessibilityLabel("\(item.fullName), \(item.servingSize), \(item.calories) kilocalories")
         .accessibilityHint("Adds one serving")
         .contextMenu {
             if isCustom {
@@ -419,13 +419,14 @@ private struct SelectedFoodRow: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: group.item.icon)
+            Image(systemName: group.item.displayIcon)
                 .foregroundStyle(VitalaColor.primary)
                 .frame(width: 28)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(group.item.name).font(VitalaFont.bodyMedium(15))
+                Text(group.item.fullName).font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text("\(group.item.calories * group.count) kcal · \(Int(group.item.proteinG * Double(group.count)))g protein")
                     .font(VitalaFont.caption(12))
                     .foregroundStyle(VitalaColor.textSecondary)

@@ -15,6 +15,12 @@ struct CustomFoodSheet: View {
     @State private var carbs: String = ""
     @State private var fat: String = ""
     @State private var fiber: String = ""
+    @State private var sugar: String = ""
+    @State private var saturatedFat: String = ""
+    @State private var monounsaturatedFat: String = ""
+    @State private var polyunsaturatedFat: String = ""
+    @State private var transFat: String = ""
+    @State private var sodium: String = ""
     @State private var icon: String = "fork.knife"
 
     private let iconOptions: [(symbol: String, label: String)] = [
@@ -45,6 +51,20 @@ struct CustomFoodSheet: View {
                     Text("Use numbers only, for example 12 or 4.5.")
                         .foregroundStyle(VitalaColor.danger)
                 }
+            }
+
+            Section {
+                macroField("Sugar",         text: $sugar,        suffix: "g",  keyboard: .decimalPad)
+                macroField("Saturated fat", text: $saturatedFat, suffix: "g",  keyboard: .decimalPad)
+                macroField("Monounsaturated fat", text: $monounsaturatedFat, suffix: "g", keyboard: .decimalPad)
+                macroField("Polyunsaturated fat", text: $polyunsaturatedFat, suffix: "g", keyboard: .decimalPad)
+                macroField("Trans fat",     text: $transFat,     suffix: "g",  keyboard: .decimalPad)
+                macroField("Sodium",        text: $sodium,       suffix: "mg", keyboard: .numberPad)
+            } header: {
+                Text("More detail")
+            } footer: {
+                Text("Optional. Leave blank if the label doesn't say.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
 
             Section("Icon") {
@@ -103,8 +123,14 @@ struct CustomFoodSheet: View {
         return v
     }
 
+    /// Nil for a blank field: "not listed", rather than zero.
+    private static func listed(_ text: String) -> Double? {
+        text.trimmingCharacters(in: .whitespaces).isEmpty ? nil : number(text)
+    }
+
     private var macrosValid: Bool {
-        [calories, protein, carbs, fat, fiber].allSatisfy { Self.number($0) != nil }
+        [calories, protein, carbs, fat, fiber, sugar, saturatedFat, monounsaturatedFat, polyunsaturatedFat,
+         transFat, sodium].allSatisfy { Self.number($0) != nil }
     }
 
     private var canSubmit: Bool {
@@ -126,7 +152,13 @@ struct CustomFoodSheet: View {
             carbsG: Self.number(carbs) ?? 0,
             fatG: Self.number(fat) ?? 0,
             fiberG: Self.number(fiber) ?? 0,
-            icon: icon
+            icon: icon,
+            sugarG: Self.listed(sugar),
+            saturatedFatG: Self.listed(saturatedFat),
+            sodiumMg: Self.listed(sodium),
+            monounsaturatedFatG: Self.listed(monounsaturatedFat),
+            polyunsaturatedFatG: Self.listed(polyunsaturatedFat),
+            transFatG: Self.listed(transFat)
         )
         Task {
             try? await DataStore.shared.saveCustomFood(item)
