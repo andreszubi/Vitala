@@ -5,6 +5,9 @@ struct SessionPlayerView: View {
     let session: MindfulnessSession
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+    @State private var ambient = AmbientSoundPlayer()
 
     @State private var startedAt: Date = .now
     /// Wall-clock bookkeeping so timing stays right if the app is backgrounded.
@@ -39,6 +42,10 @@ struct SessionPlayerView: View {
     private var prompt: String {
         let prompts = session.category.prompts
         return prompts[(elapsed / 30) % prompts.count]
+    }
+
+    private var sound: AmbientSoundPlayer.Sound {
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
     }
 
     private var expanded: Bool {
@@ -81,6 +88,12 @@ struct SessionPlayerView: View {
                     .id(prompt)
                     .transition(.opacity)
 
+                if sound == .spaBinaural {
+                    Label("Binaural tones work best with headphones", systemImage: "headphones")
+                        .font(VitalaFont.caption(12))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+
                 Spacer(minLength: 0)
                 progressBar
                 controls
@@ -89,8 +102,23 @@ struct SessionPlayerView: View {
             .padding(.horizontal, VitalaSpacing.lg)
         }
         .preferredColorScheme(.dark)
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            ambient.play(sound, for: session.category)
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            ambient.stop()
+        }
+        .onChange(of: soundChoice) { _, _ in
+            ambient.play(sound, for: session.category)
+            if !isPlaying { ambient.pause() }
+        }
+        .onChange(of: expanded) { _, isExpanded in ambient.setBreath(expanded: isExpanded) }
+        .onChange(of: scenePhase) { _, phase in
+            // The audio engine stops in the background; restart it on return.
+            if phase == .active && isPlaying && !finished { ambient.play(sound, for: session.category) }
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(250))
@@ -118,9 +146,39 @@ struct SessionPlayerView: View {
                 .font(VitalaFont.caption())
                 .foregroundStyle(.white.opacity(0.9))
             Spacer()
-            Color.clear.frame(width: 44, height: 44)
+            soundMenu
         }
         .padding(.top, VitalaSpacing.xs)
+    }
+
+    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
+    /// there to match the 44pt close button.
+    private var glassLabelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
+    }
+
+    private var soundMenu: some View {
+        Menu {
+            Picker("Sound", selection: $soundChoice) {
+                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                }
+            }
+        } label: {
+            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: glassLabelSize, height: glassLabelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Sound")
+        .accessibilityValue(sound.label)
     }
 
     private var breathingCircle: some View {
@@ -202,8 +260,10 @@ struct SessionPlayerView: View {
         if let since = runningSince {
             accumulated += t.timeIntervalSince(since)
             runningSince = nil
+            ambient.pause()
         } else {
             runningSince = t
+            ambient.resume()
         }
         now = t
     }
