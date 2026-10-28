@@ -8,6 +8,27 @@ struct MindfulnessView: View {
     @State private var historyDate: Date = .now
     @State private var editingEntry: LoggedMindfulness? = nil
     @State private var playing: MindfulnessSession? = nil
+    @State private var journalDate: Date = .now
+    @State private var journalSheet: JournalSheet? = nil
+    /// A session to write about once the player has closed.
+    @State private var pendingJournal: LoggedMindfulness? = nil
+
+    private enum JournalSheet: Identifiable {
+        case new(after: LoggedMindfulness?, on: Date)
+        case edit(JournalEntry)
+        var id: String {
+            switch self {
+            case .new(let session, _): "new-\(session?.id ?? "")"
+            case .edit(let entry): entry.id
+            }
+        }
+    }
+
+    private var journalOnSelectedDay: [JournalEntry] {
+        store.journal
+            .filter { Calendar.current.isDate($0.date, inSameDayAs: journalDate) }
+            .sorted { $0.date > $1.date }
+    }
 
     private var sessions: [MindfulnessSession] {
         guard let category else { return MindfulnessLibrary.all }
@@ -27,11 +48,21 @@ struct MindfulnessView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
-                ScreenHeader(title: "Mindfulness", subtitle: "A pause is productive.")
-                    .padding(.top, VitalaSpacing.md)
+                ScreenHeader(
+                    title: "Mindfulness",
+                    subtitle: "A pause is productive.",
+                    trailing: AnyView(
+                        GlassIconButton(systemName: "square.and.pencil", label: "New journal entry",
+                                        foreground: VitalaColor.primary) {
+                            journalSheet = .new(after: nil, on: journalDate)
+                        }
+                    )
+                )
+                .padding(.top, VitalaSpacing.md)
 
                 quickBreathCard
                 historySection
+                journalSection
                 browseLibrarySection
             }
             .padding(.horizontal, VitalaSpacing.lg)
@@ -42,8 +73,21 @@ struct MindfulnessView: View {
         .sheet(item: $editingEntry) { entry in
             NavigationStack { EditMindfulnessSheet(entry: entry) }
         }
-        .fullScreenCover(item: $playing) { session in
-            SessionPlayerView(session: session)
+        .fullScreenCover(item: $playing, onDismiss: {
+            if let session = pendingJournal {
+                pendingJournal = nil
+                journalSheet = .new(after: session, on: .now)
+            }
+        }) { session in
+            SessionPlayerView(session: session) { saved in pendingJournal = saved }
+        }
+        .sheet(item: $journalSheet) { sheet in
+            NavigationStack {
+                switch sheet {
+                case .new(let session, let day): JournalEntrySheet(after: session, on: day)
+                case .edit(let entry): JournalEntrySheet(editing: entry)
+                }
+            }
         }
     }
 
@@ -110,6 +154,52 @@ struct MindfulnessView: View {
                 }
             }
         }
+    }
+
+    // MARK: Journal
+
+    private var journalSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Journal",
+                          trailing: journalOnSelectedDay.isEmpty ? nil : "\(journalOnSelectedDay.count) \(journalOnSelectedDay.count == 1 ? "entry" : "entries")")
+
+            DateNavigator(date: $journalDate)
+
+            if journalOnSelectedDay.isEmpty {
+                Button {
+                    journalSheet = .new(after: nil, on: journalDate)
+                } label: {
+                    EmptyStateRow(text: "No entries on this day. Tap to write one.", icon: "book.closed")
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("No entries on this day")
+                .accessibilityHint("Writes a new journal entry")
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(journalOnSelectedDay) { entry in
+                        LogRow(icon: entry.mood.icon,
+                               tint: VitalaColor.mindful,
+                               title: entry.mood.label,
+                               subtitle: journalSubtitle(entry),
+                               noun: "journal entry",
+                               onEdit: { journalSheet = .edit(entry) },
+                               onDelete: { deleteJournal(entry) })
+                            .accessibilityIdentifier("journal.entry")
+                    }
+                }
+            }
+        }
+    }
+
+    private func journalSubtitle(_ entry: JournalEntry) -> String {
+        var parts = [entry.date.formatted(date: .omitted, time: .shortened)]
+        if let title = entry.sessionTitle { parts.append("After \(title)") }
+        parts.append(entry.preview)
+        return parts.joined(separator: " · ")
+    }
+
+    private func deleteJournal(_ entry: JournalEntry) {
+        Task { try? await store.deleteJournal(entry) }
     }
 
     // MARK: Library

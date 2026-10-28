@@ -13,6 +13,7 @@ struct DataExport: Codable {
     var water: [WaterEntry]
     var sleep: [SleepEntry]
     var mindfulness: [LoggedMindfulness]
+    var journal: [JournalEntry]
     var customFoods: [FoodItem]
 
     @MainActor
@@ -25,6 +26,7 @@ struct DataExport: Codable {
         water = store.water.sorted { $0.loggedAt < $1.loggedAt }
         sleep = store.sleep.sorted { $0.bedTime < $1.bedTime }
         mindfulness = store.mindfulness.sorted { $0.completedAt < $1.completedAt }
+        journal = store.journal.sorted { $0.date < $1.date }
         customFoods = store.customFoods
     }
 

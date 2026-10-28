@@ -54,7 +54,7 @@ struct ProgressDashboardView: View {
                           format: { "\(Int($0)) min" })
 
                 TrendCard(title: "Food energy", unit: "kcal", color: VitalaColor.primary,
-                          points: series(store.meals, date: \.date) { Double($0.totalCalories) },
+                          points: series(store.allMeals, date: \.date) { Double($0.totalCalories) },
                           goal: Double(goals.dailyCalories),
                           emptyMessage: "Log meals to see your intake over time.",
                           format: { "\(Int($0).formatted()) kcal" })
@@ -66,7 +66,7 @@ struct ProgressDashboardView: View {
                           format: { "\(Int($0.rounded())) \(units.volumeUnitLabel())" })
 
                 TrendCard(title: "Sleep", unit: "h", color: VitalaColor.sleep,
-                          points: series(store.sleep, date: \.wakeTime) { $0.hours },
+                          points: series(store.allSleep, date: \.wakeTime) { $0.hours },
                           goal: goals.sleepHours,
                           emptyMessage: "Log your nights to see sleep trends.",
                           format: { DashboardView.hoursText($0) })

@@ -36,6 +36,14 @@ final class ScreenshotTests: XCTestCase {
         app.buttons["End session"].tap()
         app.buttons["Discard"].tap()
 
+        let entry = app.buttons["journal.entry"].firstMatch
+        for _ in 0..<4 where !entry.isHittable { app.swipeUp() }
+        entry.tap()
+        XCTAssertTrue(app.navigationBars["Journal entry"].waitForExistence(timeout: 5))
+        settle()
+        snap(app, "07-Journal")
+        app.navigationBars["Journal entry"].buttons["Cancel"].tap()
+
         app.tabBars.buttons["Today"].tap()
         app.buttons["profile.button"].firstMatch.tap()
         app.buttons["profile.progress"].tap(); settle()

@@ -49,6 +49,13 @@ enum DebugLaunchOptions {
         var water: [WaterEntry] = []
         var sleep: [SleepEntry] = []
         var mindful: [LoggedMindfulness] = []
+        var journal: [JournalEntry] = []
+        let notes = [
+            "Slept well and woke up before the alarm.\n\nTen minutes of box breathing before coffee made the morning feel unhurried. Today I want to take the stairs, drink more water, and call home this evening.",
+            "Busy day, but the evening walk helped. Noticed I breathe faster when I check email.",
+            "Grateful for a long call with a friend.",
+            "Felt scattered this morning. A slow exhale before each meeting helped.",
+        ]
         let food = FoodLibrary.common
 
         for d in 0..<14 {
@@ -88,10 +95,18 @@ enum DebugLaunchOptions {
                 mindful.append(LoggedMindfulness(sessionId: session.id, title: session.title,
                                                  minutes: session.minutes, completedAt: calm))
             }
+            // A short journal entry most mornings.
+            let morning = at(d, 7, 15)
+            if d % 2 == 0, past(morning) {
+                let moods: [JournalEntry.Mood] = [.good, .calm, .great, .tired]
+                journal.append(JournalEntry(date: morning, mood: moods[d % moods.count],
+                                            text: notes[d % notes.count]))
+            }
         }
 
         let snapshot = DataStore.Snapshot(summaries: [:], workouts: workouts, meals: meals, water: water,
-                                          sleep: sleep, mindfulness: mindful, customFoods: [])
+                                          sleep: sleep, mindfulness: mindful, customFoods: [],
+                                          journal: journal)
         let files = SecureFileStore()
         try? files.save(snapshot, to: DataStore.fileName)
         try? files.save(profile, to: ProfileStore.fileName)

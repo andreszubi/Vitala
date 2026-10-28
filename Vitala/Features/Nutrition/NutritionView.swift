@@ -10,7 +10,7 @@ struct NutritionView: View {
     @State private var addingMealType: Meal.MealType? = nil
 
     private var meals: [Meal] {
-        store.meals
+        store.allMeals
             .filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
             .sorted { $0.date < $1.date }
     }
@@ -49,6 +49,8 @@ struct NutritionView: View {
         .sheet(item: $editingMeal) { meal in
             NavigationStack { AddMealView(editing: meal) }
         }
+        .refreshable { await HealthKitService.shared.refreshHistory() }
+        .task { await HealthKitService.shared.refreshHistory() }
     }
 
     private var summaryCard: some View {
@@ -177,7 +179,9 @@ private struct MealSection: View {
                     .surfaceCard()
             } else {
                 ForEach(meals) { meal in
-                    MealCard(meal: meal, onEdit: { onEdit(meal) }, onDelete: { onDelete(meal) })
+                    MealCard(meal: meal,
+                             onEdit: meal.isFromHealth ? nil : { onEdit(meal) },
+                             onDelete: meal.isFromHealth ? nil : { onDelete(meal) })
                 }
             }
         }
@@ -195,8 +199,8 @@ private struct TintedIconLabelStyle: LabelStyle {
 
 private struct MealCard: View {
     let meal: Meal
-    let onEdit: () -> Void
-    let onDelete: () -> Void
+    let onEdit: (() -> Void)?
+    let onDelete: (() -> Void)?
 
     var body: some View {
         EditableRow(noun: "meal", onEdit: onEdit, onDelete: onDelete) {
@@ -205,6 +209,11 @@ private struct MealCard: View {
                     Text(meal.date, style: .time)
                         .font(VitalaFont.caption(12))
                         .foregroundStyle(VitalaColor.textSecondary)
+                    if meal.isFromHealth {
+                        Label("Apple Health", systemImage: "heart.text.square")
+                            .font(VitalaFont.caption(12))
+                            .foregroundStyle(VitalaColor.textSecondary)
+                    }
                     Spacer()
                     Text("\(meal.totalCalories) kcal")
                         .font(VitalaFont.bodyMedium(14))

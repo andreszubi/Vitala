@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// On-device store for everything the user logs. Data lives in a protected
@@ -13,6 +14,7 @@ final class DataStore: ObservableObject {
     @Published private(set) var water: [WaterEntry] = []
     @Published private(set) var sleep: [SleepEntry] = []
     @Published private(set) var mindfulness: [LoggedMindfulness] = []
+    @Published private(set) var journal: [JournalEntry] = []
     @Published private(set) var customFoods: [FoodItem] = []
     /// Foods recently added from the online database, newest first, so
     /// they can be found again instantly and offline.
@@ -29,6 +31,7 @@ final class DataStore: ObservableObject {
     /// Set when the data file exists but can't be read; persisting would
     /// overwrite it, so writes are skipped until the next launch.
     private var isReadOnly = false
+    private var healthUpdates: AnyCancellable?
 
     init(files: SecureFileStore = SecureFileStore(),
          defaults: UserDefaults = .standard,
@@ -37,6 +40,27 @@ final class DataStore: ObservableObject {
         self.defaults = defaults
         self.health = health
         load()
+        // Re-render screens when nights or meals arrive from Apple Health.
+        healthUpdates = health?.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+
+    // MARK: Logs plus Apple Health
+
+    /// Logged nights plus nights recorded by other apps. A night logged in
+    /// Vitala wins over a Health night it overlaps.
+    var allSleep: [SleepEntry] {
+        Self.merge(sleep, with: health?.importedSleep ?? [])
+    }
+
+    /// Logged meals plus food recorded by other apps.
+    var allMeals: [Meal] {
+        meals + (health?.importedMeals ?? [])
+    }
+
+    nonisolated static func merge(_ logged: [SleepEntry], with imported: [SleepEntry]) -> [SleepEntry] {
+        logged + imported.filter { night in
+            !logged.contains { $0.bedTime < night.wakeTime && night.bedTime < $0.wakeTime }
+        }
     }
 
     // MARK: Daily summary
@@ -135,6 +159,18 @@ final class DataStore: ObservableObject {
         if let health { Task { await health.delete(mindfulness: entry) } }
     }
 
+    // MARK: Journal
+
+    func saveJournal(_ entry: JournalEntry) async throws {
+        upsert(entry, into: &journal)
+        persist()
+    }
+
+    func deleteJournal(_ entry: JournalEntry) async throws {
+        journal.removeAll { $0.id == entry.id }
+        persist()
+    }
+
     // MARK: Custom foods (user-created)
 
     func saveCustomFood(_ food: FoodItem) async throws {
@@ -171,6 +207,7 @@ final class DataStore: ObservableObject {
         water = []
         sleep = []
         mindfulness = []
+        journal = []
         customFoods = []
         recentFoods = []
         files.delete(Self.fileName)
@@ -189,12 +226,13 @@ final class DataStore: ObservableObject {
         var mindfulness: [LoggedMindfulness]
         var customFoods: [FoodItem]?
         var recentFoods: [FoodItem]? = nil
+        var journal: [JournalEntry]? = nil
     }
 
     var snapshot: Snapshot {
         Snapshot(summaries: summaries, workouts: workouts, meals: meals, water: water,
                  sleep: sleep, mindfulness: mindfulness, customFoods: customFoods,
-                 recentFoods: recentFoods)
+                 recentFoods: recentFoods, journal: journal)
     }
 
     private func upsert<T: Identifiable>(_ item: T, into array: inout [T]) {
@@ -244,6 +282,7 @@ final class DataStore: ObservableObject {
         mindfulness = snap.mindfulness
         customFoods = snap.customFoods ?? []
         recentFoods = snap.recentFoods ?? []
+        journal = snap.journal ?? []
     }
 
     static func dayKey(_ date: Date) -> String {

@@ -153,7 +153,7 @@ Points use a Fibonacci scale. Priority uses MoSCoW.
 - iCloud / CloudKit sync across devices.
 - iPad layout and Mac Catalyst.
 - Localization (String Catalog is ready once strings are final).
-- Food database / barcode scanning.
+- ~~Food database / barcode scanning.~~ Delivered in Sprint 5.
 - Apple Watch companion for the workout timer.
 - Home Screen widgets and App Intents (Shortcuts: "Log 250 ml of water").
 
@@ -219,13 +219,31 @@ Delivered E5-1…E5-4.
 
 **Remaining manual steps (account holder):** developer team and bundle ID, GitHub Pages, App Store Connect record, TestFlight device QA, submission — see `docs/APP_STORE.md`.
 
+### Sprint 5 — Stakeholder requests and device feedback ✅
+
+Requests raised after the 1.0 build, plus issues found testing on a real iPhone. Same Definition of Done: unit tests, accessibility audits and a simulator walkthrough for every story.
+
+| ID | Story | Acceptance criteria | Pts |
+|----|-------|---------------------|-----|
+| E6-1 | As a user, I want to find foods instead of typing nutrition by hand. | Search USDA FoodData Central with real portions; recent and custom foods work offline; online search can be turned off; API key kept out of Git (`Config/Secrets.xcconfig`). | 8 |
+| E6-2 | As a user, I want to scan packaged food. | VisionKit barcode scanner with USDA lookup and Open Food Facts fallback; manual number entry when the camera isn't available; camera usage string added. | 5 |
+| E6-3 | As a VoiceOver user, I want every form field named. | Every text field has a visible label and an accessible name; audits cover each form sheet. | 3 |
+| E6-4 | As a user, I want the breathing cue to change with the count. | "Breathe in / Hold / Breathe out" switches within 0.2 s of the phase change; only the circles animate over the whole phase. | 1 |
+| E6-5 | As a user with Apple Watch or another food app, I want that data in Vitala. | Last 30 days of sleep grouped into nights (time asleep, or time in bed when that's all there is) and dietary energy/macros grouped into meals; shown read-only and marked "Apple Health"; a night logged in Vitala wins over an overlapping one; Vitala's own samples skipped; privacy texts updated. | 5 |
+| E6-6 | As a user, I want to keep a mood journal. | Entry with a mood from a menu, free text and a date; written any time or from a new session-complete screen (linked to that session); browse by day, edit, delete; included in export and erase; stored only on device. | 5 |
+
+**Found in device testing:** sleep and nutrition from Apple Health never appeared (E6-5) and the breathing cue lagged the countdown (E6-4). Both were missed in the simulator, which has no Health data and a forgiving sense of timing — the TestFlight QA list now covers them.
+
+**Retro:** a phase-length animation attached to a whole view also animates its text; scope long animations to the shapes they're meant for. Read-only imported entries needed a row without Edit/Delete, so `EditableRow` now accepts neither.
+
 ---
 
 ## 7. Next backlog (1.1+)
 
 | Priority | Item |
 |---|---|
-| High | **Food database search and barcode scanning** — USDA FoodData Central for search (free key, public-domain data) and Open Food Facts for barcodes via the VisionKit scanner, cached locally. Requires updating the privacy policy and App Privacy answers because searches leave the device. |
+| High | Journal insights — mood over time in Progress, and an optional journal reminder |
+| Medium | Save journal moods to Apple Health as State of Mind (iOS 18+), with the user's permission |
 | High | iCloud / CloudKit sync across devices |
 | Medium | Home Screen widgets and App Intents ("Log 250 ml of water") |
 | Medium | iPad layout |

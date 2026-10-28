@@ -3,6 +3,8 @@ import SwiftUI
 /// Full-screen guided breathing. Presented with `fullScreenCover`.
 struct SessionPlayerView: View {
     let session: MindfulnessSession
+    /// Called with the saved session when the user chooses to write about it.
+    var onJournal: ((LoggedMindfulness) -> Void)? = nil
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -17,6 +19,8 @@ struct SessionPlayerView: View {
     @State private var lastStepIndex: Int = -1
     @State private var confirmingEnd = false
     @State private var finished = false
+    /// Set once a session is saved; shows the completion screen.
+    @State private var saved: LoggedMindfulness? = nil
 
     private var pattern: [MindfulnessSession.BreathStep] { session.category.pattern }
     private var cycleLength: Int { pattern.reduce(0) { $0 + $1.seconds } }
@@ -63,44 +67,14 @@ struct SessionPlayerView: View {
                 .background(Color.black)
                 .ignoresSafeArea()
 
-            VStack(spacing: VitalaSpacing.lg) {
-                topBar
-                Spacer(minLength: 0)
-                VStack(spacing: 6) {
-                    Text(session.title)
-                        .font(VitalaFont.title(24))
-                        .foregroundStyle(.white)
-                        .accessibilityAddTraits(.isHeader)
-                    Text(session.subtitle)
-                        .font(VitalaFont.body(15))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-                .multilineTextAlignment(.center)
-
-                breathingCircle
-
-                Text(prompt)
-                    .font(VitalaFont.body(16))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, VitalaSpacing.lg)
-                    .frame(minHeight: 48)
-                    .id(prompt)
+            if let saved {
+                completion(saved)
                     .transition(.opacity)
-
-                if sound == .spaBinaural {
-                    Label("Binaural tones work best with headphones", systemImage: "headphones")
-                        .font(VitalaFont.caption(12))
-                        .foregroundStyle(.white.opacity(0.9))
-                }
-
-                Spacer(minLength: 0)
-                progressBar
-                controls
-                    .padding(.bottom, VitalaSpacing.md)
+            } else {
+                player
             }
-            .padding(.horizontal, VitalaSpacing.lg)
         }
+        .animation(.easeInOut(duration: 0.3), value: saved != nil)
         .preferredColorScheme(.dark)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
@@ -137,6 +111,93 @@ struct SessionPlayerView: View {
     }
 
     // MARK: Sections
+
+    private var player: some View {
+        VStack(spacing: VitalaSpacing.lg) {
+            topBar
+            Spacer(minLength: 0)
+            VStack(spacing: 6) {
+                Text(session.title)
+                    .font(VitalaFont.title(24))
+                    .foregroundStyle(.white)
+                    .accessibilityAddTraits(.isHeader)
+                Text(session.subtitle)
+                    .font(VitalaFont.body(15))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+            .multilineTextAlignment(.center)
+
+            breathingCircle
+
+            Text(prompt)
+                .font(VitalaFont.body(16))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, VitalaSpacing.lg)
+                .frame(minHeight: 48)
+                .id(prompt)
+                .transition(.opacity)
+
+            if sound == .spaBinaural {
+                Label("Binaural tones work best with headphones", systemImage: "headphones")
+                    .font(VitalaFont.caption(12))
+                    .foregroundStyle(.white.opacity(0.9))
+            }
+
+            Spacer(minLength: 0)
+            progressBar
+            controls
+                .padding(.bottom, VitalaSpacing.md)
+        }
+        .padding(.horizontal, VitalaSpacing.lg)
+    }
+
+    private func completion(_ entry: LoggedMindfulness) -> some View {
+        VStack(spacing: VitalaSpacing.lg) {
+            Spacer(minLength: 0)
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 64))
+                .foregroundStyle(.white)
+                .accessibilityHidden(true)
+            VStack(spacing: 8) {
+                Text("Session saved")
+                    .font(VitalaFont.title(28))
+                    .accessibilityAddTraits(.isHeader)
+                Text("\(entry.minutes) min of \(entry.title). Take a moment to note how you feel.")
+                    .font(VitalaFont.body(16))
+                    .multilineTextAlignment(.center)
+            }
+            .foregroundStyle(.white)
+            Spacer(minLength: 0)
+            VStack(spacing: 12) {
+                if let onJournal {
+                    Button {
+                        dismiss()
+                        onJournal(entry)
+                    } label: {
+                        Label("Write in journal", systemImage: "book.closed.fill")
+                            .font(VitalaFont.bodyMedium(17))
+                            .foregroundStyle(Color(hex: session.tint))
+                            .frame(maxWidth: .infinity, minHeight: 50)
+                            .background(Capsule().fill(.white))
+                            .contentShape(Capsule())
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                }
+                Button { dismiss() } label: {
+                    Text("Done")
+                        .font(VitalaFont.bodyMedium(17))
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Capsule().fill(.white.opacity(0.2)))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableButtonStyle())
+            }
+            .padding(.bottom, VitalaSpacing.md)
+        }
+        .padding(.horizontal, VitalaSpacing.lg)
+    }
 
     private var topBar: some View {
         HStack {
@@ -183,22 +244,31 @@ struct SessionPlayerView: View {
 
     private var breathingCircle: some View {
         let duration = Double(step.seconds)
+        // Only the circles breathe slowly; the label and count switch promptly
+        // so they stay in step with each second.
+        let breath: Animation = reduceMotion ? .easeInOut(duration: 0.3) : .easeInOut(duration: duration)
         return ZStack {
-            Circle().fill(.white.opacity(0.14)).frame(width: 260, height: 260)
-                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
-            Circle().fill(.white.opacity(expanded ? 0.28 : 0.18)).frame(width: 190, height: 190)
-                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            Group {
+                Circle().fill(.white.opacity(0.14)).frame(width: 260, height: 260)
+                    .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+                Circle().fill(.white.opacity(expanded ? 0.28 : 0.18)).frame(width: 190, height: 190)
+                    .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            }
+            .animation(breath, value: expanded)
             VStack(spacing: 4) {
                 Text(step.label)
                     .font(VitalaFont.title(26))
                     .foregroundStyle(.white)
+                    .id(step.label)
+                    .transition(.opacity)
                 Text("\(position.remaining)")
                     .numeralFont(52)
                     .foregroundStyle(.white)
                     .contentTransition(.numericText(countsDown: true))
             }
+            .animation(.easeOut(duration: 0.2), value: step.label)
+            .animation(.easeOut(duration: 0.2), value: position.remaining)
         }
-        .animation(reduceMotion ? .easeInOut(duration: 0.3) : .easeInOut(duration: duration), value: expanded)
         .frame(height: 300)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(step.label)
@@ -290,7 +360,9 @@ struct SessionPlayerView: View {
             try? await DataStore.shared.logMindfulness(entry)
             Haptics.success()
         }
-        dismiss()
+        ambient.stop()
+        UIApplication.shared.isIdleTimerDisabled = false
+        saved = entry
     }
 
     private func timeString(_ secs: Int) -> String {
