@@ -1,11 +1,12 @@
 import SwiftUI
 import Charts
 
-/// Sleep tab home — last night, weekly stats, 7-night chart, and full history
-/// with tap-to-edit / swipe-to-delete.
+/// Sleep tab home — last night, weekly stats, 7-night chart, and history
+/// with edit and delete.
 struct SleepView: View {
     @ObservedObject private var store = DataStore.shared
     @EnvironmentObject var profileStore: ProfileStore
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     @State private var historyDate: Date = .now
     @State private var editingEntry: SleepEntry? = nil
@@ -31,12 +32,13 @@ struct SleepView: View {
         profileStore.profile?.goals.sleepHours ?? 8.0
     }
 
-    private var consistency: Double {
-        // Simple "consistency" score: fraction of last 7 nights that hit at least
-        // 80% of the sleep goal.
-        guard !lastSevenDays.isEmpty else { return 0 }
-        let met = lastSevenDays.filter { $0.hours >= sleepGoal * 0.8 }.count
-        return Double(met) / 7.0
+    /// Nights in the last week that reached at least 90% of the goal.
+    private var nightsOnTarget: Int {
+        lastSevenDays.filter { $0.hours >= sleepGoal * 0.9 }.count
+    }
+
+    private var streak: Int {
+        Insights.currentStreak(activeDays: Set(store.sleep.map { Calendar.current.startOfDay(for: $0.wakeTime) }))
     }
 
     private var historyEntries: [SleepEntry] {
@@ -52,15 +54,8 @@ struct SleepView: View {
                     title: "Sleep",
                     subtitle: "Rest is the foundation.",
                     trailing: AnyView(
-                        Button {
+                        HeaderActionButton(title: "Log", accessibilityLabel: "Log sleep") {
                             showingLog = true
-                        } label: {
-                            Label("Log", systemImage: "plus.circle.fill")
-                                .font(VitalaFont.bodyMedium(15))
-                                .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(VitalaColor.primary.opacity(0.12))
-                                .foregroundStyle(VitalaColor.primary)
-                                .clipShape(Capsule())
                         }
                     )
                 )
@@ -75,7 +70,7 @@ struct SleepView: View {
             .padding(.bottom, VitalaSpacing.xl)
         }
         .background(VitalaColor.background.ignoresSafeArea())
-        .toolbar(.hidden)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $showingLog) {
             NavigationStack { SleepTrackerView() }
         }
@@ -88,136 +83,110 @@ struct SleepView: View {
 
     private var lastNightCard: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            HStack {
-                Text("Last night").font(VitalaFont.headline(18))
-                Spacer()
-                if let n = lastNight {
-                    Text(relativeDay(for: n.wakeTime))
-                        .font(VitalaFont.caption())
-                        .foregroundStyle(VitalaColor.textSecondary)
-                }
-            }
+            SectionHeader(title: "Latest night", trailing: lastNight.map { relativeDay(for: $0.wakeTime) })
 
             if let n = lastNight {
-                HStack(alignment: .center, spacing: VitalaSpacing.lg) {
+                let layout = typeSize.isAccessibilitySize
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: VitalaSpacing.md))
+                    : AnyLayout(HStackLayout(alignment: .center, spacing: VitalaSpacing.lg))
+                layout {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(formattedHours(n.hours))
+                        Text(DashboardView.hoursText(n.hours))
                             .font(VitalaFont.title(34))
                             .foregroundStyle(VitalaColor.primary)
-                        Text("\(n.bedTime.formatted(date: .omitted, time: .shortened)) → \(n.wakeTime.formatted(date: .omitted, time: .shortened))")
+                        Text("\(n.bedTime.formatted(date: .omitted, time: .shortened)) to \(n.wakeTime.formatted(date: .omitted, time: .shortened))")
                             .font(VitalaFont.caption())
                             .foregroundStyle(VitalaColor.textSecondary)
                         Label(n.quality.label, systemImage: n.quality.icon)
                             .font(VitalaFont.caption(13))
                             .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(VitalaColor.primary.opacity(0.12))
+                            .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
                             .foregroundStyle(VitalaColor.primary)
-                            .clipShape(Capsule())
                             .padding(.top, 2)
                     }
-                    Spacer()
-                    sleepGoalRing(hours: n.hours)
+                    .accessibilityElement(children: .combine)
+                    if !typeSize.isAccessibilitySize { Spacer() }
+                    ProgressRingSingle(
+                        progress: n.hours / max(sleepGoal, 0.1),
+                        title: "of \(sleepGoal.formatted())h goal",
+                        value: DashboardView.hoursText(n.hours),
+                        color: VitalaColor.sleep,
+                        lineWidth: 10
+                    )
+                    .frame(width: 110, height: 110)
                 }
             } else {
                 HStack(spacing: 12) {
                     Image(systemName: "moon.stars.fill")
-                        .font(.system(size: 26))
-                        .foregroundStyle(VitalaColor.primary)
+                        .font(.title2)
+                        .foregroundStyle(VitalaColor.sleep)
                         .frame(width: 50, height: 50)
-                        .background(VitalaColor.primary.opacity(0.12))
-                        .clipShape(Circle())
+                        .background(Circle().fill(VitalaColor.sleep.opacity(0.12)))
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 4) {
                         Text("No sleep logged yet")
                             .font(VitalaFont.bodyMedium(15))
-                        Text("Tap **Log** to record last night.")
+                            .foregroundStyle(VitalaColor.textPrimary)
+                        Text("Tap Log to record last night.")
                             .font(VitalaFont.caption(13))
                             .foregroundStyle(VitalaColor.textSecondary)
                     }
                     Spacer()
                 }
+                .accessibilityElement(children: .combine)
                 .padding(.vertical, 6)
             }
         }
         .vitalaCard()
     }
 
-    private func sleepGoalRing(hours: Double) -> some View {
-        let progress = min(1, hours / max(sleepGoal, 0.1))
-        return ProgressRingSingle(
-            progress: progress,
-            title: "of \(String(format: "%.0fh", sleepGoal)) goal",
-            value: formattedHours(hours),
-            color: VitalaColor.primary,
-            lineWidth: 10
-        )
-        .frame(width: 110, height: 110)
-    }
-
     // MARK: Stats
 
     private var statsRow: some View {
-        HStack(spacing: 12) {
-            statBox(value: formattedHours(weekAvg),
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            statBox(value: weekAvg > 0 ? DashboardView.hoursText(weekAvg) : "—",
                     label: "7-day average",
                     icon: "chart.line.uptrend.xyaxis",
-                    tint: VitalaColor.primary)
-            statBox(value: "\(Int(consistency * 100))%",
-                    label: "consistency",
+                    tint: VitalaColor.sleep)
+            statBox(value: "\(nightsOnTarget)/7",
+                    label: "nights on target",
                     icon: "checkmark.seal.fill",
                     tint: VitalaColor.success)
-            statBox(value: "\(streakDays())",
-                    label: "night streak",
+            statBox(value: "\(streak)",
+                    label: "nights logged in a row",
                     icon: "flame.fill",
-                    tint: VitalaColor.coral)
+                    tint: VitalaColor.coralText)
         }
     }
 
     private func statBox(value: String, label: String, icon: String, tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            ZStack {
-                Circle().fill(tint.opacity(0.15))
-                    .frame(width: 28, height: 28)
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(tint)
-            }
+            Image(systemName: icon)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(tint)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(tint.opacity(0.14)))
+                .accessibilityHidden(true)
             Text(value)
                 .font(VitalaFont.title(20))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .foregroundStyle(VitalaColor.textPrimary)
             Text(label)
                 .font(VitalaFont.caption(11))
                 .foregroundStyle(VitalaColor.textSecondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vitalaCard(padding: 12)
-    }
-
-    private func streakDays() -> Int {
-        var streak = 0
-        var date = Calendar.current.startOfDay(for: .now)
-        let dates = Set(store.sleep.map { Calendar.current.startOfDay(for: $0.wakeTime) })
-        while dates.contains(date) {
-            streak += 1
-            guard let prev = Calendar.current.date(byAdding: .day, value: -1, to: date) else { break }
-            date = prev
-        }
-        return streak
+        .accessibilityElement(children: .combine)
     }
 
     // MARK: Chart
 
     private var chartCard: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            HStack {
-                Text("Last 7 nights").font(VitalaFont.headline(18))
-                Spacer()
-                Text("Goal: \(String(format: "%.0fh", sleepGoal))")
-                    .font(VitalaFont.caption())
-                    .foregroundStyle(VitalaColor.textSecondary)
-            }
+            SectionHeader(title: "Last 7 nights", trailing: "Goal \(sleepGoal.formatted())h")
 
             if lastSevenDays.isEmpty {
                 EmptyStateRow(text: "Log a few nights to see your trend.",
@@ -226,20 +195,24 @@ struct SleepView: View {
                 Chart {
                     ForEach(lastSevenDays.reversed()) { e in
                         BarMark(
-                            x: .value("Day", e.wakeTime, unit: .day),
+                            x: .value("Night", e.wakeTime, unit: .day),
                             y: .value("Hours", e.hours)
                         )
-                        .foregroundStyle(VitalaColor.primary.gradient)
+                        .foregroundStyle(VitalaColor.sleep.gradient)
                         .cornerRadius(6)
+                        .accessibilityLabel(e.wakeTime.formatted(.dateTime.weekday(.wide)))
+                        .accessibilityValue(DashboardView.hoursText(e.hours))
                     }
                     RuleMark(y: .value("Goal", sleepGoal))
-                        .foregroundStyle(VitalaColor.coral.opacity(0.6))
+                        .foregroundStyle(VitalaColor.coralText.opacity(0.7))
                         .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [3, 4]))
-                        .annotation(position: .top, alignment: .trailing) {
-                            Text("Goal")
-                                .font(VitalaFont.caption(10))
-                                .foregroundStyle(VitalaColor.coral)
-                        }
+                        .accessibilityLabel("Goal")
+                        .accessibilityValue("\(sleepGoal.formatted()) hours")
+                }
+                .chartXAxis {
+                    AxisMarks(values: .stride(by: .day)) { _ in
+                        AxisValueLabel(format: .dateTime.weekday(.narrow))
+                    }
                 }
                 .chartYAxis {
                     AxisMarks(position: .leading) { _ in
@@ -248,6 +221,7 @@ struct SleepView: View {
                     }
                 }
                 .frame(height: 180)
+                .accessibilityLabel("Hours slept, last 7 nights")
             }
         }
         .vitalaCard()
@@ -257,29 +231,24 @@ struct SleepView: View {
 
     private var historySection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .lastTextBaseline) {
-                Text("History").font(VitalaFont.headline(18))
-                Spacer()
-                if !historyEntries.isEmpty {
-                    Text("\(historyEntries.count) entry\(historyEntries.count == 1 ? "" : "ies")")
-                        .font(VitalaFont.caption())
-                        .foregroundStyle(VitalaColor.textSecondary)
-                }
-            }
+            SectionHeader(title: "History",
+                          trailing: historyEntries.isEmpty ? nil : "\(historyEntries.count) \(historyEntries.count == 1 ? "entry" : "entries")")
 
             DateNavigator(date: $historyDate)
 
             if historyEntries.isEmpty {
                 EmptyStateRow(text: "No sleep logged for this night.",
-                              icon: "moon.zzz.fill")
+                              icon: "moon.zzz")
             } else {
                 VStack(spacing: 8) {
                     ForEach(historyEntries) { e in
-                        SleepLogRow(
-                            entry: e,
-                            onEdit: { editingEntry = e },
-                            onDelete: { Task { try? await store.deleteSleep(e) } }
-                        )
+                        LogRow(icon: e.quality.icon,
+                               tint: VitalaColor.sleep,
+                               title: DashboardView.hoursText(e.hours),
+                               subtitle: "\(e.bedTime.formatted(date: .omitted, time: .shortened)) to \(e.wakeTime.formatted(date: .omitted, time: .shortened)) · \(e.quality.label)",
+                               noun: "sleep entry",
+                               onEdit: { editingEntry = e },
+                               onDelete: { Task { try? await store.deleteSleep(e) } })
                     }
                 }
             }
@@ -288,74 +257,10 @@ struct SleepView: View {
 
     // MARK: Helpers
 
-    private func formattedHours(_ hours: Double) -> String {
-        let h = Int(hours)
-        let m = Int((hours - Double(h)) * 60)
-        if m == 0 { return "\(h)h" }
-        return "\(h)h \(m)m"
-    }
-
     private func relativeDay(for date: Date) -> String {
         let cal = Calendar.current
         if cal.isDateInToday(date) { return "This morning" }
         if cal.isDateInYesterday(date) { return "Yesterday" }
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f.string(from: date)
-    }
-}
-
-// MARK: - Row
-
-struct SleepLogRow: View {
-    let entry: SleepEntry
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-
-    private var hoursLabel: String {
-        let h = Int(entry.hours)
-        let m = Int((entry.hours - Double(h)) * 60)
-        return m == 0 ? "\(h)h" : "\(h)h \(m)m"
-    }
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(Color(red: 0.45, green: 0.46, blue: 0.78).opacity(0.15))
-                    .frame(width: 42, height: 42)
-                Image(systemName: entry.quality.icon)
-                    .foregroundStyle(Color(red: 0.45, green: 0.46, blue: 0.78))
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(hoursLabel)
-                    .font(VitalaFont.bodyMedium(15))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                Text("\(entry.bedTime.formatted(date: .omitted, time: .shortened)) → \(entry.wakeTime.formatted(date: .omitted, time: .shortened)) · \(entry.quality.label)")
-                    .font(VitalaFont.caption(12))
-                    .foregroundStyle(VitalaColor.textSecondary)
-                    .lineLimit(1)
-            }
-            Spacer()
-            Menu {
-                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-                Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitalaColor.muted)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
-            }
-        }
-        .padding(10)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
-        .contextMenu {
-            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-            Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-        }
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 }
