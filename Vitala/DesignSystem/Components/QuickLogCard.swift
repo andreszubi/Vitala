@@ -32,10 +32,12 @@ struct QuickLogCard: View {
                 Text(title)
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let value, !value.isEmpty {
                     Text(value)
                         .font(VitalaFont.caption(12))
                         .foregroundStyle(VitalaColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
