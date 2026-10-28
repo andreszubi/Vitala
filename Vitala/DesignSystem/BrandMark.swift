@@ -1,52 +1,60 @@
 import SwiftUI
 
-/// Vitala's leaf mark, drawn as an original shape. (SF Symbols may not be
-/// used as logos or app icons under their licence.) The app icon is rendered
-/// from the same geometry.
-struct LeafShape: Shape {
+/// Vitala's sprout mark, drawn as original shapes. (SF Symbols may not be
+/// used as logos or app icons under their licence.) Coordinates match the
+/// layers in AppIcon.icon, on a 1024-point canvas.
+struct SproutLeafShape: Shape {
+    enum Leaf { case front, back }
+    let leaf: Leaf
+
     func path(in rect: CGRect) -> Path {
         func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
-        }
-        var body = Path()
-        body.move(to: p(0.20, 0.80))
-        body.addCurve(to: p(0.82, 0.18), control1: p(0.10, 0.38), control2: p(0.40, 0.12))
-        body.addCurve(to: p(0.20, 0.80), control1: p(0.88, 0.60), control2: p(0.62, 0.90))
-        body.closeSubpath()
-
-        var stem = Path()
-        stem.move(to: p(0.215, 0.785))
-        stem.addLine(to: p(0.10, 0.90))
-        return body.union(stem.strokedPath(StrokeStyle(lineWidth: rect.width * 0.045, lineCap: .round)))
-    }
-}
-
-/// The centre vein, cut out of the leaf.
-struct LeafVeinShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
-            CGPoint(x: rect.minX + x * rect.width, y: rect.minY + y * rect.height)
+            CGPoint(x: rect.minX + x / 1024 * rect.width, y: rect.minY + y / 1024 * rect.height)
         }
         var path = Path()
-        path.move(to: p(0.30, 0.70))
-        path.addQuadCurve(to: p(0.70, 0.30), control: p(0.44, 0.48))
-        return path.strokedPath(StrokeStyle(lineWidth: rect.width * 0.035, lineCap: .round))
+        switch leaf {
+        case .front:
+            path.move(to: p(505, 690))
+            path.addCurve(to: p(770, 215), control1: p(684, 715.1), control2: p(835.7, 426))
+            path.addCurve(to: p(505, 690), control1: p(578.5, 282.5), control2: p(413.3, 564.1))
+        case .back:
+            path.move(to: p(495, 700))
+            path.addCurve(to: p(225, 430), control1: p(381.6, 748.6), control2: p(223.7, 582.5))
+            path.addCurve(to: p(495, 700), control1: p(362.2, 444), control2: p(527.4, 602.8))
+        }
+        path.closeSubpath()
+        return path
     }
 }
 
-/// Leaf mark on a gradient disc.
+struct SproutStemShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+            CGPoint(x: rect.minX + x / 1024 * rect.width, y: rect.minY + y / 1024 * rect.height)
+        }
+        var path = Path()
+        path.move(to: p(500, 690))
+        path.addCurve(to: p(478, 850), control1: p(500, 760), control2: p(492, 800))
+        return path.strokedPath(StrokeStyle(lineWidth: rect.width * 40 / 1024, lineCap: .round))
+    }
+}
+
+/// Sprout mark on a gradient disc, echoing the app icon's frosted layers.
 struct BrandMark: View {
     var size: CGFloat = 110
 
     var body: some View {
         ZStack {
             Circle().fill(VitalaColor.primaryGradient)
-            LeafShape()
-                .fill(.white)
-                .padding(size * 0.2)
-            LeafVeinShape()
-                .fill(VitalaColor.primaryFill)
-                .padding(size * 0.2)
+            Group {
+                SproutStemShape().fill(.white.opacity(0.7))
+                SproutLeafShape(leaf: .back).fill(.white.opacity(0.65))
+                SproutLeafShape(leaf: .front)
+                    .fill(LinearGradient(colors: [.white, .white.opacity(0.88)],
+                                         startPoint: .top, endPoint: .bottom))
+                    .shadow(color: .black.opacity(0.15), radius: size * 0.02, y: size * 0.01)
+            }
+            .padding(size * 0.06)
         }
         .frame(width: size, height: size)
         .accessibilityHidden(true)
