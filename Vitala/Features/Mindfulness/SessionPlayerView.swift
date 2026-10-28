@@ -183,22 +183,31 @@ struct SessionPlayerView: View {
 
     private var breathingCircle: some View {
         let duration = Double(step.seconds)
+        // Only the circles breathe slowly; the label and count switch promptly
+        // so they stay in step with each second.
+        let breath: Animation = reduceMotion ? .easeInOut(duration: 0.3) : .easeInOut(duration: duration)
         return ZStack {
-            Circle().fill(.white.opacity(0.14)).frame(width: 260, height: 260)
-                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
-            Circle().fill(.white.opacity(expanded ? 0.28 : 0.18)).frame(width: 190, height: 190)
-                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            Group {
+                Circle().fill(.white.opacity(0.14)).frame(width: 260, height: 260)
+                    .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+                Circle().fill(.white.opacity(expanded ? 0.28 : 0.18)).frame(width: 190, height: 190)
+                    .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            }
+            .animation(breath, value: expanded)
             VStack(spacing: 4) {
                 Text(step.label)
                     .font(VitalaFont.title(26))
                     .foregroundStyle(.white)
+                    .id(step.label)
+                    .transition(.opacity)
                 Text("\(position.remaining)")
                     .numeralFont(52)
                     .foregroundStyle(.white)
                     .contentTransition(.numericText(countsDown: true))
             }
+            .animation(.easeOut(duration: 0.2), value: step.label)
+            .animation(.easeOut(duration: 0.2), value: position.remaining)
         }
-        .animation(reduceMotion ? .easeInOut(duration: 0.3) : .easeInOut(duration: duration), value: expanded)
         .frame(height: 300)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(step.label)
