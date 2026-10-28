@@ -25,6 +25,7 @@ struct EditMindfulnessSheet: View {
                 Stepper(value: $minutes, in: 1...180) {
                     LabeledContent("Minutes", value: "\(minutes)")
                 }
+                .accessibilityValue("\(minutes)")
             }
             Section("When") {
                 DatePicker("Completed",

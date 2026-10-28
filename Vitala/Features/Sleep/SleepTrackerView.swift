@@ -116,6 +116,7 @@ struct SleepTrackerView: View {
         VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
             SectionHeader(title: "Notes")
             TextField("Notes", text: $notes, prompt: Text("Anything notable about last night?"), axis: .vertical)
+                .accessibilityLabel("Notes")
                 .lineLimit(3...5)
                 .padding(12)
                 .surfaceCard()

@@ -31,12 +31,14 @@ struct LogActivityView: View {
     var body: some View {
         Form {
             Section("Activity") {
-                TextField("Name", text: $name, prompt: Text("Pickleball, hike, cycling…"))
-                    .textInputAutocapitalization(.words)
-                Picker("Type", selection: $category) {
+                FormTextField(label: "Name", text: $name, prompt: "e.g. Hike", capitalization: .words)
+                Picker(selection: $category) {
                     ForEach(Workout.Category.allCases) { c in
-                        Label(c.label, systemImage: c.icon).tag(c)
+                        Text(c.label).tag(c)
                     }
+                } label: {
+                    Label("Type", systemImage: category.icon)
+                        .labelStyle(.titleOnly)
                 }
             }
 
@@ -50,20 +52,13 @@ struct LogActivityView: View {
                 Stepper(value: $durationMinutes, in: 1...600, step: 5) {
                     LabeledContent("Duration", value: "\(durationMinutes) min")
                 }
+                .accessibilityValue("\(durationMinutes) min")
                 Stepper(value: $calories, in: 0...3_000, step: 10) {
                     LabeledContent("Active energy", value: "\(calories) kcal")
                 }
-                HStack {
-                    Text("Distance")
-                    Spacer()
-                    TextField("Distance", text: $distance, prompt: Text("Optional"))
-                        .multilineTextAlignment(.trailing)
-                        .keyboardType(.decimalPad)
-                        .frame(maxWidth: 110)
-                    Text(units.distanceUnitLabel())
-                        .foregroundStyle(VitalaColor.textSecondary)
-                        .accessibilityHidden(true)
-                }
+                .accessibilityValue("\(calories) kcal")
+                FormTextField(label: "Distance", text: $distance, prompt: "Optional",
+                              unit: units.distanceUnitLabel(), keyboard: .decimalPad)
             } header: {
                 Text("How long & how hard")
             } footer: {
@@ -73,9 +68,12 @@ struct LogActivityView: View {
                 }
             }
 
-            Section("Notes") {
-                TextField("Notes", text: $notes, prompt: Text("Anything you want to remember"), axis: .vertical)
+            Section {
+                TextField("Notes", text: $notes, axis: .vertical)
                     .lineLimit(3...6)
+            } footer: {
+                Text("Anything you want to remember.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
 
             if editing != nil {

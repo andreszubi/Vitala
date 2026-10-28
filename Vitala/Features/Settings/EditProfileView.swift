@@ -102,6 +102,7 @@ struct EditProfileView: View {
             Text(label)
             Spacer()
             TextField(label, text: text, prompt: Text("0"))
+                .accessibilityLabel(label)
                 .keyboardType(decimal ? .decimalPad : .numberPad)
                 .multilineTextAlignment(.trailing)
                 .frame(maxWidth: 100)

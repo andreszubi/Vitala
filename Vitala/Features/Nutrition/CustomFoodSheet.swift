@@ -27,11 +27,9 @@ struct CustomFoodSheet: View {
     var body: some View {
         Form {
             Section("Basics") {
-                TextField("Name", text: $name, prompt: Text("Mom's chicken curry"))
-                    .textInputAutocapitalization(.words)
-                TextField("Brand", text: $brand, prompt: Text("Optional"))
-                    .textInputAutocapitalization(.words)
-                TextField("Serving size", text: $serving, prompt: Text("1 bowl, 200 g, 1 cup"))
+                FormTextField(label: "Name", text: $name, prompt: "Chicken curry", capitalization: .words)
+                FormTextField(label: "Brand", text: $brand, prompt: "Optional", capitalization: .words)
+                FormTextField(label: "Serving", text: $serving, prompt: "1 bowl, 200 g")
             }
 
             Section {
@@ -95,17 +93,7 @@ struct CustomFoodSheet: View {
     }
 
     private func macroField(_ label: String, text: Binding<String>, suffix: String, keyboard: UIKeyboardType) -> some View {
-        HStack {
-            Text(label)
-            Spacer()
-            TextField(label, text: text, prompt: Text("0"))
-                .multilineTextAlignment(.trailing)
-                .keyboardType(keyboard)
-                .frame(maxWidth: 90)
-            Text(suffix)
-                .foregroundStyle(VitalaColor.textSecondary)
-                .accessibilityHidden(true)
-        }
+        FormTextField(label: label, text: text, prompt: "0", unit: suffix, keyboard: keyboard)
     }
 
     private static func number(_ text: String) -> Double? {
