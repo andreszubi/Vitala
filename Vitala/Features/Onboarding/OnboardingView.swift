@@ -3,21 +3,22 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileStore: ProfileStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: Int = 0
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
 
     private let marketingPages: [OnboardingPage] = [
-        .init(icon: "leaf.fill", tint: VitalaColor.primary,
+        .init(art: .brand, tint: VitalaColor.primary,
               title: "A gentler path to wellness",
               body: "Vitala blends movement, food, sleep, and breath into one calm daily rhythm."),
-        .init(icon: "figure.mind.and.body", tint: VitalaColor.sage,
+        .init(art: .symbol("figure.mind.and.body"), tint: VitalaColor.mindful,
               title: "Tiny habits, big change",
-              body: "We celebrate small wins — a glass of water, a 5-minute walk, a deep breath."),
-        .init(icon: "heart.text.square.fill", tint: VitalaColor.coral,
+              body: "Celebrate small wins — a glass of water, a five-minute walk, a deep breath."),
+        .init(art: .symbol("lock.shield.fill"), tint: VitalaColor.coralText,
               title: "Your data, your rules",
-              body: "Sync with Apple Health when you're ready. Privacy is the default, not a setting.")
+              body: "Everything stays on this iPhone. Connect Apple Health only if you want to — no account needed.")
     ]
 
     private var totalPages: Int { marketingPages.count + 1 } // +1 for the form page
@@ -30,7 +31,7 @@ struct OnboardingView: View {
         ZStack {
             VitalaColor.creamGradient.ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 0) {
                 topBar
 
                 TabView(selection: $page) {
@@ -64,15 +65,30 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
+            if page > 0 {
+                Button {
+                    go(to: page - 1)
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .foregroundStyle(VitalaColor.textPrimary)
+                .accessibilityLabel("Back")
+            }
             Spacer()
             if !isFormPage {
-                Button("Skip") { skipToForm() }
+                Button("Skip") { go(to: marketingPages.count) }
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textSecondary)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .accessibilityHint("Skips to setting up your name")
             }
         }
-        .padding(.horizontal, VitalaSpacing.lg)
-        .padding(.top, VitalaSpacing.md)
+        .frame(minHeight: 44)
+        .padding(.horizontal, VitalaSpacing.md)
+        .padding(.top, VitalaSpacing.xs)
     }
 
     private var pageIndicator: some View {
@@ -81,9 +97,11 @@ struct OnboardingView: View {
                 Capsule()
                     .fill(i == page ? VitalaColor.primary : VitalaColor.muted.opacity(0.3))
                     .frame(width: i == page ? 22 : 8, height: 8)
-                    .animation(.spring(duration: 0.3), value: page)
             }
         }
+        .animation(reduceMotion ? nil : .spring(duration: 0.3), value: page)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(page + 1) of \(totalPages)")
     }
 
     @ViewBuilder
@@ -95,7 +113,7 @@ struct OnboardingView: View {
             }
         } else {
             PrimaryButton(title: "Continue", icon: "arrow.right") {
-                withAnimation { page += 1 }
+                go(to: page + 1)
             }
         }
     }
@@ -107,6 +125,7 @@ struct OnboardingView: View {
                     Text("Let's get to know you")
                         .font(VitalaFont.title(28))
                         .foregroundStyle(VitalaColor.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
                     Text("Vitala uses your name to personalize your day. Everything you enter stays on this device.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
@@ -119,16 +138,25 @@ struct OnboardingView: View {
                     VitalaTextField(title: "Last name (optional)", text: $lastName,
                                     icon: "person", contentType: .familyName)
                 }
+
+                Label {
+                    Text("Vitala is a wellness companion, not a medical device. For medical advice, talk to a healthcare professional.")
+                } icon: {
+                    Image(systemName: "info.circle")
+                }
+                .font(VitalaFont.caption(12))
+                .foregroundStyle(VitalaColor.textSecondary)
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.bottom, VitalaSpacing.xl)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 
     // MARK: Actions
 
-    private func skipToForm() {
-        withAnimation { page = marketingPages.count }
+    private func go(to newPage: Int) {
+        withAnimation(reduceMotion ? nil : .default) { page = max(0, min(newPage, marketingPages.count)) }
     }
 
     private func saveAndContinue() async {
@@ -145,7 +173,11 @@ struct OnboardingView: View {
 }
 
 private struct OnboardingPage {
-    let icon: String
+    enum Art {
+        case brand
+        case symbol(String)
+    }
+    let art: Art
     let tint: Color
     let title: String
     let body: String
@@ -153,30 +185,41 @@ private struct OnboardingPage {
 
 private struct OnboardingPageView: View {
     let page: OnboardingPage
+    private let artSize: CGFloat = 180
 
     var body: some View {
-        VStack(spacing: VitalaSpacing.lg) {
-            Spacer()
-            ZStack {
-                Circle().fill(page.tint.opacity(0.18)).frame(width: 200, height: 200)
-                Circle().fill(page.tint.opacity(0.10)).frame(width: 280, height: 280)
-                Image(systemName: page.icon)
-                    .font(.system(size: 80, weight: .bold))
-                    .foregroundStyle(page.tint)
+        ScrollView {
+            VStack(spacing: VitalaSpacing.lg) {
+                ZStack {
+                    Circle().fill(page.tint.opacity(0.08)).frame(width: artSize * 1.35, height: artSize * 1.35)
+                    Circle().fill(page.tint.opacity(0.14)).frame(width: artSize, height: artSize)
+                    switch page.art {
+                    case .brand:
+                        BrandMark(size: artSize * 0.6)
+                    case .symbol(let name):
+                        Image(systemName: name)
+                            .font(.system(size: artSize * 0.4, weight: .bold))
+                            .foregroundStyle(page.tint)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, VitalaSpacing.xl)
+                .accessibilityHidden(true)
+
+                Text(page.title)
+                    .font(VitalaFont.title(28))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
+                Text(page.body)
+                    .font(VitalaFont.body(16))
+                    .foregroundStyle(VitalaColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, VitalaSpacing.md)
             }
-            Spacer().frame(height: 12)
-            Text(page.title)
-                .font(VitalaFont.title(28))
-                .foregroundStyle(VitalaColor.textPrimary)
-                .multilineTextAlignment(.center)
-            Text(page.body)
-                .font(VitalaFont.body(16))
-                .foregroundStyle(VitalaColor.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            Spacer()
+            .padding(.horizontal, VitalaSpacing.lg)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, VitalaSpacing.lg)
     }
 }
 

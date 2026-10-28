@@ -107,3 +107,37 @@ struct WellnessGoals: Codable, Hashable {
         }
     }
 }
+
+extension UserProfile {
+    /// Whole years since `dateOfBirth`.
+    func age(on date: Date = .now, calendar: Calendar = .current) -> Int? {
+        guard let dob = dateOfBirth else { return nil }
+        return calendar.dateComponents([.year], from: dob, to: date).year
+    }
+
+    /// Daily calorie suggestion: Mifflin–St Jeor resting energy × activity
+    /// level, nudged for the primary focus and rounded to 50 kcal. `nil` until
+    /// height, weight and birthday are known.
+    func suggestedDailyCalories(on date: Date = .now) -> Int? {
+        guard let kg = weightKg, let cm = heightCm, let age = age(on: date), age >= 13 else { return nil }
+        let sexOffset: Double
+        switch gender {
+        case .male: sexOffset = 5
+        case .female: sexOffset = -161
+        case .nonBinary, .unspecified: sexOffset = -78
+        }
+        let resting = 10 * kg + 6.25 * cm - 5 * Double(age) + sexOffset
+        var daily = resting * activityLevel.multiplier
+        switch goals.primaryFocus {
+        case .loseWeight: daily -= 400
+        case .buildMuscle: daily += 250
+        default: break
+        }
+        let rounded = Int((daily / 50).rounded()) * 50
+        return min(max(rounded, 1_200), 4_000)
+    }
+
+    /// Plausible body measurements, used to validate input.
+    static let heightRangeCm: ClosedRange<Double> = 90...250
+    static let weightRangeKg: ClosedRange<Double> = 25...300
+}

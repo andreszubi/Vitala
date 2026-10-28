@@ -5,6 +5,9 @@ struct RootView: View {
     @EnvironmentObject var appState: AppState
 
     @State private var didSplash = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var slide: AnyTransition { reduceMotion ? .opacity : .move(edge: .trailing) }
 
     var body: some View {
         ZStack {
@@ -16,10 +19,10 @@ struct RootView: View {
                     .transition(.opacity)
             case .onboarding:
                 OnboardingView()
-                    .transition(.move(edge: .trailing))
+                    .transition(slide)
             case .profileSetup:
                 ProfileSetupRootView()
-                    .transition(.move(edge: .trailing))
+                    .transition(slide)
             case .main:
                 MainTabView()
                     .transition(.opacity)
@@ -36,8 +39,6 @@ struct RootView: View {
 
     private func resolve() async {
         didSplash = true
-        // Tiny delay so the splash isn't jarring.
-        try? await Task.sleep(nanoseconds: 100_000_000)
         appState.resolveRoute(profile: profileStore.profile)
     }
 }
