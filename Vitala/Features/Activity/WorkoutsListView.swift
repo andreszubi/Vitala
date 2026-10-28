@@ -45,7 +45,7 @@ struct WorkoutsListView: View {
                 sessionsForDateSection
 
                 VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-                    SectionHeader(title: "Library", trailing: "\(workouts.count) sessions")
+                    SectionHeader(title: "Library", trailing: "\(workouts.count) \(workouts.count == 1 ? "session" : "sessions")")
                     categoryFilter
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(workouts) { w in
@@ -130,13 +130,18 @@ struct FilterChip: View {
     var body: some View {
         Group {
             if #available(iOS 26.0, *) {
+                // One button style whose tint changes with selection. Switching
+                // between two glass button styles would rebuild the chip while
+                // its press animation is still running, which UIKit reports as
+                // "Decomposition of 'bounds' was requested…".
                 Button(action: action) {
                     content
                         .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
                         .frame(minHeight: 28)
                 }
                 .buttonBorderShape(.capsule)
-                .glassButtonStyle(prominent: isOn, tint: isOn ? VitalaColor.primaryFill : nil)
+                .buttonStyle(.glassProminent)
+                .tint(isOn ? VitalaColor.primaryFill : VitalaColor.surface.opacity(0.55))
             } else {
                 Button(action: action) {
                     content

@@ -8,7 +8,7 @@ struct SessionPlayerView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+    @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
     @State private var ambient = AmbientSoundPlayer()
 
     @State private var startedAt: Date = .now
@@ -49,7 +49,7 @@ struct SessionPlayerView: View {
     }
 
     private var sound: AmbientSoundPlayer.Sound {
-        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .defaultSound
     }
 
     private var expanded: Bool {
@@ -63,9 +63,8 @@ struct SessionPlayerView: View {
     var body: some View {
         let tint = Color(hex: session.tint)
         ZStack {
-            LinearGradient(colors: [tint, tint.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-                .background(Color.black)
-                .ignoresSafeArea()
+            SessionBackground(category: session.category, tint: tint)
+                .equatable()
 
             if let saved {
                 completion(saved)
@@ -78,6 +77,9 @@ struct SessionPlayerView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            // Every session starts on the default sound; a change made from
+            // the menu lasts for that session only.
+            soundChoice = AmbientSoundPlayer.Sound.defaultSound.rawValue
             ambient.play(sound, for: session.category)
         }
         .onDisappear {
@@ -126,6 +128,7 @@ struct SessionPlayerView: View {
                     .foregroundStyle(.white.opacity(0.9))
             }
             .multilineTextAlignment(.center)
+            .readableOnScene()
 
             breathingCircle
 
@@ -137,11 +140,13 @@ struct SessionPlayerView: View {
                 .frame(minHeight: 48)
                 .id(prompt)
                 .transition(.opacity)
+                .readableOnScene()
 
-            if sound == .spaBinaural {
+            if sound.usesBinaural {
                 Label("Binaural tones work best with headphones", systemImage: "headphones")
                     .font(VitalaFont.caption(12))
                     .foregroundStyle(.white.opacity(0.9))
+                    .readableOnScene()
             }
 
             Spacer(minLength: 0)
@@ -168,6 +173,7 @@ struct SessionPlayerView: View {
                     .multilineTextAlignment(.center)
             }
             .foregroundStyle(.white)
+            .readableOnScene()
             Spacer(minLength: 0)
             VStack(spacing: 12) {
                 if let onJournal {
@@ -206,8 +212,17 @@ struct SessionPlayerView: View {
             Text(session.category.label)
                 .font(VitalaFont.caption())
                 .foregroundStyle(.white.opacity(0.9))
+                .readableOnScene()
             Spacer()
-            SoundMenuButton()
+            HStack(spacing: 8) {
+                // `.equatable()` keeps the countdown's four updates a second
+                // from reaching the menus; they redraw only when their own
+                // saved choice changes. Without it an open menu was rebuilt
+                // mid-tap, dropping taps and making UIKit log "Decomposition
+                // of 'bounds' was requested…".
+                SceneMenuButton().equatable()
+                SoundMenuButton().equatable()
+            }
         }
         .padding(.top, VitalaSpacing.xs)
     }
@@ -238,6 +253,7 @@ struct SessionPlayerView: View {
             }
             .animation(.easeOut(duration: 0.2), value: step.label)
             .animation(.easeOut(duration: 0.2), value: position.remaining)
+            .readableOnScene()
         }
         .frame(height: 300)
         .accessibilityElement(children: .ignore)
@@ -340,16 +356,15 @@ struct SessionPlayerView: View {
     }
 }
 
-/// The sound picker in the player's top bar. A separate view with no inputs,
-/// so the player's four-times-a-second countdown never re-renders it: an
-/// update arriving while iOS morphs the button into its menu makes UIKit
-/// log "Decomposition of 'bounds' was requested…" and can make the morph
-/// stutter.
-private struct SoundMenuButton: View {
-    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+/// The sound picker in the player's top bar. It has no inputs, so it is
+/// always equal to its previous self; see `topBar` for why that matters.
+private struct SoundMenuButton: View, Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+
+    @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
 
     private var sound: AmbientSoundPlayer.Sound {
-        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .defaultSound
     }
 
     /// Glass buttons add their own padding on iOS 26+, so the label is smaller
@@ -384,3 +399,60 @@ private struct SoundMenuButton: View {
         .transaction { $0.animation = nil }
     }
 }
+
+/// The animated scene, read from storage so changing it from the menu
+/// redraws only the background, never the countdown.
+private struct SessionBackground: View, Equatable {
+    let category: MindfulnessSession.Category
+    let tint: Color
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.category == rhs.category && lhs.tint == rhs.tint
+    }
+    @AppStorage("vitala.sessionScene") private var sceneChoice: String = ZenScene.automatic.rawValue
+
+    var body: some View {
+        let choice = ZenScene(rawValue: sceneChoice) ?? .automatic
+        ZenBackground(scene: choice.resolved(for: category), tint: tint)
+    }
+}
+
+/// Picks the background scene. Kept out of the countdown's updates for the
+/// same reason as `SoundMenuButton`.
+private struct SceneMenuButton: View, Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+
+    @AppStorage("vitala.sessionScene") private var sceneChoice: String = ZenScene.automatic.rawValue
+
+    private var scene: ZenScene { ZenScene(rawValue: sceneChoice) ?? .automatic }
+
+    private var labelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Scene", selection: $sceneChoice) {
+                ForEach(ZenScene.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                }
+            }
+        } label: {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: labelSize, height: labelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Scene")
+        .accessibilityValue(scene.label)
+        .transaction { $0.animation = nil }
+    }
+}
+
