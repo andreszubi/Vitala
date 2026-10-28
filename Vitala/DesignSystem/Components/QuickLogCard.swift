@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// A polished tile for the dashboard's quick-log row.
-/// Vertical layout so the title and value get the FULL card width.
+/// A tile for the dashboard's quick-log grid.
+/// Vertical layout so the title and value get the full card width.
 struct QuickLogCard: View {
     let icon: String
     let title: String
@@ -10,63 +10,58 @@ struct QuickLogCard: View {
     /// Optional 0...1 progress that renders a thin bar at the bottom.
     var progress: Double? = nil
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
-                ZStack {
-                    Circle().fill(tint.opacity(0.18))
-                        .frame(width: 40, height: 40)
-                    Image(systemName: icon)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundStyle(tint)
-                }
+                Image(systemName: icon)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(tint)
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(tint.opacity(0.15)))
                 Spacer(minLength: 0)
                 Image(systemName: "plus")
-                    .font(.system(size: 12, weight: .bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(tint)
-                    .frame(width: 24, height: 24)
-                    .background(tint.opacity(0.12))
-                    .clipShape(Circle())
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(tint.opacity(0.12)))
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let value, !value.isEmpty {
                     Text(value)
                         .font(VitalaFont.caption(12))
                         .foregroundStyle(VitalaColor.textSecondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             if let progress {
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(tint.opacity(0.15))
-                            .frame(height: 4)
+                        Capsule().fill(tint.opacity(0.15))
                         Capsule()
                             .fill(tint)
-                            .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)),
-                                   height: 4)
-                            .animation(.easeInOut(duration: 0.6), value: progress)
+                            .frame(width: geo.size.width * CGFloat(min(max(progress, 0), 1)))
+                            .animation(reduceMotion ? nil : .easeInOut(duration: 0.6), value: progress)
                     }
                 }
                 .frame(height: 4)
             }
         }
         .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(in: RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous))
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .surfaceCard()
     }
 }
 
-// MARK: - Convenience wrappers (Button vs NavigationLink)
+// MARK: - Button wrapper
 
 struct QuickLogButton: View {
     let icon: String
@@ -74,28 +69,19 @@ struct QuickLogButton: View {
     let value: String?
     let tint: Color
     var progress: Double? = nil
+    var hint: String? = nil
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             QuickLogCard(icon: icon, title: title, value: value, tint: tint, progress: progress)
         }
-        .buttonStyle(.plain)
-    }
-}
-
-struct QuickLogNavLink<Destination: View>: View {
-    let icon: String
-    let title: String
-    let value: String?
-    let tint: Color
-    var progress: Double? = nil
-    @ViewBuilder let destination: () -> Destination
-
-    var body: some View {
-        NavigationLink(destination: destination()) {
-            QuickLogCard(icon: icon, title: title, value: value, tint: tint, progress: progress)
-        }
-        .buttonStyle(.plain)
+        .accessibilityIdentifier("quicklog.\(title.lowercased())")
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(title)
+        .accessibilityValue(value ?? "")
+        .accessibilityHint(hint ?? "")
+        .accessibilityAddTraits(.isButton)
     }
 }

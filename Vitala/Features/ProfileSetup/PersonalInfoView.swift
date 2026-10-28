@@ -5,8 +5,9 @@ struct PersonalInfoView: View {
     let onNext: () -> Void
 
     @EnvironmentObject var units: UnitsService
+    @Environment(\.dynamicTypeSize) private var typeSize
 
-    // Display fields — refilled when system changes
+    // Display fields — refilled when the unit system changes.
     @State private var heightMetric: String = ""
     @State private var heightFeet: String = ""
     @State private var heightInches: String = ""
@@ -16,19 +17,29 @@ struct PersonalInfoView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("Tell us about you").font(VitalaFont.title(28))
-                    Text("This helps Vitala personalize your daily targets.")
+                    Text("Tell us about you")
+                        .font(VitalaFont.title(28))
+                        .foregroundStyle(VitalaColor.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Optional — it helps Vitala suggest daily targets. It never leaves this device.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
 
-                unitToggle
+                field("Measurement system") {
+                    HStack(spacing: 8) {
+                        ForEach(UnitSystem.allCases) { sys in
+                            ChoiceChip(title: sys.shortLabel, isSelected: units.system == sys) {
+                                units.system = sys
+                            }
+                        }
+                    }
+                }
 
-                VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-                    Text("Date of birth").font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-                    DatePicker("",
+                field("Date of birth") {
+                    DatePicker("Date of birth",
                         selection: Binding(
-                            get: { draft.dateOfBirth ?? Calendar.current.date(byAdding: .year, value: -28, to: .now)! },
+                            get: { draft.dateOfBirth ?? Calendar.current.date(byAdding: .year, value: -30, to: .now)! },
                             set: { draft.dateOfBirth = $0 }
                         ),
                         in: ...Date.now,
@@ -36,11 +47,11 @@ struct PersonalInfoView: View {
                     )
                     .datePickerStyle(.compact)
                     .labelsHidden()
+                    .tint(VitalaColor.primary)
                 }
 
-                VStack(alignment: .leading, spacing: VitalaSpacing.xs) {
-                    Text("Gender").font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-                    LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 8) {
+                field("Gender") {
+                    LazyVGrid(columns: chipColumns, spacing: 8) {
                         ForEach(UserProfile.Gender.allCases) { g in
                             ChoiceChip(title: g.label, isSelected: draft.gender == g) {
                                 draft.gender = g
@@ -49,71 +60,99 @@ struct PersonalInfoView: View {
                     }
                 }
 
+                field("How active are you?") {
+                    VStack(spacing: 8) {
+                        ForEach(UserProfile.ActivityLevel.allCases) { level in
+                            ChoiceChip(title: level.label, isSelected: draft.activityLevel == level) {
+                                draft.activityLevel = level
+                            }
+                        }
+                    }
+                }
+
                 heightSection
                 weightSection
 
-                Spacer().frame(height: VitalaSpacing.md)
-
-                PrimaryButton(title: "Continue", icon: "arrow.right",
-                              isEnabled: canSubmit) {
+                PrimaryButton(title: "Continue", icon: "arrow.right", isEnabled: isValid) {
                     saveAndContinue()
                 }
+                .padding(.top, VitalaSpacing.sm)
             }
             .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.top, VitalaSpacing.lg)
+            .padding(.top, VitalaSpacing.md)
             .padding(.bottom, VitalaSpacing.xl)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
         .onAppear { reloadFromDraft() }
         .onChange(of: units.system) { _, _ in reloadFromDraft() }
     }
 
+    private var chipColumns: [GridItem] {
+        typeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())]
+    }
+
     // MARK: Sections
 
-    private var unitToggle: some View {
+    private func field<Content: View>(_ label: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.xs) {
-            Text("Measurement system")
-                .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-            HStack(spacing: 8) {
-                ForEach(UnitSystem.allCases) { sys in
-                    ChoiceChip(title: sys.shortLabel, isSelected: units.system == sys) {
-                        units.system = sys
-                    }
-                }
-            }
+            Text(label)
+                .font(VitalaFont.caption())
+                .foregroundStyle(VitalaColor.textSecondary)
+                .accessibilityAddTraits(.isHeader)
+            content()
         }
     }
 
     private var heightSection: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.xs) {
-            Text("Height").font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
             if units.system == .metric {
-                VitalaTextField(title: "cm", text: $heightMetric, icon: "ruler", keyboard: .decimalPad)
+                VitalaTextField(title: "Height (cm)", text: $heightMetric, icon: "ruler", keyboard: .decimalPad)
             } else {
                 HStack(spacing: 12) {
-                    VitalaTextField(title: "ft", text: $heightFeet, icon: "ruler", keyboard: .numberPad)
-                    VitalaTextField(title: "in", text: $heightInches, keyboard: .numberPad)
+                    VitalaTextField(title: "Height (ft)", text: $heightFeet, icon: "ruler", keyboard: .numberPad)
+                    VitalaTextField(title: "Height (in)", text: $heightInches, keyboard: .numberPad)
                 }
+            }
+            if !heightIsValid {
+                validationMessage("Enter a height between \(units.formatHeight(cm: UserProfile.heightRangeCm.lowerBound)) and \(units.formatHeight(cm: UserProfile.heightRangeCm.upperBound)).")
             }
         }
     }
 
     private var weightSection: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.xs) {
-            Text("Weight").font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-            VitalaTextField(title: units.weightUnitLabel(), text: $weightText,
+            VitalaTextField(title: "Weight (\(units.weightUnitLabel()))", text: $weightText,
                             icon: "scalemass", keyboard: .decimalPad)
+            if !weightIsValid {
+                validationMessage("Enter a weight between \(units.formatWeight(kg: UserProfile.weightRangeKg.lowerBound)) and \(units.formatWeight(kg: UserProfile.weightRangeKg.upperBound)).")
+            }
         }
     }
 
-    // MARK: Helpers
-
-    private var canSubmit: Bool {
-        let hasHeight: Bool = {
-            if units.system == .metric { return Double(heightMetric) ?? 0 > 0 }
-            return (Double(heightFeet) ?? 0) > 0
-        }()
-        return hasHeight && (Double(weightText) ?? 0) > 0
+    private func validationMessage(_ text: String) -> some View {
+        Label(text, systemImage: "exclamationmark.circle")
+            .font(VitalaFont.caption(12))
+            .foregroundStyle(VitalaColor.danger)
     }
+
+    // MARK: Validation
+
+    private var heightEntered: Bool {
+        units.system == .metric ? !heightMetric.isEmpty : !(heightFeet.isEmpty && heightInches.isEmpty)
+    }
+    private var parsedHeight: Double? {
+        units.parseHeightToCm(metric: heightMetric, feet: heightFeet, inches: heightInches)
+    }
+    private var heightIsValid: Bool {
+        !heightEntered || parsedHeight.map(UserProfile.heightRangeCm.contains) == true
+    }
+    private var weightIsValid: Bool {
+        weightText.isEmpty || units.parseWeightToKg(weightText).map(UserProfile.weightRangeKg.contains) == true
+    }
+    private var isValid: Bool { heightIsValid && weightIsValid }
+
+    // MARK: Helpers
 
     private func reloadFromDraft() {
         if let cm = draft.heightCm {
@@ -127,10 +166,17 @@ struct PersonalInfoView: View {
     }
 
     private func saveAndContinue() {
-        let cm: Double? = units.parseHeightToCm(metric: heightMetric, feet: heightFeet, inches: heightInches)
-        let kg: Double? = units.parseWeightToKg(weightText)
-        draft.heightCm = cm
-        draft.weightKg = kg
+        draft.heightCm = heightEntered ? parsedHeight : nil
+        draft.weightKg = weightText.isEmpty ? nil : units.parseWeightToKg(weightText)
+        if draft.dateOfBirth == nil {
+            draft.dateOfBirth = Calendar.current.date(byAdding: .year, value: -30, to: .now)
+        }
+        // Start from a personal calorie target when we can estimate one,
+        // unless the user already picked their own.
+        if draft.goals.dailyCalories == WellnessGoals().dailyCalories,
+           let suggested = draft.suggestedDailyCalories() {
+            draft.goals.dailyCalories = suggested
+        }
         onNext()
     }
 }
@@ -144,19 +190,22 @@ struct ChoiceChip: View {
         Button(action: action) {
             Text(title)
                 .font(VitalaFont.bodyMedium(15))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .padding(.horizontal, 8)
                 .background(
                     RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
                         .fill(isSelected ? VitalaColor.primary.opacity(0.12) : VitalaColor.surface)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
-                        .stroke(isSelected ? VitalaColor.primary : Color.black.opacity(0.06),
+                        .stroke(isSelected ? VitalaColor.primary : VitalaColor.hairline,
                                 lineWidth: isSelected ? 1.5 : 1)
                 )
                 .foregroundStyle(isSelected ? VitalaColor.primary : VitalaColor.textPrimary)
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }

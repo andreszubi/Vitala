@@ -3,6 +3,7 @@ import SwiftUI
 struct PermissionsView: View {
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var notifications: NotificationService
+    @Environment(\.openURL) private var openURL
     let onNext: () -> Void
 
     var body: some View {
@@ -11,86 +12,109 @@ struct PermissionsView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("Connect what helps")
                         .font(VitalaFont.title(28))
-                    Text("Both are optional and can be changed in Settings.")
+                        .foregroundStyle(VitalaColor.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Both are optional and can be changed later in Settings.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
 
-                PermissionCard(
-                    icon: "heart.text.square.fill",
-                    tint: VitalaColor.coral,
-                    title: "Apple Health",
-                    message: "Sync steps, workouts, sleep, and heart rate with Apple Health.",
-                    isOn: health.isAuthorized,
-                    actionTitle: "Connect"
-                ) {
-                    Task { await health.requestAuthorization() }
+                if health.isAvailable {
+                    PermissionCard(
+                        icon: "heart.text.square.fill",
+                        tint: VitalaColor.coralText,
+                        title: "Apple Health",
+                        message: "Show steps, heart rate and sleep from Health, and save what you log here back to Health.",
+                        state: health.isAuthorized ? .granted : .available,
+                        actionTitle: "Connect"
+                    ) {
+                        Task { await health.requestAuthorization() }
+                    }
                 }
 
                 PermissionCard(
                     icon: "bell.badge.fill",
                     tint: VitalaColor.primary,
                     title: "Gentle reminders",
-                    message: "We'll send a few mindful nudges — hydration, stretches, wind-down.",
-                    isOn: notifications.authorizationStatus == .authorized,
-                    actionTitle: "Allow"
+                    message: "A few mindful nudges a day — hydration, a stretch, winding down. You choose which and when.",
+                    state: notificationState,
+                    actionTitle: notifications.authorizationStatus == .denied ? "Open Settings" : "Allow"
                 ) {
-                    Task { _ = await notifications.request() }
+                    if notifications.authorizationStatus == .denied {
+                        if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
+                    } else {
+                        Task { _ = await notifications.request() }
+                    }
                 }
 
-                Spacer().frame(height: VitalaSpacing.md)
-
                 PrimaryButton(title: "Continue", icon: "arrow.right", action: onNext)
-                GhostButton(title: "Skip for now", action: onNext)
+                    .padding(.top, VitalaSpacing.sm)
             }
             .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.top, VitalaSpacing.lg)
+            .padding(.top, VitalaSpacing.md)
             .padding(.bottom, VitalaSpacing.xl)
         }
         .task {
             await notifications.refreshStatus()
         }
     }
+
+    private var notificationState: PermissionCard.State {
+        switch notifications.authorizationStatus {
+        case .authorized, .provisional, .ephemeral: .granted
+        default: .available
+        }
+    }
 }
 
 private struct PermissionCard: View {
+    enum State { case available, granted }
+
     let icon: String
     let tint: Color
     let title: String
     let message: String
-    let isOn: Bool
+    let state: State
     let actionTitle: String
     let action: () -> Void
 
     var body: some View {
-        HStack(spacing: VitalaSpacing.sm) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14).fill(tint.opacity(0.15))
-                    .frame(width: 52, height: 52)
-                Image(systemName: icon).foregroundStyle(tint).font(.system(size: 22))
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title).font(VitalaFont.bodyMedium(16))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                Text(message).font(VitalaFont.caption(13))
-                    .foregroundStyle(VitalaColor.textSecondary)
-            }
-            Spacer()
-            if isOn {
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(VitalaColor.success).font(.system(size: 22))
-            } else {
-                Button(actionTitle, action: action)
-                    .font(VitalaFont.bodyMedium(14))
-                    .padding(.horizontal, 14).padding(.vertical, 8)
-                    .background(tint.opacity(0.15))
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            HStack(alignment: .top, spacing: VitalaSpacing.sm) {
+                Image(systemName: icon)
+                    .font(.title2)
                     .foregroundStyle(tint)
-                    .clipShape(Capsule())
+                    .frame(width: 52, height: 52)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(tint.opacity(0.14)))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(title).font(VitalaFont.bodyMedium(16))
+                        .foregroundStyle(VitalaColor.textPrimary)
+                    Text(message).font(VitalaFont.caption(13))
+                        .foregroundStyle(VitalaColor.textSecondary)
+                }
+                .accessibilityElement(children: .combine)
+                Spacer(minLength: 0)
+            }
+
+            if state == .granted {
+                Label("Connected", systemImage: "checkmark.circle.fill")
+                    .font(VitalaFont.bodyMedium(15))
+                    .foregroundStyle(VitalaColor.success)
+                    .frame(minHeight: 44)
+            } else {
+                Button(action: action) {
+                    Text(actionTitle)
+                        .font(VitalaFont.bodyMedium(15))
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
+                        .foregroundStyle(VitalaColor.primary)
+                }
+                .buttonStyle(PressableButtonStyle())
+                .accessibilityLabel("\(actionTitle), \(title)")
             }
         }
-        .padding(VitalaSpacing.md)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous))
-        .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
+        .vitalaCard()
     }
 }

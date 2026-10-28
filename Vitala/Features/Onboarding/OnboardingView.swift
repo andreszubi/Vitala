@@ -2,38 +2,36 @@ import SwiftUI
 
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
-    @EnvironmentObject var auth: AuthService
+    @EnvironmentObject var profileStore: ProfileStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: Int = 0
 
     @State private var firstName: String = ""
     @State private var lastName: String = ""
-    @State private var email: String = ""
 
     private let marketingPages: [OnboardingPage] = [
-        .init(icon: "leaf.fill", tint: VitalaColor.primary,
+        .init(art: .brand, tint: VitalaColor.primary,
               title: "A gentler path to wellness",
               body: "Vitala blends movement, food, sleep, and breath into one calm daily rhythm."),
-        .init(icon: "figure.mind.and.body", tint: VitalaColor.sage,
+        .init(art: .symbol("figure.mind.and.body"), tint: VitalaColor.mindful,
               title: "Tiny habits, big change",
-              body: "We celebrate small wins — a glass of water, a 5-minute walk, a deep breath."),
-        .init(icon: "heart.text.square.fill", tint: VitalaColor.coral,
+              body: "Celebrate small wins — a glass of water, a five-minute walk, a deep breath."),
+        .init(art: .symbol("lock.shield.fill"), tint: VitalaColor.coralText,
               title: "Your data, your rules",
-              body: "Sync with Apple Health when you're ready. Privacy is the default, not a setting.")
+              body: "Everything stays on this iPhone. Connect Apple Health only if you want to — no account needed.")
     ]
 
     private var totalPages: Int { marketingPages.count + 1 } // +1 for the form page
     private var isFormPage: Bool { page == marketingPages.count }
     private var canContinueFromForm: Bool {
         !firstName.trimmingCharacters(in: .whitespaces).isEmpty
-            && !lastName.trimmingCharacters(in: .whitespaces).isEmpty
-            && email.contains("@") && email.contains(".")
     }
 
     var body: some View {
         ZStack {
             VitalaColor.creamGradient.ignoresSafeArea()
 
-            VStack {
+            VStack(spacing: 0) {
                 topBar
 
                 TabView(selection: $page) {
@@ -54,14 +52,11 @@ struct OnboardingView: View {
             }
         }
         .onAppear {
-            // Pre-populate from existing demo profile so users can edit instead of retype.
-            if let p = auth.profile {
+            // Pre-populate if a profile already exists so users can edit instead of retype.
+            if let p = profileStore.profile {
                 let parts = p.displayName.split(separator: " ", maxSplits: 1).map(String.init)
                 if firstName.isEmpty { firstName = parts.first ?? "" }
                 if lastName.isEmpty  { lastName  = parts.count > 1 ? parts[1] : "" }
-                if email.isEmpty && !p.email.isEmpty && !p.email.contains("demo@vitala.app") {
-                    email = p.email
-                }
             }
         }
     }
@@ -70,15 +65,21 @@ struct OnboardingView: View {
 
     private var topBar: some View {
         HStack {
+            if page > 0 {
+                GlassIconButton(systemName: "chevron.left", label: "Back") { go(to: page - 1) }
+            }
             Spacer()
             if !isFormPage {
-                Button("Skip") { skipToForm() }
+                Button("Skip") { go(to: marketingPages.count) }
                     .font(VitalaFont.bodyMedium(15))
                     .foregroundStyle(VitalaColor.textSecondary)
+                    .buttonStyle(TapTargetButtonStyle())
+                    .accessibilityHint("Skips to setting up your name")
             }
         }
-        .padding(.horizontal, VitalaSpacing.lg)
-        .padding(.top, VitalaSpacing.md)
+        .frame(minHeight: 44)
+        .padding(.horizontal, VitalaSpacing.md)
+        .padding(.top, VitalaSpacing.xs)
     }
 
     private var pageIndicator: some View {
@@ -87,9 +88,13 @@ struct OnboardingView: View {
                 Capsule()
                     .fill(i == page ? VitalaColor.primary : VitalaColor.muted.opacity(0.3))
                     .frame(width: i == page ? 22 : 8, height: 8)
-                    .animation(.spring(duration: 0.3), value: page)
             }
         }
+        .animation(reduceMotion ? nil : .spring(duration: 0.3), value: page)
+        .padding(.vertical, 18)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Page \(page + 1) of \(totalPages)")
     }
 
     @ViewBuilder
@@ -101,7 +106,7 @@ struct OnboardingView: View {
             }
         } else {
             PrimaryButton(title: "Continue", icon: "arrow.right") {
-                withAnimation { page += 1 }
+                go(to: page + 1)
             }
         }
     }
@@ -113,50 +118,60 @@ struct OnboardingView: View {
                     Text("Let's get to know you")
                         .font(VitalaFont.title(28))
                         .foregroundStyle(VitalaColor.textPrimary)
-                    Text("Your name and email help personalize Vitala. They stay on this device.")
+                        .accessibilityAddTraits(.isHeader)
+                    Text("Vitala uses your name to personalize your day. Everything you enter stays on this device.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
                 .padding(.top, VitalaSpacing.md)
 
                 VStack(spacing: VitalaSpacing.sm) {
-                    HStack(spacing: 12) {
-                        VitalaTextField(title: "First name", text: $firstName,
-                                        icon: "person", contentType: .givenName)
-                        VitalaTextField(title: "Last name", text: $lastName,
-                                        icon: "person", contentType: .familyName)
-                    }
-                    VitalaTextField(title: "Email", text: $email, icon: "envelope",
-                                    keyboard: .emailAddress, contentType: .emailAddress)
+                    VitalaTextField(title: "First name", text: $firstName,
+                                    icon: "person", contentType: .givenName)
+                    VitalaTextField(title: "Last name (optional)", text: $lastName,
+                                    icon: "person", contentType: .familyName)
                 }
+
+                Label {
+                    Text("Vitala is a wellness companion, not a medical device. For medical advice, talk to a healthcare professional.")
+                } icon: {
+                    Image(systemName: "info.circle")
+                }
+                .font(VitalaFont.caption(12))
+                .foregroundStyle(VitalaColor.textSecondary)
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.bottom, VitalaSpacing.xl)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
     }
 
     // MARK: Actions
 
-    private func skipToForm() {
-        withAnimation { page = marketingPages.count }
+    private func go(to newPage: Int) {
+        withAnimation(reduceMotion ? nil : .default) { page = max(0, min(newPage, marketingPages.count)) }
     }
 
     private func saveAndContinue() async {
         let display = "\(firstName.trimmingCharacters(in: .whitespaces)) \(lastName.trimmingCharacters(in: .whitespaces))"
             .trimmingCharacters(in: .whitespaces)
-        if var p = auth.profile {
+        if var p = profileStore.profile {
             p.displayName = display
-            p.email = email.trimmingCharacters(in: .whitespaces)
-            try? await auth.saveProfile(p)
+            try? await profileStore.saveProfile(p)
         } else {
-            await auth.signUp(email: email, password: "demo", displayName: display)
+            profileStore.createProfile(displayName: display)
         }
         appState.completeOnboarding()
     }
 }
 
 private struct OnboardingPage {
-    let icon: String
+    enum Art {
+        case brand
+        case symbol(String)
+    }
+    let art: Art
     let tint: Color
     let title: String
     let body: String
@@ -164,35 +179,46 @@ private struct OnboardingPage {
 
 private struct OnboardingPageView: View {
     let page: OnboardingPage
+    private let artSize: CGFloat = 180
 
     var body: some View {
-        VStack(spacing: VitalaSpacing.lg) {
-            Spacer()
-            ZStack {
-                Circle().fill(page.tint.opacity(0.18)).frame(width: 200, height: 200)
-                Circle().fill(page.tint.opacity(0.10)).frame(width: 280, height: 280)
-                Image(systemName: page.icon)
-                    .font(.system(size: 80, weight: .bold))
-                    .foregroundStyle(page.tint)
+        ScrollView {
+            VStack(spacing: VitalaSpacing.lg) {
+                ZStack {
+                    Circle().fill(page.tint.opacity(0.08)).frame(width: artSize * 1.35, height: artSize * 1.35)
+                    Circle().fill(page.tint.opacity(0.14)).frame(width: artSize, height: artSize)
+                    switch page.art {
+                    case .brand:
+                        BrandMark(size: artSize * 0.6)
+                    case .symbol(let name):
+                        Image(systemName: name)
+                            .font(.system(size: artSize * 0.4, weight: .bold))
+                            .foregroundStyle(page.tint)
+                    }
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.top, VitalaSpacing.xl)
+                .accessibilityHidden(true)
+
+                Text(page.title)
+                    .font(VitalaFont.title(28))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .accessibilityAddTraits(.isHeader)
+                Text(page.body)
+                    .font(VitalaFont.body(16))
+                    .foregroundStyle(VitalaColor.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, VitalaSpacing.md)
             }
-            Spacer().frame(height: 12)
-            Text(page.title)
-                .font(VitalaFont.title(28))
-                .foregroundStyle(VitalaColor.textPrimary)
-                .multilineTextAlignment(.center)
-            Text(page.body)
-                .font(VitalaFont.body(16))
-                .foregroundStyle(VitalaColor.textSecondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 24)
-            Spacer()
+            .padding(.horizontal, VitalaSpacing.lg)
+            .frame(maxWidth: .infinity)
         }
-        .padding(.horizontal, VitalaSpacing.lg)
     }
 }
 
 #Preview {
     OnboardingView()
         .environmentObject(AppState())
-        .environmentObject(AuthService())
+        .environmentObject(ProfileStore())
 }

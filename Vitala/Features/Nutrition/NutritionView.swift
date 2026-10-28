@@ -1,12 +1,13 @@
 import SwiftUI
 
 struct NutritionView: View {
-    @EnvironmentObject var auth: AuthService
-    @ObservedObject private var store = FirestoreService.shared
+    @EnvironmentObject var profileStore: ProfileStore
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ObservedObject private var store = DataStore.shared
 
     @State private var date: Date = .now
     @State private var editingMeal: Meal? = nil
-    @State private var showingAddMeal: Bool = false
+    @State private var addingMealType: Meal.MealType? = nil
 
     private var meals: [Meal] {
         store.meals
@@ -15,7 +16,7 @@ struct NutritionView: View {
     }
 
     private var totalCalories: Int { meals.reduce(0) { $0 + $1.totalCalories } }
-    private var goalCalories: Int { auth.profile?.goals.dailyCalories ?? 2200 }
+    private var goalCalories: Int { profileStore.profile?.goals.dailyCalories ?? 2200 }
 
     var body: some View {
         ScrollView {
@@ -24,15 +25,8 @@ struct NutritionView: View {
                     title: "Nutrition",
                     subtitle: "Eat well, with kindness.",
                     trailing: AnyView(
-                        Button {
-                            showingAddMeal = true
-                        } label: {
-                            Label("Log", systemImage: "plus.circle.fill")
-                                .font(VitalaFont.bodyMedium(15))
-                                .padding(.horizontal, 12).padding(.vertical, 8)
-                                .background(VitalaColor.primary.opacity(0.12))
-                                .foregroundStyle(VitalaColor.primary)
-                                .clipShape(Capsule())
+                        HeaderActionButton(title: "Log", accessibilityLabel: "Log a meal") {
+                            addingMealType = Meal.MealType.suggested()
                         }
                     )
                 )
@@ -43,14 +37,14 @@ struct NutritionView: View {
                 summaryCard
                 macroBreakdown
                 mealsByType
-                Spacer().frame(height: VitalaSpacing.xl)
             }
             .padding(.horizontal, VitalaSpacing.lg)
+            .padding(.bottom, VitalaSpacing.xl)
         }
         .background(VitalaColor.background.ignoresSafeArea())
-        .toolbar(.hidden)
-        .sheet(isPresented: $showingAddMeal) {
-            NavigationStack { AddMealView(forDate: date) }
+        .toolbar(.hidden, for: .navigationBar)
+        .sheet(item: $addingMealType) { type in
+            NavigationStack { AddMealView(initialType: type, forDate: date) }
         }
         .sheet(item: $editingMeal) { meal in
             NavigationStack { AddMealView(editing: meal) }
@@ -58,62 +52,75 @@ struct NutritionView: View {
     }
 
     private var summaryCard: some View {
-        let remaining = max(0, goalCalories - totalCalories)
+        let remaining = goalCalories - totalCalories
         let progress = goalCalories > 0 ? min(1.0, Double(totalCalories) / Double(goalCalories)) : 0
-        return HStack(spacing: VitalaSpacing.md) {
-            ProgressRingSingle(progress: progress, title: "kcal", value: "\(totalCalories)",
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: VitalaSpacing.md))
+            : AnyLayout(HStackLayout(spacing: VitalaSpacing.md))
+        return layout {
+            ProgressRingSingle(progress: progress, title: "kcal eaten", value: "\(totalCalories)",
                                color: VitalaColor.primary, lineWidth: 14)
-                .frame(width: 130, height: 130)
+                .frame(width: 124, height: 124)
             VStack(alignment: .leading, spacing: 6) {
                 Text(dayLabel).font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-                Text("\(totalCalories) / \(goalCalories) kcal")
+                Text("\(totalCalories.formatted()) / \(goalCalories.formatted()) kcal")
                     .font(VitalaFont.headline(20))
-                Text(meals.isEmpty ? "Nothing logged yet" : "\(remaining) remaining")
+                    .foregroundStyle(VitalaColor.textPrimary)
+                Text(statusText(remaining: remaining))
                     .font(VitalaFont.caption(13))
                     .foregroundStyle(meals.isEmpty ? VitalaColor.textSecondary : VitalaColor.success)
             }
-            Spacer()
+            Spacer(minLength: 0)
         }
         .vitalaCard()
+    }
+
+    private func statusText(remaining: Int) -> String {
+        if meals.isEmpty { return "Nothing logged yet" }
+        if remaining >= 0 { return "\(remaining.formatted()) kcal left today" }
+        return "\((-remaining).formatted()) kcal over your target"
     }
 
     private var dayLabel: String {
         let cal = Calendar.current
         if cal.isDateInToday(date) { return "Today's intake" }
         if cal.isDateInYesterday(date) { return "Yesterday's intake" }
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return "Intake on \(f.string(from: date))"
+        return "Intake on \(date.formatted(date: .abbreviated, time: .omitted))"
     }
 
     private var macroBreakdown: some View {
         let p = meals.reduce(0.0) { $0 + $1.totalProtein }
         let c = meals.reduce(0.0) { $0 + $1.totalCarbs }
         let f = meals.reduce(0.0) { $0 + $1.totalFat }
-        return HStack(spacing: 12) {
-            macroBox("Protein", "\(Int(p))g", VitalaColor.coral)
-            macroBox("Carbs",   "\(Int(c))g", VitalaColor.sage)
-            macroBox("Fat",     "\(Int(f))g", Color(red: 0.95, green: 0.74, blue: 0.36))
+        let layout = typeSize.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 12))
+            : AnyLayout(HStackLayout(spacing: 12))
+        return layout {
+            macroBox("Protein", p, VitalaColor.coral)
+            macroBox("Carbs", c, VitalaColor.sage)
+            macroBox("Fat", f, Color(red: 0.93, green: 0.70, blue: 0.30))
         }
     }
 
-    private func macroBox(_ label: String, _ value: String, _ tint: Color) -> some View {
+    private func macroBox(_ label: String, _ grams: Double, _ tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Circle().fill(tint).frame(width: 8, height: 8)
+            Capsule().fill(tint).frame(width: 20, height: 6)
+                .accessibilityHidden(true)
             Text(label).font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-            Text(value).font(VitalaFont.title(20))
+            Text("\(Int(grams.rounded())) g").font(VitalaFont.title(20)).foregroundStyle(VitalaColor.textPrimary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vitalaCard(padding: 14)
+        .accessibilityElement(children: .combine)
     }
 
     private var mealsByType: some View {
-        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+        VStack(alignment: .leading, spacing: VitalaSpacing.md) {
             ForEach(Meal.MealType.allCases) { type in
-                let typeMeals = meals.filter { $0.type == type }
                 MealSection(
                     type: type,
-                    meals: typeMeals,
+                    meals: meals.filter { $0.type == type },
+                    onAdd: { addingMealType = type },
                     onEdit: { editingMeal = $0 },
                     onDelete: { meal in Task { try? await store.deleteMeal(meal) } }
                 )
@@ -122,20 +129,44 @@ struct NutritionView: View {
     }
 }
 
+extension Meal.MealType {
+    /// A sensible default for the time of day.
+    static func suggested(at date: Date = .now) -> Meal.MealType {
+        switch Calendar.current.component(.hour, from: date) {
+        case 4..<11: .breakfast
+        case 11..<15: .lunch
+        case 17..<22: .dinner
+        default: .snack
+        }
+    }
+}
+
 private struct MealSection: View {
     let type: Meal.MealType
     let meals: [Meal]
+    let onAdd: () -> Void
     let onEdit: (Meal) -> Void
     let onDelete: (Meal) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Image(systemName: type.icon).foregroundStyle(VitalaColor.primary)
-                Text(type.label).font(VitalaFont.headline(17))
+                Label(type.label, systemImage: type.icon)
+                    .font(VitalaFont.headline(17))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                    .labelStyle(TintedIconLabelStyle())
+                    .accessibilityAddTraits(.isHeader)
                 Spacer()
                 Text("\(meals.reduce(0) { $0 + $1.totalCalories }) kcal")
                     .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
+                Button(action: onAdd) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .foregroundStyle(VitalaColor.primary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Add to \(type.label.lowercased())")
             }
             if meals.isEmpty {
                 Text("Nothing logged")
@@ -143,17 +174,21 @@ private struct MealSection: View {
                     .foregroundStyle(VitalaColor.textSecondary)
                     .padding(.vertical, 12).padding(.horizontal, 14)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(VitalaColor.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
+                    .surfaceCard()
             } else {
                 ForEach(meals) { meal in
-                    MealCard(
-                        meal: meal,
-                        onEdit: { onEdit(meal) },
-                        onDelete: { onDelete(meal) }
-                    )
+                    MealCard(meal: meal, onEdit: { onEdit(meal) }, onDelete: { onDelete(meal) })
                 }
             }
+        }
+    }
+}
+
+private struct TintedIconLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 8) {
+            configuration.icon.foregroundStyle(VitalaColor.primary)
+            configuration.title
         }
     }
 }
@@ -164,57 +199,61 @@ private struct MealCard: View {
     let onDelete: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(meal.date, style: .time)
-                    .font(VitalaFont.caption(12))
-                    .foregroundStyle(VitalaColor.textSecondary)
-                Spacer()
-                Text("\(meal.totalCalories) kcal")
-                    .font(VitalaFont.bodyMedium(14))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                Menu {
-                    Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-                    Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(VitalaColor.muted)
-                        .frame(width: 28, height: 28)
-                        .contentShape(Rectangle())
+        EditableRow(noun: "meal", onEdit: onEdit, onDelete: onDelete) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text(meal.date, style: .time)
+                        .font(VitalaFont.caption(12))
+                        .foregroundStyle(VitalaColor.textSecondary)
+                    Spacer()
+                    Text("\(meal.totalCalories) kcal")
+                        .font(VitalaFont.bodyMedium(14))
+                        .foregroundStyle(VitalaColor.textPrimary)
                 }
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                // Enumerated index is used as the SwiftUI identity to defend
-                // against legacy meals that may have duplicate FoodItem ids.
-                ForEach(Array(meal.items.enumerated()), id: \.offset) { _, item in
+                ForEach(FoodGroup.grouping(meal.items)) { group in
                     HStack(spacing: 8) {
-                        Image(systemName: item.icon)
+                        Image(systemName: group.item.icon)
                             .foregroundStyle(VitalaColor.primary)
                             .frame(width: 18)
-                        Text(item.name)
+                            .accessibilityHidden(true)
+                        Text(group.count > 1 ? "\(group.item.name) × \(group.count)" : group.item.name)
                             .font(VitalaFont.body(14))
                             .foregroundStyle(VitalaColor.textPrimary)
-                            .lineLimit(1)
                         Spacer()
-                        Text("\(item.calories) kcal")
+                        Text("\(group.item.calories * group.count) kcal")
                             .font(VitalaFont.caption(12))
                             .foregroundStyle(VitalaColor.textSecondary)
                     }
                 }
             }
+            .padding(.vertical, 4)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-        .shadow(color: Color.black.opacity(0.04), radius: 6, y: 2)
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
-        .contextMenu {
-            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-            Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
+    }
+}
+
+/// Identical foods in a meal shown as one line with a count.
+struct FoodGroup: Identifiable {
+    let item: FoodItem
+    let count: Int
+    var id: String { FoodGroup.key(item) }
+
+    static func key(_ item: FoodItem) -> String {
+        "\(item.name)|\(item.servingSize)|\(item.calories)"
+    }
+
+    static func grouping(_ items: [FoodItem]) -> [FoodGroup] {
+        var order: [String] = []
+        var counts: [String: (FoodItem, Int)] = [:]
+        for item in items {
+            let k = key(item)
+            if let existing = counts[k] {
+                counts[k] = (existing.0, existing.1 + 1)
+            } else {
+                order.append(k)
+                counts[k] = (item, 1)
+            }
         }
+        return order.compactMap { counts[$0].map { FoodGroup(item: $0.0, count: $0.1) } }
     }
 }
 
@@ -222,21 +261,22 @@ struct FoodRow: View {
     let item: FoodItem
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(VitalaColor.sage.opacity(0.18))
-                    .frame(width: 38, height: 38)
-                Image(systemName: item.icon).foregroundStyle(VitalaColor.primary)
-            }
+            Image(systemName: item.icon)
+                .foregroundStyle(VitalaColor.primary)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.10)))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(VitalaFont.bodyMedium(15))
+                Text(item.name).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
                 Text(item.servingSize).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
             }
-            Spacer()
+            Spacer(minLength: 8)
             Text("\(item.calories) kcal").font(VitalaFont.bodyMedium(14))
                 .foregroundStyle(VitalaColor.textPrimary)
         }
         .padding(.vertical, 8).padding(.horizontal, 12)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.sm))
+        .frame(minHeight: 44)
+        .surfaceCard()
+        .accessibilityElement(children: .combine)
     }
 }

@@ -1,165 +1,294 @@
 import SwiftUI
 
+/// Full-screen guided breathing. Presented with `fullScreenCover`.
 struct SessionPlayerView: View {
     let session: MindfulnessSession
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var health: HealthKitService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
+    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+    @State private var ambient = AmbientSoundPlayer()
 
-    @State private var elapsed: Int = 0
-    @State private var isPlaying = true
-    @State private var phase: BreathPhase = .inhale
-    @State private var phaseElapsed: Int = 0
     @State private var startedAt: Date = .now
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    /// Wall-clock bookkeeping so timing stays right if the app is backgrounded.
+    @State private var accumulated: TimeInterval = 0
+    @State private var runningSince: Date? = .now
+    @State private var now: Date = .now
+    @State private var lastStepIndex: Int = -1
+    @State private var confirmingEnd = false
+    @State private var finished = false
 
-    enum BreathPhase: Int, CaseIterable {
-        case inhale, holdIn, exhale, holdOut
-        var seconds: Int { 4 }
-        var label: String {
-            switch self {
-            case .inhale: "Inhale"
-            case .holdIn: "Hold"
-            case .exhale: "Exhale"
-            case .holdOut: "Hold"
-            }
+    private var pattern: [MindfulnessSession.BreathStep] { session.category.pattern }
+    private var cycleLength: Int { pattern.reduce(0) { $0 + $1.seconds } }
+    private var totalSeconds: Int { session.minutes * 60 }
+    private var isPlaying: Bool { runningSince != nil }
+
+    private var elapsedPrecise: TimeInterval {
+        accumulated + (runningSince.map { now.timeIntervalSince($0) } ?? 0)
+    }
+    private var elapsed: Int { Int(elapsedPrecise) }
+    private var progress: Double { min(1, elapsedPrecise / Double(max(totalSeconds, 1))) }
+
+    /// Where we are in the breathing cycle.
+    private var position: (index: Int, remaining: Int) {
+        var t = elapsed % max(cycleLength, 1)
+        for (i, step) in pattern.enumerated() {
+            if t < step.seconds { return (i, step.seconds - t) }
+            t -= step.seconds
+        }
+        return (0, pattern.first?.seconds ?? 4)
+    }
+    private var step: MindfulnessSession.BreathStep { pattern[position.index] }
+    private var prompt: String {
+        let prompts = session.category.prompts
+        return prompts[(elapsed / 30) % prompts.count]
+    }
+
+    private var sound: AmbientSoundPlayer.Sound {
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
+    }
+
+    private var expanded: Bool {
+        switch step.kind {
+        case .inhale: true
+        case .hold: position.index > 0 && pattern[position.index - 1].kind == .inhale
+        case .exhale: false
         }
     }
 
-    private var totalSeconds: Int { session.minutes * 60 }
-    private var progress: Double { Double(elapsed) / Double(totalSeconds) }
-
     var body: some View {
+        let tint = Color(hex: session.tint)
         ZStack {
-            LinearGradient(colors: [Color(hex: session.tint),
-                                    Color(hex: session.tint).opacity(0.6)],
-                           startPoint: .topLeading, endPoint: .bottomTrailing)
+            LinearGradient(colors: [tint, tint.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                .background(Color.black)
                 .ignoresSafeArea()
 
             VStack(spacing: VitalaSpacing.lg) {
                 topBar
-                Spacer()
-                Text(session.title).font(VitalaFont.title(24)).foregroundStyle(.white.opacity(0.95))
-                Text(session.subtitle).font(VitalaFont.body(15)).foregroundStyle(.white.opacity(0.8))
+                Spacer(minLength: 0)
+                VStack(spacing: 6) {
+                    Text(session.title)
+                        .font(VitalaFont.title(24))
+                        .foregroundStyle(.white)
+                        .accessibilityAddTraits(.isHeader)
+                    Text(session.subtitle)
+                        .font(VitalaFont.body(15))
+                        .foregroundStyle(.white.opacity(0.9))
+                }
+                .multilineTextAlignment(.center)
 
-                ZStack {
-                    Circle().fill(.white.opacity(0.18)).frame(width: 280, height: 280)
-                        .scaleEffect(scaleForPhase)
-                        .animation(.easeInOut(duration: Double(phase.seconds)), value: phase)
-                    Circle().fill(.white.opacity(0.25)).frame(width: 200, height: 200)
-                        .scaleEffect(scaleForPhase)
-                        .animation(.easeInOut(duration: Double(phase.seconds)), value: phase)
-                    VStack(spacing: 4) {
-                        Text(phase.label)
-                            .font(VitalaFont.title(28))
-                            .foregroundStyle(.white)
-                        Text("\(phase.seconds - phaseElapsed)")
-                            .font(.system(size: 56, weight: .bold, design: .rounded))
-                            .foregroundStyle(.white)
-                    }
+                breathingCircle
+
+                Text(prompt)
+                    .font(VitalaFont.body(16))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, VitalaSpacing.lg)
+                    .frame(minHeight: 48)
+                    .id(prompt)
+                    .transition(.opacity)
+
+                if sound == .spaBinaural {
+                    Label("Binaural tones work best with headphones", systemImage: "headphones")
+                        .font(VitalaFont.caption(12))
+                        .foregroundStyle(.white.opacity(0.9))
                 }
 
-                Spacer()
-
-                VStack(spacing: 8) {
-                    ProgressView(value: progress)
-                        .tint(.white)
-                        .background(.white.opacity(0.25))
-                        .clipShape(Capsule())
-                        .frame(height: 4)
-                    HStack {
-                        Text(timeString(elapsed)).foregroundStyle(.white.opacity(0.8))
-                        Spacer()
-                        Text(timeString(totalSeconds)).foregroundStyle(.white.opacity(0.8))
-                    }
-                    .font(VitalaFont.caption(12))
-                }
-
-                HStack(spacing: 24) {
-                    Button { restart() } label: {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.system(size: 22))
-                            .frame(width: 56, height: 56)
-                            .background(.white.opacity(0.2))
-                            .foregroundStyle(.white)
-                            .clipShape(Circle())
-                    }
-                    Button { isPlaying.toggle() } label: {
-                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 30))
-                            .frame(width: 80, height: 80)
-                            .background(.white)
-                            .foregroundStyle(Color(hex: session.tint))
-                            .clipShape(Circle())
-                    }
-                    Button { finish() } label: {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 22))
-                            .frame(width: 56, height: 56)
-                            .background(.white.opacity(0.2))
-                            .foregroundStyle(.white)
-                            .clipShape(Circle())
-                    }
-                }
-                .padding(.bottom, VitalaSpacing.lg)
+                Spacer(minLength: 0)
+                progressBar
+                controls
+                    .padding(.bottom, VitalaSpacing.md)
             }
             .padding(.horizontal, VitalaSpacing.lg)
         }
-        .navigationBarBackButtonHidden()
-        .onReceive(timer) { _ in tick() }
+        .preferredColorScheme(.dark)
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            ambient.play(sound, for: session.category)
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            ambient.stop()
+        }
+        .onChange(of: soundChoice) { _, _ in
+            ambient.play(sound, for: session.category)
+            if !isPlaying { ambient.pause() }
+        }
+        .onChange(of: expanded) { _, isExpanded in ambient.setBreath(expanded: isExpanded) }
+        .onChange(of: scenePhase) { _, phase in
+            // The audio engine stops in the background; restart it on return.
+            if phase == .active && isPlaying && !finished { ambient.play(sound, for: session.category) }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(250))
+                tick()
+            }
+        }
+        .confirmationDialog("End session?", isPresented: $confirmingEnd, titleVisibility: .visible) {
+            if elapsed >= 60 {
+                Button("Save \(loggedMinutes) min") { save() }
+            }
+            Button("Discard", role: .destructive) { dismiss() }
+            Button("Keep breathing", role: .cancel) {}
+        } message: {
+            Text(elapsed >= 60 ? "Nice work." : "Sessions shorter than a minute aren't saved.")
+        }
     }
+
+    // MARK: Sections
 
     private var topBar: some View {
         HStack {
-            Button { dismiss() } label: {
-                Image(systemName: "chevron.down")
-                    .frame(width: 40, height: 40)
-                    .background(.white.opacity(0.2))
-                    .foregroundStyle(.white)
-                    .clipShape(Circle())
-            }
+            GlassIconButton(systemName: "xmark", label: "End session", foreground: .white) { endTapped() }
             Spacer()
-            Text("Now playing").font(VitalaFont.caption()).foregroundStyle(.white.opacity(0.85))
+            Text(session.category.label)
+                .font(VitalaFont.caption())
+                .foregroundStyle(.white.opacity(0.9))
             Spacer()
-            Color.clear.frame(width: 40, height: 40)
+            soundMenu
         }
-        .padding(.top, VitalaSpacing.md)
+        .padding(.top, VitalaSpacing.xs)
     }
 
-    private var scaleForPhase: CGFloat {
-        switch phase {
-        case .inhale, .holdIn: return 1.18
-        case .exhale, .holdOut: return 0.9
-        }
+    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
+    /// there to match the 44pt close button.
+    private var glassLabelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
     }
+
+    private var soundMenu: some View {
+        Menu {
+            Picker("Sound", selection: $soundChoice) {
+                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                }
+            }
+        } label: {
+            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: glassLabelSize, height: glassLabelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Sound")
+        .accessibilityValue(sound.label)
+    }
+
+    private var breathingCircle: some View {
+        let duration = Double(step.seconds)
+        return ZStack {
+            Circle().fill(.white.opacity(0.14)).frame(width: 260, height: 260)
+                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            Circle().fill(.white.opacity(expanded ? 0.28 : 0.18)).frame(width: 190, height: 190)
+                .scaleEffect(reduceMotion ? 1 : (expanded ? 1.12 : 0.86))
+            VStack(spacing: 4) {
+                Text(step.label)
+                    .font(VitalaFont.title(26))
+                    .foregroundStyle(.white)
+                Text("\(position.remaining)")
+                    .numeralFont(52)
+                    .foregroundStyle(.white)
+                    .contentTransition(.numericText(countsDown: true))
+            }
+        }
+        .animation(reduceMotion ? .easeInOut(duration: 0.3) : .easeInOut(duration: duration), value: expanded)
+        .frame(height: 300)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(step.label)
+        .accessibilityValue("\(position.remaining) seconds")
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+
+    private var progressBar: some View {
+        VStack(spacing: 8) {
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(.white.opacity(0.25))
+                    Capsule().fill(.white).frame(width: geo.size.width * progress)
+                }
+            }
+            .frame(height: 4)
+            HStack {
+                Text(timeString(elapsed))
+                Spacer()
+                Text(timeString(totalSeconds))
+            }
+            .font(VitalaFont.caption(12))
+            .monospacedDigit()
+            .foregroundStyle(.white.opacity(0.9))
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Session progress")
+        .accessibilityValue("\(elapsed / 60) of \(session.minutes) minutes")
+    }
+
+    private var controls: some View {
+        HStack(spacing: 28) {
+            GlassIconButton(systemName: "arrow.counterclockwise", label: "Restart", size: 60, foreground: .white) { restart() }
+            GlassIconButton(systemName: isPlaying ? "pause.fill" : "play.fill",
+                            label: isPlaying ? "Pause" : "Resume", size: 84, foreground: .white) { togglePlay() }
+            GlassIconButton(systemName: "checkmark", label: "Finish", size: 60, foreground: .white) { endTapped() }
+        }
+        .glassGroup(spacing: 28)
+    }
+
+    // MARK: Logic
+
+    private var loggedMinutes: Int { max(1, Int((Double(elapsed) / 60).rounded())) }
 
     private func tick() {
-        guard isPlaying else { return }
-        elapsed += 1
-        phaseElapsed += 1
-        if phaseElapsed >= phase.seconds {
-            phaseElapsed = 0
-            let next = (phase.rawValue + 1) % BreathPhase.allCases.count
-            phase = BreathPhase(rawValue: next) ?? .inhale
+        guard !finished else { return }
+        now = .now
+        let index = position.index
+        if isPlaying && index != lastStepIndex {
+            lastStepIndex = index
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
+            AccessibilityNotification.Announcement(step.label).post()
         }
-        if elapsed >= totalSeconds {
-            finish()
+        if elapsed >= totalSeconds { save() }
+    }
+
+    private func togglePlay() {
+        let t = Date.now
+        if let since = runningSince {
+            accumulated += t.timeIntervalSince(since)
+            runningSince = nil
+            ambient.pause()
+        } else {
+            runningSince = t
+            ambient.resume()
         }
+        now = t
     }
 
     private func restart() {
-        elapsed = 0; phaseElapsed = 0; phase = .inhale; startedAt = .now
+        accumulated = 0
+        runningSince = .now
+        startedAt = .now
+        lastStepIndex = -1
+        now = .now
     }
 
-    private func finish() {
-        let endedAt = Date.now
+    private func endTapped() {
+        if elapsed >= totalSeconds { save() } else { confirmingEnd = true }
+    }
+
+    private func save() {
+        guard !finished else { return }
+        finished = true
+        guard elapsed >= 60 else { dismiss(); return }
         let entry = LoggedMindfulness(sessionId: session.id, title: session.title,
-                                      minutes: max(1, elapsed / 60), completedAt: endedAt)
+                                      minutes: min(loggedMinutes, session.minutes), completedAt: .now)
         Task {
-            try? await FirestoreService.shared.logMindfulness(entry)
-        }
-        // Fire-and-forget HK write so dismiss isn't blocked.
-        Task.detached { [health, startedAt, endedAt] in
-            try? await health.logMindfulness(start: startedAt, end: endedAt)
+            try? await DataStore.shared.logMindfulness(entry)
+            Haptics.success()
         }
         dismiss()
     }

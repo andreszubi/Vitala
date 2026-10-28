@@ -10,54 +10,52 @@ struct DateNavigator: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            Button(action: previousDay) {
-                chevron("chevron.left")
-            }
-            .buttonStyle(.plain)
+            GlassIconButton(systemName: "chevron.left", label: "Previous day", action: previousDay)
 
             Button {
                 showPicker = true
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "calendar")
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(VitalaColor.primary)
+                        .accessibilityHidden(true)
                     Text(label)
                         .font(VitalaFont.bodyMedium(15))
                         .foregroundStyle(VitalaColor.textPrimary)
                 }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
-                .padding(.horizontal, 14)
-                .background(VitalaColor.surface)
-                .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-                .overlay(
-                    RoundedRectangle(cornerRadius: VitalaRadius.md)
-                        .stroke(Color.black.opacity(0.05), lineWidth: 1)
-                )
+                .frame(maxWidth: .infinity, minHeight: 32)
+                .padding(.horizontal, 6)
             }
-            .buttonStyle(.plain)
+            .buttonBorderShape(.capsule)
+            .glassButtonStyle()
+            .frame(minHeight: 44)
+            .accessibilityLabel("Showing \(label)")
+            .accessibilityHint("Opens a calendar to choose another day")
 
-            Button(action: nextDay) {
-                chevron("chevron.right")
-                    .opacity(isToday ? 0.4 : 1)
-            }
-            .buttonStyle(.plain)
-            .disabled(isToday)
+            GlassIconButton(systemName: "chevron.right", label: "Next day", action: nextDay)
+                .disabled(isToday)
+                .opacity(isToday ? 0.35 : 1)
         }
         .sheet(isPresented: $showPicker) {
             NavigationStack {
-                DatePicker("",
+                DatePicker("Day",
                            selection: $date,
                            in: ...Date.now,
                            displayedComponents: .date)
                     .datePickerStyle(.graphical)
+                    .tint(VitalaColor.primary)
                     .padding()
                     .navigationTitle("Pick a day")
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .confirmationAction) {
                             Button("Done") { showPicker = false }
+                        }
+                        if !isToday {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Today") { date = .now; showPicker = false }
+                            }
                         }
                     }
             }
@@ -69,19 +67,7 @@ struct DateNavigator: View {
         let cal = Calendar.current
         if cal.isDateInToday(date) { return "Today" }
         if cal.isDateInYesterday(date) { return "Yesterday" }
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f.string(from: date)
-    }
-
-    private func chevron(_ name: String) -> some View {
-        Image(systemName: name)
-            .font(.system(size: 14, weight: .semibold))
-            .frame(width: 40, height: 40)
-            .background(VitalaColor.surface)
-            .clipShape(Circle())
-            .overlay(Circle().stroke(Color.black.opacity(0.05), lineWidth: 1))
-            .foregroundStyle(VitalaColor.textPrimary)
+        return date.formatted(date: .abbreviated, time: .omitted)
     }
 
     private func previousDay() {

@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct VitalaApp: App {
-    @StateObject private var auth = AuthService()
+    @StateObject private var profileStore = ProfileStore()
     @StateObject private var appState = AppState()
     @StateObject private var health = HealthKitService.shared
     @StateObject private var notifications = NotificationService.shared
@@ -10,13 +10,15 @@ struct VitalaApp: App {
     @StateObject private var themeService = ThemeService()
 
     init() {
-        UINavigationBar.appearance().largeTitleTextAttributes = [.foregroundColor: UIColor.label]
+        #if DEBUG
+        DebugLaunchOptions.apply()
+        #endif
     }
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environmentObject(auth)
+                .environmentObject(profileStore)
                 .environmentObject(appState)
                 .environmentObject(health)
                 .environmentObject(notifications)

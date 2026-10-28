@@ -2,23 +2,17 @@ import SwiftUI
 
 struct SplashView: View {
     let onFinish: () -> Void
-    @State private var pulse = false
+    @State private var appeared = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         ZStack {
             VitalaColor.creamGradient.ignoresSafeArea()
 
             VStack(spacing: 18) {
-                ZStack {
-                    Circle()
-                        .fill(VitalaColor.primaryGradient)
-                        .frame(width: 110, height: 110)
-                        .scaleEffect(pulse ? 1.06 : 1)
-                        .shadow(color: VitalaColor.primary.opacity(0.35), radius: 18, y: 8)
-                    Image(systemName: "leaf.fill")
-                        .font(.system(size: 50, weight: .bold))
-                        .foregroundStyle(.white)
-                }
+                BrandMark(size: 110)
+                    .scaleEffect(appeared || reduceMotion ? 1 : 0.92)
+                    .shadow(color: VitalaColor.primaryFill.opacity(0.3), radius: 18, y: 8)
                 Text("Vitala")
                     .font(VitalaFont.display(44))
                     .foregroundStyle(VitalaColor.primary)
@@ -26,15 +20,14 @@ struct SplashView: View {
                     .font(VitalaFont.body(16))
                     .foregroundStyle(VitalaColor.textSecondary)
             }
+            .opacity(appeared ? 1 : 0)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Vitala. Healthy living, gently.")
         }
-        .onAppear {
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-                pulse = true
-            }
-            Task {
-                try? await Task.sleep(nanoseconds: 1_400_000_000)
-                onFinish()
-            }
+        .task {
+            withAnimation(reduceMotion ? .none : .easeOut(duration: 0.45)) { appeared = true }
+            try? await Task.sleep(for: .milliseconds(700))
+            onFinish()
         }
     }
 }

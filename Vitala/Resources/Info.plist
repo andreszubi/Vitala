@@ -17,11 +17,18 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.0</string>
+    <string>$(MARKETING_VERSION)</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$(CURRENT_PROJECT_VERSION)</string>
+    <key>ITSAppUsesNonExemptEncryption</key>
+    <false/>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>UIApplicationSceneManifest</key>
+    <dict>
+        <key>UIApplicationSupportsMultipleScenes</key>
+        <false/>
+    </dict>
     <key>UILaunchScreen</key>
     <dict>
         <key>UIColorName</key>
@@ -31,25 +38,14 @@
     <array>
         <string>UIInterfaceOrientationPortrait</string>
     </array>
-    <key>UISupportedInterfaceOrientations~ipad</key>
-    <array>
-        <string>UIInterfaceOrientationPortrait</string>
-        <string>UIInterfaceOrientationPortraitUpsideDown</string>
-        <string>UIInterfaceOrientationLandscapeLeft</string>
-        <string>UIInterfaceOrientationLandscapeRight</string>
-    </array>
 
-    <!-- HealthKit privacy strings (kept so prompts have copy if you re-enable
-         the entitlement on a real device). Harmless when entitlement is absent. -->
-    <key>NSHealthShareUsageDescription</key>
-    <string>Vitala reads steps, heart rate, workouts, and sleep from Apple Health to show your wellness picture.</string>
-    <key>NSHealthUpdateUsageDescription</key>
-    <string>Vitala can save water, mindful sessions, and workouts you log here back to Apple Health.</string>
     <key>NSCameraUsageDescription</key>
-    <string>Used so you can take a profile photo.</string>
-    <key>NSPhotoLibraryUsageDescription</key>
-    <string>Used so you can pick a profile photo from your library.</string>
-    <key>NSMotionUsageDescription</key>
-    <string>Used to count steps when Apple Health isn't available.</string>
+    <string>Vitala uses the camera to scan food barcodes so you can log packaged foods quickly. Nothing is recorded or saved.</string>
+    <key>USDAAPIKey</key>
+    <string>$(USDA_API_KEY)</string>
+    <key>NSHealthShareUsageDescription</key>
+    <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, and mindful minutes from Apple Health to show your daily progress.</string>
+    <key>NSHealthUpdateUsageDescription</key>
+    <string>Vitala saves the water, sleep, mindful sessions, and workouts you log to Apple Health so your records stay in one place.</string>
 </dict>
 </plist>

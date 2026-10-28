@@ -15,7 +15,12 @@ struct Workout: Codable, Identifiable, Hashable {
     enum Category: String, Codable, CaseIterable, Identifiable {
         case yoga, strength, cardio, hiit, pilates, mobility, walking, running
         var id: String { rawValue }
-        var label: String { rawValue.capitalized }
+        var label: String {
+            switch self {
+            case .hiit: "HIIT"
+            default: rawValue.capitalized
+            }
+        }
         var icon: String {
             switch self {
             case .yoga: "figure.yoga"
@@ -47,7 +52,7 @@ struct Exercise: Codable, Identifiable, Hashable {
     var icon: String
 }
 
-/// A logged workout session. Persisted to Firestore.
+/// A logged workout session.
 struct WorkoutSession: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
     var workoutId: String
@@ -57,6 +62,9 @@ struct WorkoutSession: Codable, Identifiable, Hashable {
     var durationSeconds: Int
     var caloriesBurned: Int
     var notes: String?
+    /// Optional so sessions logged before 1.0 still decode.
+    var category: Workout.Category? = nil
+    var distanceKm: Double? = nil
 }
 
 /// Sample library shipped with the app for offline / first-launch use.

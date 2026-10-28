@@ -1,13 +1,12 @@
 import SwiftUI
 import Combine
 
-/// Drives top-level navigation between Splash → Onboarding → Auth → Profile setup → Main app.
+/// Drives top-level navigation between Splash → Onboarding → Profile setup → Main app.
 @MainActor
 final class AppState: ObservableObject {
     enum Route: Equatable {
         case splash
         case onboarding
-        case auth
         case profileSetup
         case main
     }
@@ -23,34 +22,30 @@ final class AppState: ObservableObject {
     @Published var selectedTab: MainTab = .home
 
     enum MainTab: String, CaseIterable, Identifiable {
-        case home, activity, nutrition, mindfulness, sleep, profile
+        case home, activity, nutrition, mindfulness, sleep
         var id: String { rawValue }
         var label: String {
             switch self {
-            case .home: "Home"
+            case .home: "Today"
             case .activity: "Activity"
             case .nutrition: "Nutrition"
             case .mindfulness: "Mindful"
             case .sleep: "Sleep"
-            case .profile: "Profile"
             }
         }
         var icon: String {
             switch self {
-            case .home: "house.fill"
+            case .home: "sun.max.fill"
             case .activity: "figure.run"
             case .nutrition: "fork.knife"
             case .mindfulness: "leaf.fill"
             case .sleep: "moon.stars.fill"
-            case .profile: "person.crop.circle.fill"
             }
         }
     }
 
-    func resolveRoute(authProfile: UserProfile?) {
-        // Demo mode: a profile always exists (created locally on launch),
-        // so we never show the auth screen.
-        if !hasSeenOnboarding {
+    func resolveRoute(profile: UserProfile?) {
+        if !hasSeenOnboarding || profile == nil {
             route = .onboarding
         } else if !hasCompletedProfile {
             route = .profileSetup
@@ -61,7 +56,6 @@ final class AppState: ObservableObject {
 
     func completeOnboarding() {
         hasSeenOnboarding = true
-        // Skip auth in demo mode — go straight to profile setup.
         route = .profileSetup
     }
 
@@ -70,9 +64,11 @@ final class AppState: ObservableObject {
         route = .main
     }
 
-    func resetForSignOut() {
+    /// Returns to a first-launch state after the user erases their data.
+    func resetAfterErase() {
         hasCompletedProfile = false
         hasSeenOnboarding = false
+        selectedTab = .home
         route = .onboarding
     }
 }

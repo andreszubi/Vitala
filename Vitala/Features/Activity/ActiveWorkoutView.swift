@@ -1,164 +1,254 @@
 import SwiftUI
-import HealthKit
 
 struct ActiveWorkoutView: View {
     let workout: Workout
     @Environment(\.dismiss) var dismiss
-    @EnvironmentObject var health: HealthKitService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var index: Int = 0
-    @State private var elapsed: Int = 0
-    @State private var isRunning = true
     @State private var startedAt: Date = .now
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
+    /// Wall-clock bookkeeping so the timer stays right if the app is backgrounded.
+    @State private var accumulated: TimeInterval = 0
+    @State private var runningSince: Date? = .now
+    @State private var exerciseAccumulated: TimeInterval = 0
+    @State private var exerciseRunningSince: Date? = .now
+    @State private var now: Date = .now
+    @State private var confirmingEnd = false
+    @State private var finished = false
 
     private var current: Exercise { workout.exercises[index] }
+    private var isLast: Bool { index == workout.exercises.count - 1 }
+    private var isRunning: Bool { runningSince != nil }
+
+    private var elapsed: Int {
+        Int(accumulated + (runningSince.map { now.timeIntervalSince($0) } ?? 0))
+    }
+    private var exerciseElapsed: Int {
+        Int(exerciseAccumulated + (exerciseRunningSince.map { now.timeIntervalSince($0) } ?? 0))
+    }
+    /// Total seconds for a timed exercise (all sets), or nil for reps.
+    private var exerciseDuration: Int? {
+        current.seconds > 0 ? current.seconds * (current.sets ?? 1) : nil
+    }
+    private var plannedSeconds: Int { max(workout.durationMinutes * 60, 1) }
+    private var earnedCalories: Int {
+        Int((Double(workout.caloriesBurned) * min(1, Double(elapsed) / Double(plannedSeconds))).rounded())
+    }
 
     var body: some View {
         ZStack {
             VitalaColor.creamGradient.ignoresSafeArea()
-            VStack(spacing: VitalaSpacing.lg) {
+            VStack(spacing: 0) {
                 topBar
-
-                VStack(spacing: VitalaSpacing.sm) {
-                    Text("Exercise \(index + 1) of \(workout.exercises.count)")
-                        .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-                    Text(current.name).font(VitalaFont.title(28))
-                        .foregroundStyle(VitalaColor.textPrimary)
-                        .multilineTextAlignment(.center)
-                }
-
-                ZStack {
-                    Circle().fill(VitalaColor.primary.opacity(0.12))
-                        .frame(width: 260, height: 260)
-                    Image(systemName: current.icon)
-                        .font(.system(size: 110, weight: .bold))
-                        .foregroundStyle(VitalaColor.primary)
-                }
-
-                Text(current.instructions)
-                    .font(VitalaFont.body(15))
-                    .foregroundStyle(VitalaColor.textSecondary)
-                    .multilineTextAlignment(.center)
+                ScrollView {
+                    VStack(spacing: VitalaSpacing.lg) {
+                        exerciseHeader
+                        exerciseArt
+                        Text(current.instructions)
+                            .font(VitalaFont.body(16))
+                            .foregroundStyle(VitalaColor.textSecondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, VitalaSpacing.md)
+                        totalTimer
+                    }
                     .padding(.horizontal, VitalaSpacing.lg)
-
-                Text(timerText)
-                    .font(.system(size: 56, weight: .bold, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(VitalaColor.primary)
-
-                HStack(spacing: 12) {
-                    Button {
-                        prev()
-                    } label: {
-                        Image(systemName: "backward.fill")
-                            .frame(width: 56, height: 56)
-                            .background(VitalaColor.surface)
-                            .clipShape(Circle())
-                            .foregroundStyle(VitalaColor.textPrimary)
-                    }
-
-                    Button {
-                        isRunning.toggle()
-                    } label: {
-                        Image(systemName: isRunning ? "pause.fill" : "play.fill")
-                            .font(.system(size: 28))
-                            .frame(width: 80, height: 80)
-                            .background(VitalaColor.primary)
-                            .clipShape(Circle())
-                            .foregroundStyle(.white)
-                            .shadow(color: VitalaColor.primary.opacity(0.4), radius: 12, y: 6)
-                    }
-
-                    Button {
-                        next()
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .frame(width: 56, height: 56)
-                            .background(VitalaColor.surface)
-                            .clipShape(Circle())
-                            .foregroundStyle(VitalaColor.textPrimary)
-                    }
+                    .padding(.vertical, VitalaSpacing.md)
                 }
-
-                Spacer()
+                controls
+                    .padding(.bottom, VitalaSpacing.lg)
             }
-            .padding(.horizontal, VitalaSpacing.lg)
-            .padding(.top, VitalaSpacing.lg)
         }
-        .onReceive(timer) { _ in
-            guard isRunning else { return }
-            elapsed += 1
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                tick()
+            }
+        }
+        .confirmationDialog("End workout?", isPresented: $confirmingEnd, titleVisibility: .visible) {
+            if elapsed >= 60 {
+                Button("Save workout") { save() }
+            }
+            Button("Discard", role: .destructive) { dismiss() }
+            Button("Keep going", role: .cancel) {}
+        } message: {
+            Text(elapsed >= 60
+                 ? "You've been moving for \(timeText(elapsed))."
+                 : "Workouts shorter than a minute aren't saved.")
         }
     }
+
+    // MARK: Sections
 
     private var topBar: some View {
         HStack {
-            Button { finish() } label: {
-                Image(systemName: "xmark")
-                    .frame(width: 36, height: 36)
-                    .background(VitalaColor.surface)
-                    .clipShape(Circle())
-                    .foregroundStyle(VitalaColor.textPrimary)
+            GlassIconButton(systemName: "xmark", label: "End workout") { confirmingEnd = true }
+            Spacer()
+            Text(workout.name)
+                .font(VitalaFont.bodyMedium(15))
+                .foregroundStyle(VitalaColor.textPrimary)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            Color.clear.frame(width: 44, height: 44)
+        }
+        .padding(.horizontal, VitalaSpacing.md)
+        .padding(.top, VitalaSpacing.xs)
+    }
+
+    private var exerciseHeader: some View {
+        VStack(spacing: VitalaSpacing.xs) {
+            Text("Exercise \(index + 1) of \(workout.exercises.count)")
+                .font(VitalaFont.caption())
+                .foregroundStyle(VitalaColor.textSecondary)
+            Text(current.name)
+                .font(VitalaFont.title(28))
+                .foregroundStyle(VitalaColor.textPrimary)
+                .multilineTextAlignment(.center)
+            Text(prescription)
+                .font(VitalaFont.bodyMedium(15))
+                .foregroundStyle(VitalaColor.primary)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var exerciseArt: some View {
+        ZStack {
+            Circle().fill(VitalaColor.primary.opacity(0.10))
+            if let duration = exerciseDuration {
+                Circle()
+                    .trim(from: 0, to: min(1, Double(exerciseElapsed) / Double(duration)))
+                    .stroke(VitalaColor.primary, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .padding(5)
+                    .animation(reduceMotion ? nil : .linear(duration: 0.5), value: exerciseElapsed)
+                VStack(spacing: 4) {
+                    Image(systemName: current.icon)
+                        .font(.system(size: 64, weight: .bold))
+                        .foregroundStyle(VitalaColor.primary)
+                    Text(timeText(max(0, duration - exerciseElapsed)))
+                        .numeralFont(32)
+                        .foregroundStyle(VitalaColor.textPrimary)
+                }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Time left in this exercise")
+                .accessibilityValue(spokenTime(max(0, duration - exerciseElapsed)))
+                .accessibilityAddTraits(.updatesFrequently)
+            } else {
+                Image(systemName: current.icon)
+                    .font(.system(size: 96, weight: .bold))
+                    .foregroundStyle(VitalaColor.primary)
+                    .accessibilityHidden(true)
             }
-            Spacer()
-            Text(workout.name).font(VitalaFont.bodyMedium(15))
-            Spacer()
-            Color.clear.frame(width: 36, height: 36)
+        }
+        .frame(width: 240, height: 240)
+    }
+
+    private var totalTimer: some View {
+        VStack(spacing: 2) {
+            Text(timeText(elapsed))
+                .numeralFont(44)
+                .foregroundStyle(VitalaColor.textPrimary)
+            Text("total · \(earnedCalories) kcal")
+                .font(VitalaFont.caption())
+                .foregroundStyle(VitalaColor.textSecondary)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Workout time")
+        .accessibilityValue("\(spokenTime(elapsed)), about \(earnedCalories) kilocalories")
+        .accessibilityAddTraits(.updatesFrequently)
+    }
+
+    private var controls: some View {
+        HStack(spacing: 20) {
+            GlassIconButton(systemName: "backward.fill", label: "Previous exercise", size: 60) { move(by: -1) }
+                .disabled(index == 0)
+                .opacity(index == 0 ? 0.4 : 1)
+            GlassIconButton(systemName: isRunning ? "pause.fill" : "play.fill",
+                            label: isRunning ? "Pause" : "Resume",
+                            size: 84, prominent: true, tint: VitalaColor.primaryFill) { togglePause() }
+            GlassIconButton(systemName: isLast ? "checkmark" : "forward.fill",
+                            label: isLast ? "Finish workout" : "Next exercise", size: 60) {
+                isLast ? save() : move(by: 1)
+            }
+        }
+        .glassGroup(spacing: 20)
+    }
+
+    // MARK: Logic
+
+    private var prescription: String {
+        if current.seconds > 0 {
+            let time = current.seconds >= 60 ? "\(current.seconds / 60) min" : "\(current.seconds) sec"
+            if let sets = current.sets, sets > 1 { return "\(sets) × \(time)" }
+            return time
+        }
+        if let sets = current.sets, let reps = current.reps { return "\(sets) × \(reps) reps" }
+        if let reps = current.reps { return "\(reps) reps" }
+        return "At your own pace"
+    }
+
+    private func tick() {
+        guard !finished else { return }
+        now = .now
+        if let duration = exerciseDuration, isRunning, exerciseElapsed >= duration {
+            Haptics.success()
+            if isLast { save() } else { move(by: 1) }
         }
     }
 
-    private var timerText: String {
-        String(format: "%02d:%02d", elapsed / 60, elapsed % 60)
-    }
-
-    private func next() {
-        if index < workout.exercises.count - 1 {
-            index += 1
+    private func togglePause() {
+        let t = Date.now
+        if let since = runningSince {
+            accumulated += t.timeIntervalSince(since)
+            runningSince = nil
+            if let s = exerciseRunningSince { exerciseAccumulated += t.timeIntervalSince(s) }
+            exerciseRunningSince = nil
         } else {
-            finish()
+            runningSince = t
+            exerciseRunningSince = t
         }
+        now = t
     }
 
-    private func prev() {
-        if index > 0 { index -= 1 }
+    private func move(by delta: Int) {
+        let target = index + delta
+        guard workout.exercises.indices.contains(target) else { return }
+        index = target
+        exerciseAccumulated = 0
+        exerciseRunningSince = isRunning ? .now : nil
+        now = .now
+        AccessibilityNotification.Announcement("Now: \(current.name), \(prescription)").post()
     }
 
-    private func finish() {
+    private func save() {
+        guard !finished else { return }
+        finished = true
         let endedAt = Date.now
-        // Persist + try to write to HealthKit
+        let seconds = elapsed
+        guard seconds >= 60 else { dismiss(); return }
         let session = WorkoutSession(
             workoutId: workout.id,
             workoutName: workout.name,
             startedAt: startedAt,
             endedAt: endedAt,
-            durationSeconds: elapsed,
-            caloriesBurned: workout.caloriesBurned
+            durationSeconds: seconds,
+            caloriesBurned: earnedCalories,
+            category: workout.category
         )
-        let activity = hkActivity()
-        let kcal = Double(workout.caloriesBurned)
         Task {
-            try? await FirestoreService.shared.logWorkout(session)
-        }
-        // Fire-and-forget HK write so dismiss isn't blocked if HK hangs.
-        Task.detached { [health] in
-            try? await health.logWorkout(activity: activity,
-                                         start: startedAt, end: endedAt,
-                                         kcal: kcal)
+            try? await DataStore.shared.logWorkout(session)
+            Haptics.success()
         }
         dismiss()
     }
 
-    private func hkActivity() -> HKWorkoutActivityType {
-        switch workout.category {
-        case .yoga: return .yoga
-        case .strength: return .functionalStrengthTraining
-        case .cardio: return .mixedCardio
-        case .hiit: return .highIntensityIntervalTraining
-        case .pilates: return .pilates
-        case .mobility: return .flexibility
-        case .walking: return .walking
-        case .running: return .running
-        }
+    private func timeText(_ secs: Int) -> String {
+        String(format: "%02d:%02d", secs / 60, secs % 60)
+    }
+
+    private func spokenTime(_ secs: Int) -> String {
+        Duration.seconds(secs).formatted(.units(allowed: [.minutes, .seconds], width: .wide))
     }
 }
