@@ -30,29 +30,36 @@ final class AmbientSoundPlayer {
     }
 
     private let engine = AVAudioEngine()
-    private var source: AVAudioSourceNode?
     private let synth = AmbientSynth()
     private var stopTask: Task<Void, Never>?
+    /// Activating or releasing the audio session can block while the
+    /// hardware reconfigures, so it never happens on the main thread. One
+    /// serial queue keeps start and stop in the order they were asked for.
+    private let audioQueue = DispatchQueue(label: "com.vitala.ambient-audio", qos: .userInitiated)
 
     /// Starts (or switches to) a sound with a gentle fade-in.
     func play(_ sound: Sound, for category: MindfulnessSession.Category) {
         stopTask?.cancel()
         guard sound != .silent else { stop(); return }
         synth.configure(sound: sound, category: category)
-        do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.mixWithOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
-            if source == nil { attachSource() }
-            if !engine.isRunning { try engine.start() }
-            synth.targetGain = 1
-        } catch {
-            // Sound is a nice-to-have; the session works silently.
+        // The synth fades in from silence, so it can start ramping now.
+        synth.targetGain = 1
+        audioQueue.async { [engine, synth] in
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+                try session.setActive(true)
+                Self.attachSourceIfNeeded(to: engine, synth: synth)
+                if !engine.isRunning { try engine.start() }
+            } catch {
+                // Sound is a nice-to-have; the session works silently.
+            }
         }
     }
 
     func pause() { synth.targetGain = 0 }
 
-    func resume() { if engine.isRunning { synth.targetGain = 1 } }
+    func resume() { synth.targetGain = 1 }
 
     /// Follows the breathing guide: the pad and waves swell on the in-breath.
     func setBreath(expanded: Bool) { synth.targetSwell = expanded ? 1 : 0.55 }
@@ -61,20 +68,24 @@ final class AmbientSoundPlayer {
     func stop() {
         synth.targetGain = 0
         stopTask?.cancel()
-        stopTask = Task { [engine] in
+        stopTask = Task { [engine, audioQueue] in
             try? await Task.sleep(for: .milliseconds(1600))
             guard !Task.isCancelled else { return }
-            engine.stop()
-            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+            audioQueue.async {
+                engine.stop()
+                try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+            }
         }
     }
 
-    private func attachSource() {
+    /// Runs on `audioQueue`, after the session is active so the output
+    /// reports the hardware's sample rate.
+    private nonisolated static func attachSourceIfNeeded(to engine: AVAudioEngine, synth: AmbientSynth) {
+        guard !engine.attachedNodes.contains(where: { $0 is AVAudioSourceNode }) else { return }
         let output = engine.outputNode.inputFormat(forBus: 0)
         let sampleRate = output.sampleRate > 0 ? output.sampleRate : 48_000
         guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 2) else { return }
         synth.sampleRate = sampleRate
-        let synth = self.synth
         let node = AVAudioSourceNode(format: format) { _, _, frameCount, bufferList -> OSStatus in
             let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
             guard buffers.count >= 2,
@@ -86,7 +97,6 @@ final class AmbientSoundPlayer {
         engine.attach(node)
         engine.connect(node, to: engine.mainMixerNode, format: format)
         engine.mainMixerNode.outputVolume = 0.9
-        source = node
     }
 }
 
