@@ -207,39 +207,9 @@ struct SessionPlayerView: View {
                 .font(VitalaFont.caption())
                 .foregroundStyle(.white.opacity(0.9))
             Spacer()
-            soundMenu
+            SoundMenuButton()
         }
         .padding(.top, VitalaSpacing.xs)
-    }
-
-    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
-    /// there to match the 44pt close button.
-    private var glassLabelSize: CGFloat {
-        if #available(iOS 26.0, *) { return 28 }
-        return 44
-    }
-
-    private var soundMenu: some View {
-        Menu {
-            Picker("Sound", selection: $soundChoice) {
-                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
-                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
-                }
-            }
-        } label: {
-            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: glassLabelSize, height: glassLabelSize)
-                .background {
-                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
-                }
-                .contentShape(Circle())
-        }
-        .buttonBorderShape(.circle)
-        .glassButtonStyle()
-        .accessibilityLabel("Sound")
-        .accessibilityValue(sound.label)
     }
 
     private var breathingCircle: some View {
@@ -367,5 +337,50 @@ struct SessionPlayerView: View {
 
     private func timeString(_ secs: Int) -> String {
         String(format: "%02d:%02d", secs / 60, secs % 60)
+    }
+}
+
+/// The sound picker in the player's top bar. A separate view with no inputs,
+/// so the player's four-times-a-second countdown never re-renders it: an
+/// update arriving while iOS morphs the button into its menu makes UIKit
+/// log "Decomposition of 'bounds' was requested…" and can make the morph
+/// stutter.
+private struct SoundMenuButton: View {
+    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+
+    private var sound: AmbientSoundPlayer.Sound {
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
+    }
+
+    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
+    /// there to match the 44pt close button.
+    private var labelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Sound", selection: $soundChoice) {
+                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                }
+            }
+        } label: {
+            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: labelSize, height: labelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Sound")
+        .accessibilityValue(sound.label)
+        // Never let an animation from the breathing guide drive the menu.
+        .transaction { $0.animation = nil }
     }
 }
