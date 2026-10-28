@@ -42,6 +42,20 @@ struct AmbientSoundTests {
         #expect(zip(l[tail...], r[tail...]).contains { abs($0 - $1) > 0.01 }, "binaural differs per ear")
     }
 
+    /// Spa & binaural must sound clearly different from Spa, not just
+    /// measure differently: the binaural tones need to stand out over the
+    /// pad rather than hide inside it.
+    @Test func binauralIsClearlyDifferentFromSpa() {
+        for category in MindfulnessSession.Category.allCases {
+            let spa = render(.spa, category, seconds: 6)
+            let binaural = render(.spaBinaural, category, seconds: 6)
+            let tail = spa.left.count / 2
+            let difference = zip(binaural.left[tail...], spa.left[tail...]).map { $0 - $1 }
+            let ratio = rms(difference[...]) / rms(spa.left[tail...])
+            #expect(ratio > 0.6, "\(category): binaural layer is too quiet to hear (\(ratio))")
+        }
+    }
+
     @Test func fadesInGently() {
         let (l, _) = render(.spa, .sleep, seconds: 3)
         #expect(rms(l[0..<480]) < rms(l[(l.count - 4800)...]) * 0.2, "first 10 ms is near-silent")

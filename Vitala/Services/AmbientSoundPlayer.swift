@@ -139,15 +139,17 @@ final class AmbientSynth: @unchecked Sendable {
         default:         padFreqs = (123.47, 185.0, 246.94, 311.13)  // B
         }
         // Binaural beat frequencies by intent: delta for sleep, theta to
-        // settle, alpha for calm focus.
+        // settle, alpha for calm focus. The carrier is the fifth of the
+        // pad's chord, an octave up: above the pad so it isn't masked, in
+        // tune with it, and high enough for iPhone speakers to play.
         switch category {
-        case .sleep: carrier = 160; beat = 3
-        case .breathing, .stress: carrier = 200; beat = 6
-        case .focus: carrier = 220; beat = 10
-        case .gratitude: carrier = 210; beat = 8
+        case .sleep: carrier = 329.63; beat = 3       // E over A
+        case .breathing, .stress: carrier = 369.99; beat = 6 // F♯ over B
+        case .focus: carrier = 392.0; beat = 10       // G over C
+        case .gratitude: carrier = 440.0; beat = 8    // A over D
         }
         switch sound {
-        case .spaBinaural: padLevel = 0.045; oceanLevel = 0.05; binauralLevel = 0.05
+        case .spaBinaural: padLevel = 0.04;  oceanLevel = 0.04; binauralLevel = 0.09
         case .spa:         padLevel = 0.05;  oceanLevel = 0.06; binauralLevel = 0
         case .ocean:       padLevel = 0;     oceanLevel = 0.11; binauralLevel = 0
         case .silent:      padLevel = 0;     oceanLevel = 0;    binauralLevel = 0
