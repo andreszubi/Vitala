@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// Reusable list-row used across Workouts, Mindfulness, Settings, etc.
+/// Reusable list-row content used across Settings, Profile, Mindfulness, etc.
+/// Display-only: wrap it in a `Button` or `NavigationLink` to make it tappable,
+/// so VoiceOver announces it as a control.
 struct RowItem: View {
     let icon: String
     let iconTint: Color
@@ -11,12 +13,12 @@ struct RowItem: View {
 
     var body: some View {
         HStack(spacing: VitalaSpacing.sm) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(iconTint.opacity(0.15))
-                    .frame(width: 42, height: 42)
-                Image(systemName: icon).foregroundStyle(iconTint)
-            }
+            Image(systemName: icon)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(iconTint)
+                .frame(width: 42, height: 42)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(iconTint.opacity(0.14)))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(VitalaFont.bodyMedium(16))
@@ -27,7 +29,7 @@ struct RowItem: View {
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
             }
-            Spacer()
+            Spacer(minLength: VitalaSpacing.xs)
             if let trailing {
                 Text(trailing)
                     .font(VitalaFont.caption(13))
@@ -35,11 +37,14 @@ struct RowItem: View {
             }
             if showsChevron {
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(VitalaColor.muted.opacity(0.7))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(VitalaColor.muted)
+                    .accessibilityHidden(true)
             }
         }
         .padding(.vertical, 10).padding(.horizontal, 14)
-        .glassCard(in: RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous))
+        .frame(minHeight: 44)
+        .surfaceCard()
+        .contentShape(Rectangle())
     }
 }

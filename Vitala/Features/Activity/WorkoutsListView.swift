@@ -160,38 +160,3 @@ struct WorkoutCard: View {
         .shadow(color: Color.black.opacity(0.04), radius: 8, y: 2)
     }
 }
-
-struct EmptyStateRow: View {
-    let text: String
-    let icon: String
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 22))
-                .foregroundStyle(VitalaColor.muted)
-                .frame(width: 40, height: 40)
-                .background(VitalaColor.muted.opacity(0.12))
-                .clipShape(Circle())
-            Text(text)
-                .font(VitalaFont.body(14))
-                .foregroundStyle(VitalaColor.textSecondary)
-            Spacer()
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-    }
-}
-
-extension Color {
-    init(hex: String) {
-        let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        var rgb: UInt64 = 0
-        Scanner(string: s).scanHexInt64(&rgb)
-        let r = Double((rgb & 0xFF0000) >> 16) / 255
-        let g = Double((rgb & 0x00FF00) >> 8) / 255
-        let b = Double(rgb & 0x0000FF) / 255
-        self = Color(red: r, green: g, blue: b)
-    }
-}
