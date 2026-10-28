@@ -1,11 +1,13 @@
 import SwiftUI
 
 struct MindfulnessView: View {
+    @EnvironmentObject var profileStore: ProfileStore
     @ObservedObject private var store = DataStore.shared
 
     @State private var category: MindfulnessSession.Category? = nil
     @State private var historyDate: Date = .now
     @State private var editingEntry: LoggedMindfulness? = nil
+    @State private var playing: MindfulnessSession? = nil
 
     private var sessions: [MindfulnessSession] {
         guard let category else { return MindfulnessLibrary.all }
@@ -29,130 +31,115 @@ struct MindfulnessView: View {
                     .padding(.top, VitalaSpacing.md)
 
                 quickBreathCard
-
-                // History promoted to the top — easier to see and edit your sessions.
                 historySection
-
                 browseLibrarySection
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.bottom, VitalaSpacing.xl)
         }
         .background(VitalaColor.background.ignoresSafeArea())
-        .toolbar(.hidden)
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(item: $editingEntry) { entry in
-            EditMindfulnessSheet(entry: entry)
+            NavigationStack { EditMindfulnessSheet(entry: entry) }
+        }
+        .fullScreenCover(item: $playing) { session in
+            SessionPlayerView(session: session)
         }
     }
 
-    private var browseLibrarySection: some View {
-        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            HStack {
-                Text("Browse").font(VitalaFont.headline(18))
-                Spacer()
-                Text("\(MindfulnessLibrary.all.count) sessions")
-                    .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
-            }
-            .padding(.top, VitalaSpacing.sm)
+    // MARK: Quick start
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    chip("All", isOn: category == nil) { category = nil }
-                    ForEach(MindfulnessSession.Category.allCases) { c in
-                        chip(c.label, isOn: category == c) { category = c }
-                    }
+    private var quickBreathCard: some View {
+        let session = MindfulnessLibrary.quickReset
+        return Button {
+            playing = session
+        } label: {
+            HStack(spacing: VitalaSpacing.md) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("1-minute reset")
+                        .font(VitalaFont.caption(12))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(.white.opacity(0.22)))
+                    Text("Quick reset")
+                        .font(VitalaFont.title(22))
+                    Text("Breathe in, hold, breathe out, hold — four seconds each.")
+                        .font(VitalaFont.body(14))
                 }
+                .foregroundStyle(.white)
+                Spacer(minLength: 0)
+                Image(systemName: "play.circle.fill")
+                    .font(.system(size: 50))
+                    .foregroundStyle(.white)
+                    .accessibilityHidden(true)
             }
-
-            VStack(spacing: 10) {
-                ForEach(sessions) { s in
-                    NavigationLink {
-                        SessionPlayerView(session: s)
-                    } label: {
-                        SessionRow(session: s)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
+            .padding(VitalaSpacing.md)
+            .background(RoundedRectangle(cornerRadius: VitalaRadius.lg, style: .continuous)
+                .fill(VitalaColor.primaryGradient))
+            .shadow(color: VitalaColor.primaryFill.opacity(0.3), radius: 12, y: 6)
         }
+        .buttonStyle(PressableButtonStyle())
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Start a one-minute reset")
+        .accessibilityHint("Guided box breathing")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: History
 
     private var historySection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .lastTextBaseline) {
-                Text("History").font(VitalaFont.headline(18))
-                Spacer()
-                if totalMinutesOnSelectedDay > 0 {
-                    Text("\(totalMinutesOnSelectedDay) min")
-                        .font(VitalaFont.caption())
-                        .foregroundStyle(VitalaColor.textSecondary)
-                }
-            }
-            .padding(.top, VitalaSpacing.sm)
+        let goal = profileStore.profile?.goals.dailyMindfulMinutes ?? 10
+        return VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "History",
+                          trailing: totalMinutesOnSelectedDay > 0 ? "\(totalMinutesOnSelectedDay) of \(goal) min" : nil)
 
             DateNavigator(date: $historyDate)
 
             if entriesOnSelectedDay.isEmpty {
-                EmptyStateRow(text: "No mindful sessions on this day.",
-                              icon: "leaf.fill")
+                EmptyStateRow(text: "No mindful sessions on this day.", icon: "leaf")
             } else {
                 VStack(spacing: 8) {
                     ForEach(entriesOnSelectedDay) { entry in
-                        MindfulLogRow(
-                            entry: entry,
-                            onEdit: { editingEntry = entry },
-                            onDelete: {
-                                Task { try? await store.deleteMindfulness(entry) }
-                            }
-                        )
+                        LogRow(icon: "leaf.fill",
+                               tint: VitalaColor.mindful,
+                               title: entry.title,
+                               subtitle: "\(entry.completedAt.formatted(date: .omitted, time: .shortened)) · \(entry.minutes) min",
+                               noun: "session",
+                               onEdit: { editingEntry = entry },
+                               onDelete: { Task { try? await store.deleteMindfulness(entry) } })
                     }
                 }
             }
         }
     }
 
-    // MARK: Existing UI
+    // MARK: Library
 
-    private var quickBreathCard: some View {
-        NavigationLink {
-            SessionPlayerView(session: MindfulnessLibrary.all[0])
-        } label: {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("1-minute reset")
-                        .font(VitalaFont.caption(12))
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(.white.opacity(0.25))
-                        .foregroundStyle(.white)
-                        .clipShape(Capsule())
-                    Text("Box breathing")
-                        .font(VitalaFont.title(22)).foregroundStyle(.white)
-                    Text("4-second inhale, hold, exhale, hold.")
-                        .font(VitalaFont.body(13)).foregroundStyle(.white.opacity(0.85))
+    private var browseLibrarySection: some View {
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            SectionHeader(title: "Browse", trailing: "\(sessions.count) sessions")
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    FilterChip(label: "All", isOn: category == nil) { category = nil }
+                    ForEach(MindfulnessSession.Category.allCases) { c in
+                        FilterChip(label: c.label, isOn: category == c) { category = c }
+                    }
                 }
-                Spacer()
-                Image(systemName: "play.circle.fill")
-                    .font(.system(size: 50)).foregroundStyle(.white)
+                .padding(.vertical, 2)
             }
-            .padding(VitalaSpacing.md)
-            .background(VitalaColor.primaryGradient)
-            .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.lg))
-            .shadow(color: VitalaColor.primary.opacity(0.3), radius: 12, y: 6)
-        }
-        .buttonStyle(.plain)
-    }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Filter by type")
 
-    private func chip(_ label: String, isOn: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Text(label).font(VitalaFont.caption(13))
-                .padding(.horizontal, 14).padding(.vertical, 9)
-                .background(isOn ? VitalaColor.primary : VitalaColor.surface)
-                .foregroundStyle(isOn ? .white : VitalaColor.textPrimary)
-                .clipShape(Capsule())
+            VStack(spacing: 10) {
+                ForEach(sessions) { s in
+                    Button { playing = s } label: {
+                        SessionRow(session: s)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityHint("Starts the session")
+                }
+            }
         }
-        .buttonStyle(.plain)
     }
 }
 
@@ -160,72 +147,27 @@ private struct SessionRow: View {
     let session: MindfulnessSession
     var body: some View {
         HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 14).fill(Color(hex: session.tint).opacity(0.18))
-                    .frame(width: 56, height: 56)
-                Image(systemName: session.icon).foregroundStyle(Color(hex: session.tint))
-                    .font(.system(size: 22))
-            }
+            Image(systemName: session.icon)
+                .font(.title3)
+                .foregroundStyle(.white)
+                .frame(width: 52, height: 52)
+                .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(hex: session.tint)))
+                .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(session.title).font(VitalaFont.bodyMedium(16))
                     .foregroundStyle(VitalaColor.textPrimary)
                 Text(session.subtitle).font(VitalaFont.caption(13))
                     .foregroundStyle(VitalaColor.textSecondary)
             }
-            Spacer()
+            Spacer(minLength: 4)
             Text("\(session.minutes) min").font(VitalaFont.caption(13))
                 .foregroundStyle(VitalaColor.textSecondary)
-            Image(systemName: "chevron.right").font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(VitalaColor.muted)
+            Image(systemName: "play.fill").font(.footnote)
+                .foregroundStyle(VitalaColor.primary)
+                .accessibilityHidden(true)
         }
         .padding(12)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-    }
-}
-
-/// Row used in the History section for logged mindful sessions.
-struct MindfulLogRow: View {
-    let entry: LoggedMindfulness
-    let onEdit: () -> Void
-    let onDelete: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10).fill(VitalaColor.sage.opacity(0.18))
-                    .frame(width: 42, height: 42)
-                Image(systemName: "leaf.fill").foregroundStyle(VitalaColor.sage)
-            }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title)
-                    .font(VitalaFont.bodyMedium(15))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                    .lineLimit(1)
-                Text("\(entry.completedAt.formatted(date: .omitted, time: .shortened)) · \(entry.minutes) min")
-                    .font(VitalaFont.caption(12))
-                    .foregroundStyle(VitalaColor.textSecondary)
-            }
-            Spacer()
-            Menu {
-                Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-                Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(VitalaColor.muted)
-                    .frame(width: 32, height: 32)
-                    .contentShape(Rectangle())
-            }
-        }
-        .padding(10)
-        .background(VitalaColor.surface)
-        .clipShape(RoundedRectangle(cornerRadius: VitalaRadius.md))
-        .contentShape(Rectangle())
-        .onTapGesture { onEdit() }
-        .contextMenu {
-            Button { onEdit() } label: { Label("Edit", systemImage: "pencil") }
-            Button(role: .destructive) { onDelete() } label: { Label("Delete", systemImage: "trash") }
-        }
+        .surfaceCard()
+        .accessibilityElement(children: .combine)
     }
 }
