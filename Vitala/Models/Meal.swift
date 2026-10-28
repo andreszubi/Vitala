@@ -34,6 +34,9 @@ struct Meal: Codable, Identifiable, Hashable {
     var totalCarbs:   Double { items.reduce(0) { $0 + $1.carbsG } }
     var totalFat:     Double { items.reduce(0) { $0 + $1.fatG } }
 
+    /// Recorded by another app and read from Apple Health; not editable here.
+    var isFromHealth: Bool { id.hasPrefix("health.") }
+
     enum MealType: String, Codable, CaseIterable, Identifiable {
         case breakfast, lunch, dinner, snack
         var id: String { rawValue }

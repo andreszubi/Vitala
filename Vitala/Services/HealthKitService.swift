@@ -13,6 +13,13 @@ final class HealthKitService: ObservableObject {
     /// "connected", not "every type allowed".
     @Published private(set) var isAuthorized: Bool = false
     @Published var todaySummary: DailySummary = DailySummary(date: .now)
+    /// Recent nights and food recorded by other apps (Apple Watch, the
+    /// iPhone sleep schedule, food trackers). Read-only in Vitala.
+    @Published private(set) var importedSleep: [SleepEntry] = []
+    @Published private(set) var importedMeals: [Meal] = []
+
+    /// How far back Sleep and Nutrition history is read from Health.
+    static let historyDays = 30
 
     var isAvailable: Bool { HKHealthStore.isHealthDataAvailable() }
 
@@ -33,8 +40,15 @@ final class HealthKitService: ObservableObject {
         if let t = HKObjectType.quantityType(forIdentifier: .heartRate) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) { set.insert(t) }
         if let t = HKObjectType.categoryType(forIdentifier: .mindfulSession) { set.insert(t) }
+        for id in Self.nutritionTypes {
+            if let t = HKObjectType.quantityType(forIdentifier: id) { set.insert(t) }
+        }
         return set
     }
+
+    private static let nutritionTypes: [HKQuantityTypeIdentifier] = [
+        .dietaryEnergyConsumed, .dietaryProtein, .dietaryCarbohydrates, .dietaryFatTotal,
+    ]
 
     private var writeTypes: Set<HKSampleType> {
         var set: Set<HKSampleType> = [HKObjectType.workoutType()]
@@ -99,6 +113,138 @@ final class HealthKitService: ObservableObject {
         summary.sleepHours = (try? await sleep) ?? 0
         summary.mindfulMinutes = Int((((try? await mindful) ?? 0) * 60).rounded())
         self.todaySummary = summary
+        await refreshHistory()
+    }
+
+    /// Re-reads recent sleep and nutrition written by other apps.
+    func refreshHistory() async {
+        guard isAvailable else { return }
+        let start = Calendar.current.date(byAdding: .day, value: -Self.historyDays, to: .now) ?? .now
+        async let nights = sleepNights(since: start)
+        async let meals = importedMeals(since: start)
+        importedSleep = await nights
+        importedMeals = await meals
+    }
+
+    // MARK: Imported history
+
+    /// Samples Vitala wrote itself are already in the local store.
+    private nonisolated static func isFromOtherApp(_ sample: HKSample) -> Bool {
+        if let id = sample.metadata?[HKMetadataKeySyncIdentifier] as? String, id.hasPrefix("com.vitala.") {
+            return false
+        }
+        return sample.sourceRevision.source.bundleIdentifier != Bundle.main.bundleIdentifier
+    }
+
+    private func samples(of type: HKSampleType, since start: Date) async -> [HKSample] {
+        let predicate = HKQuery.predicateForSamples(withStart: start, end: .now, options: [])
+        return await withCheckedContinuation { cont in
+            let q = HKSampleQuery(sampleType: type, predicate: predicate, limit: HKObjectQueryNoLimit,
+                                  sortDescriptors: nil) { _, samples, _ in
+                cont.resume(returning: (samples ?? []).filter(Self.isFromOtherApp))
+            }
+            store.execute(q)
+        }
+    }
+
+    private func sleepNights(since start: Date) async -> [SleepEntry] {
+        guard let type = HKCategoryType.categoryType(forIdentifier: .sleepAnalysis) else { return [] }
+        let asleepValues = Set(HKCategoryValueSleepAnalysis.allAsleepValues.map(\.rawValue))
+        let periods = (await samples(of: type, since: start) as? [HKCategorySample] ?? [])
+            .filter { $0.value != HKCategoryValueSleepAnalysis.awake.rawValue }
+            .map { SleepPeriod(interval: DateInterval(start: $0.startDate, end: $0.endDate),
+                               asleep: asleepValues.contains($0.value)) }
+        return Self.nights(from: periods)
+    }
+
+    struct SleepPeriod {
+        var interval: DateInterval
+        /// False for "in bed" samples, which the iPhone sleep schedule writes.
+        var asleep: Bool
+    }
+
+    /// Groups sleep samples into nights. Samples less than two hours apart
+    /// belong to the same night; time asleep counts asleep stages, or time
+    /// in bed when a source records nothing else.
+    nonisolated static func nights(from periods: [SleepPeriod]) -> [SleepEntry] {
+        let sorted = periods.sorted { $0.interval.start < $1.interval.start }
+        var groups: [[SleepPeriod]] = []
+        var groupEnd = Date.distantPast
+        for p in sorted {
+            if let last = groups.indices.last, p.interval.start.timeIntervalSince(groupEnd) <= 2 * 3600 {
+                groups[last].append(p)
+            } else {
+                groups.append([p])
+            }
+            groupEnd = max(groupEnd, p.interval.end)
+        }
+        return groups.compactMap { group in
+            let asleep = group.filter(\.asleep)
+            let counted = asleep.isEmpty ? group : asleep
+            let seconds = mergedDuration(counted.map(\.interval))
+            guard seconds >= 15 * 60,
+                  let bed = counted.map(\.interval.start).min(),
+                  let wake = counted.map(\.interval.end).max() else { return nil }
+            let hours = seconds / 3600
+            return SleepEntry(id: "health.sleep.\(Int(bed.timeIntervalSince1970))",
+                              bedTime: bed, wakeTime: wake,
+                              quality: SleepEntry.Quality(hours: hours),
+                              asleepHours: hours)
+        }
+    }
+
+    private func importedMeals(since start: Date) async -> [Meal] {
+        var foods: [Date: HealthFood] = [:]
+        for id in Self.nutritionTypes {
+            guard let type = HKQuantityType.quantityType(forIdentifier: id) else { continue }
+            let unit: HKUnit = id == .dietaryEnergyConsumed ? .kilocalorie() : .gram()
+            for case let sample as HKQuantitySample in await samples(of: type, since: start) {
+                var food = foods[sample.startDate] ?? HealthFood(date: sample.startDate,
+                                                                 source: sample.sourceRevision.source.name)
+                if let name = sample.metadata?[HKMetadataKeyFoodType] as? String { food.name = name }
+                let value = sample.quantity.doubleValue(for: unit)
+                switch id {
+                case .dietaryEnergyConsumed: food.kcal += value
+                case .dietaryProtein: food.protein += value
+                case .dietaryCarbohydrates: food.carbs += value
+                default: food.fat += value
+                }
+                foods[sample.startDate] = food
+            }
+        }
+        return Self.meals(from: Array(foods.values))
+    }
+
+    /// One food entry from another app; its nutrients share a timestamp.
+    struct HealthFood {
+        var date: Date
+        var source: String
+        var name: String?
+        var kcal: Double = 0
+        var protein: Double = 0
+        var carbs: Double = 0
+        var fat: Double = 0
+    }
+
+    /// Files foods into breakfast, lunch, dinner or snack by time of day.
+    nonisolated static func meals(from foods: [HealthFood]) -> [Meal] {
+        let cal = Calendar.current
+        let grouped = Dictionary(grouping: foods.sorted { $0.date < $1.date }) { food in
+            "\(Int(cal.startOfDay(for: food.date).timeIntervalSince1970)).\(Meal.MealType.suggested(at: food.date).rawValue)"
+        }
+        return grouped.compactMap { key, foods in
+            guard let first = foods.first else { return nil }
+            let items = foods.map { food in
+                FoodItem(id: "health.food.\(Int(food.date.timeIntervalSince1970))",
+                         name: food.name ?? "Food",
+                         servingSize: "From \(food.source)",
+                         calories: Int(food.kcal.rounded()),
+                         proteinG: food.protein, carbsG: food.carbs, fatG: food.fat,
+                         icon: "heart.text.square")
+            }
+            return Meal(id: "health.meal.\(key)", date: first.date,
+                        type: Meal.MealType.suggested(at: first.date), items: items)
+        }
     }
 
     /// Daily step totals for the given range, keyed by start of day.

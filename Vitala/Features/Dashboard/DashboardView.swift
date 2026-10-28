@@ -25,13 +25,13 @@ struct DashboardView: View {
         store.water.filter { isToday($0.loggedAt) }.reduce(0) { $0 + $1.amountMl }
     }
     private var todayMealKcal: Int {
-        store.meals.filter { isToday($0.date) }.reduce(0) { $0 + $1.totalCalories }
+        store.allMeals.filter { isToday($0.date) }.reduce(0) { $0 + $1.totalCalories }
     }
     private var todayMindfulMin: Int {
         store.mindfulness.filter { isToday($0.completedAt) }.reduce(0) { $0 + $1.minutes }
     }
     private var lastNight: SleepEntry? {
-        store.sleep.filter { isToday($0.wakeTime) }.max { $0.wakeTime < $1.wakeTime }
+        store.allSleep.filter { isToday($0.wakeTime) }.max { $0.wakeTime < $1.wakeTime }
     }
     private var todayWorkouts: [WorkoutSession] {
         store.workouts.filter { isToday($0.startedAt) }.sorted { $0.startedAt > $1.startedAt }
@@ -139,7 +139,7 @@ struct DashboardView: View {
                 Text("Connect Apple Health")
                     .font(VitalaFont.bodyMedium(16))
                     .foregroundStyle(VitalaColor.textPrimary)
-                Text("See your steps, heart rate and sleep here, and keep what you log in Vitala in your Health record.")
+                Text("See your steps, heart rate, sleep and food from other apps here, and keep what you log in Vitala in your Health record.")
                     .font(VitalaFont.caption(13))
                     .foregroundStyle(VitalaColor.textSecondary)
                 HStack(spacing: VitalaSpacing.lg) {

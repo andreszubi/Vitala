@@ -7,7 +7,8 @@ struct EditableRow<Content: View>: View {
     /// What the entry is, for VoiceOver and the confirmation title ("water entry").
     let noun: String
     var onEdit: (() -> Void)? = nil
-    let onDelete: () -> Void
+    /// Nil for read-only entries, such as ones from Apple Health.
+    var onDelete: (() -> Void)? = nil
     @ViewBuilder let content: () -> Content
 
     @State private var confirmingDelete = false
@@ -23,23 +24,13 @@ struct EditableRow<Content: View>: View {
                     rowContent.accessibilityElement(children: .combine)
                 }
             }
-            .accessibilityAction(named: "Delete") { confirmingDelete = true }
-
-            Menu {
-                if let onEdit {
-                    Button(action: onEdit) { Label("Edit", systemImage: "pencil") }
+            .accessibilityActions {
+                if onDelete != nil {
+                    Button("Delete") { confirmingDelete = true }
                 }
-                Button(role: .destructive) { confirmingDelete = true } label: {
-                    Label("Delete", systemImage: "trash")
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.body.weight(.semibold))
-                    .foregroundStyle(VitalaColor.muted)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
             }
-            .accessibilityLabel("More options")
+
+            if onEdit != nil || onDelete != nil { menu }
         }
         .padding(.leading, 10)
         .padding(.vertical, 6)
@@ -49,14 +40,36 @@ struct EditableRow<Content: View>: View {
             if let onEdit {
                 Button(action: onEdit) { Label("Edit", systemImage: "pencil") }
             }
-            Button(role: .destructive) { confirmingDelete = true } label: {
-                Label("Delete", systemImage: "trash")
+            if onDelete != nil {
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    Label("Delete", systemImage: "trash")
+                }
             }
         }
         .confirmationDialog("Delete this \(noun)?", isPresented: $confirmingDelete, titleVisibility: .visible) {
-            Button("Delete", role: .destructive, action: onDelete)
+            Button("Delete", role: .destructive) { onDelete?() }
             Button("Cancel", role: .cancel) {}
         }
+    }
+
+    private var menu: some View {
+        Menu {
+            if let onEdit {
+                Button(action: onEdit) { Label("Edit", systemImage: "pencil") }
+            }
+            if onDelete != nil {
+                Button(role: .destructive) { confirmingDelete = true } label: {
+                    Label("Delete", systemImage: "trash")
+                }
+            }
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(VitalaColor.muted)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .accessibilityLabel("More options")
     }
 
     private var rowContent: some View {
@@ -74,7 +87,7 @@ struct LogRow: View {
     let subtitle: String
     let noun: String
     var onEdit: (() -> Void)? = nil
-    let onDelete: () -> Void
+    var onDelete: (() -> Void)? = nil
 
     var body: some View {
         EditableRow(noun: noun, onEdit: onEdit, onDelete: onDelete) {

@@ -13,7 +13,7 @@ struct SleepView: View {
     @State private var showingLog: Bool = false
 
     private var entriesNewestFirst: [SleepEntry] {
-        store.sleep.sorted { $0.wakeTime > $1.wakeTime }
+        store.allSleep.sorted { $0.wakeTime > $1.wakeTime }
     }
 
     private var lastNight: SleepEntry? { entriesNewestFirst.first }
@@ -38,11 +38,11 @@ struct SleepView: View {
     }
 
     private var streak: Int {
-        Insights.currentStreak(activeDays: Set(store.sleep.map { Calendar.current.startOfDay(for: $0.wakeTime) }))
+        Insights.currentStreak(activeDays: Set(store.allSleep.map { Calendar.current.startOfDay(for: $0.wakeTime) }))
     }
 
     private var historyEntries: [SleepEntry] {
-        store.sleep
+        store.allSleep
             .filter { Calendar.current.isDate($0.wakeTime, inSameDayAs: historyDate) }
             .sorted { $0.wakeTime > $1.wakeTime }
     }
@@ -77,6 +77,8 @@ struct SleepView: View {
         .sheet(item: $editingEntry) { entry in
             NavigationStack { SleepTrackerView(editing: entry) }
         }
+        .refreshable { await HealthKitService.shared.refreshHistory() }
+        .task { await HealthKitService.shared.refreshHistory() }
     }
 
     // MARK: Last night
@@ -97,7 +99,8 @@ struct SleepView: View {
                         Text("\(n.bedTime.formatted(date: .omitted, time: .shortened)) to \(n.wakeTime.formatted(date: .omitted, time: .shortened))")
                             .font(VitalaFont.caption())
                             .foregroundStyle(VitalaColor.textSecondary)
-                        Label(n.quality.label, systemImage: n.quality.icon)
+                        Label(n.isFromHealth ? "From Apple Health" : n.quality.label,
+                              systemImage: n.isFromHealth ? "heart.text.square" : n.quality.icon)
                             .font(VitalaFont.caption(13))
                             .padding(.horizontal, 10).padding(.vertical, 5)
                             .background(Capsule().fill(VitalaColor.primary.opacity(0.12)))
@@ -248,10 +251,10 @@ struct SleepView: View {
                         LogRow(icon: e.quality.icon,
                                tint: VitalaColor.sleep,
                                title: DashboardView.hoursText(e.hours),
-                               subtitle: "\(e.bedTime.formatted(date: .omitted, time: .shortened)) to \(e.wakeTime.formatted(date: .omitted, time: .shortened)) · \(e.quality.label)",
+                               subtitle: "\(e.bedTime.formatted(date: .omitted, time: .shortened)) to \(e.wakeTime.formatted(date: .omitted, time: .shortened)) · \(e.isFromHealth ? "Apple Health" : e.quality.label)",
                                noun: "sleep entry",
-                               onEdit: { editingEntry = e },
-                               onDelete: { Task { try? await store.deleteSleep(e) } })
+                               onEdit: e.isFromHealth ? nil : { editingEntry = e },
+                               onDelete: e.isFromHealth ? nil : { delete(e) })
                     }
                 }
             }
@@ -259,6 +262,10 @@ struct SleepView: View {
     }
 
     // MARK: Helpers
+
+    private func delete(_ entry: SleepEntry) {
+        Task { try? await store.deleteSleep(entry) }
+    }
 
     private func relativeDay(for date: Date) -> String {
         let cal = Calendar.current

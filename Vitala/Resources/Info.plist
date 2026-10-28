@@ -44,7 +44,7 @@
     <key>USDAAPIKey</key>
     <string>$(USDA_API_KEY)</string>
     <key>NSHealthShareUsageDescription</key>
-    <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, and mindful minutes from Apple Health to show your daily progress.</string>
+    <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, mindful minutes, and the food energy, protein, carbs and fat other apps record in Apple Health to show your progress.</string>
     <key>NSHealthUpdateUsageDescription</key>
     <string>Vitala saves the water, sleep, mindful sessions, and workouts you log to Apple Health so your records stay in one place.</string>
 </dict>

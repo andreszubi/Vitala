@@ -18,7 +18,7 @@ Vitala has no account system and no servers of its own. We never receive, sell o
 
 If you choose to connect Apple Health, Vitala:
 
-- **reads** steps, active energy, exercise minutes, walking and running distance, heart rate, sleep and mindful minutes to show your daily progress;
+- **reads** steps, active energy, exercise minutes, walking and running distance, heart rate, sleep and mindful minutes, plus the food energy, protein, carbs and fat that other apps record, to show your progress;
 - **writes** the water, sleep, mindful sessions and workouts you log in Vitala.
 
 Health data is never used for advertising, never shared with anyone, and never leaves your device through Vitala. You can change or revoke access at any time in **Settings › Health › Data Access & Devices › Vitala**.

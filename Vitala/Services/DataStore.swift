@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// On-device store for everything the user logs. Data lives in a protected
@@ -29,6 +30,7 @@ final class DataStore: ObservableObject {
     /// Set when the data file exists but can't be read; persisting would
     /// overwrite it, so writes are skipped until the next launch.
     private var isReadOnly = false
+    private var healthUpdates: AnyCancellable?
 
     init(files: SecureFileStore = SecureFileStore(),
          defaults: UserDefaults = .standard,
@@ -37,6 +39,27 @@ final class DataStore: ObservableObject {
         self.defaults = defaults
         self.health = health
         load()
+        // Re-render screens when nights or meals arrive from Apple Health.
+        healthUpdates = health?.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+    }
+
+    // MARK: Logs plus Apple Health
+
+    /// Logged nights plus nights recorded by other apps. A night logged in
+    /// Vitala wins over a Health night it overlaps.
+    var allSleep: [SleepEntry] {
+        Self.merge(sleep, with: health?.importedSleep ?? [])
+    }
+
+    /// Logged meals plus food recorded by other apps.
+    var allMeals: [Meal] {
+        meals + (health?.importedMeals ?? [])
+    }
+
+    nonisolated static func merge(_ logged: [SleepEntry], with imported: [SleepEntry]) -> [SleepEntry] {
+        logged + imported.filter { night in
+            !logged.contains { $0.bedTime < night.wakeTime && night.bedTime < $0.wakeTime }
+        }
     }
 
     // MARK: Daily summary
