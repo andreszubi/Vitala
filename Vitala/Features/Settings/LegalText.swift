@@ -8,7 +8,7 @@ enum LegalText {
     Vitala is built so your wellness data stays yours.
 
     What Vitala stores
-    Everything you enter — your name, optional birthday, height, weight and goals, and the water, meals, workouts, sleep and mindful sessions you log — is stored only on this iPhone, in Vitala's private app storage, protected by iOS Data Protection. Vitala has no account system and no servers. We never receive, sell or share your data.
+    Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep and mindful sessions you log — is stored only on this iPhone, in Vitala's private app storage, protected by iOS Data Protection. Vitala has no account system and no servers. We never receive, sell or share your data.
 
     Apple Health
     If you choose to connect Apple Health, Vitala reads steps, active energy, exercise minutes, walking and running distance, heart rate, sleep and mindful minutes to show your daily progress, and writes the water, sleep, mindful sessions and workouts you log in Vitala. Health data is never used for advertising or shared with anyone. You can change or revoke access at any time in Settings › Health › Data Access & Devices › Vitala.

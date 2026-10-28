@@ -94,7 +94,7 @@ struct DashboardView: View {
                 Task { await health.refreshToday() }
             }
             .sheet(isPresented: $showingWater) {
-                WaterTrackerView().presentationDetents([.medium, .large])
+                WaterTrackerView()
             }
             .sheet(isPresented: $showingMeal) {
                 NavigationStack { AddMealView() }
@@ -123,13 +123,7 @@ struct DashboardView: View {
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(.isHeader)
             Spacer()
-            NavigationLink {
-                ProfileView()
-            } label: {
-                AvatarView(name: profileStore.profile?.displayName ?? "", size: 48)
-            }
-            .buttonStyle(PressableButtonStyle())
-            .accessibilityLabel("Profile and settings")
+            ProfileButton(size: 48)
         }
         .padding(.top, VitalaSpacing.md)
     }
@@ -302,32 +296,5 @@ struct DashboardView: View {
         let h = Int(hours)
         let m = Int(((hours - Double(h)) * 60).rounded())
         return m == 0 ? "\(h)h" : "\(h)h \(m)m"
-    }
-}
-
-/// Circular initials avatar.
-struct AvatarView: View {
-    let name: String
-    var size: CGFloat = 48
-
-    private var initials: String {
-        let parts = name.split(separator: " ")
-        let first = parts.first?.first.map(String.init) ?? ""
-        let last = parts.dropFirst().first?.first.map(String.init) ?? ""
-        let value = (first + last).uppercased()
-        return value.isEmpty ? "V" : value
-    }
-
-    var body: some View {
-        Text(initials)
-            .font(size > 64 ? VitalaFont.title(28) : VitalaFont.headline(18))
-            .lineLimit(1)
-            .minimumScaleFactor(0.3)
-            .padding(size * 0.14)
-            .foregroundStyle(.white)
-            .frame(width: size, height: size)
-            .background(Circle().fill(VitalaColor.primaryGradient))
-            .overlay(Circle().stroke(VitalaColor.hairline, lineWidth: 1))
-            .accessibilityHidden(true)
     }
 }

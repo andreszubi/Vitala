@@ -49,6 +49,17 @@ struct SecureFileStore {
                        options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
 
+    /// Raw bytes (e.g. an image), with the same protection as JSON files.
+    func saveData(_ data: Data, to name: String) throws {
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        try data.write(to: url(for: name),
+                       options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+
+    func loadData(_ name: String) -> Data? {
+        try? Data(contentsOf: url(for: name))
+    }
+
     func delete(_ name: String) {
         try? FileManager.default.removeItem(at: url(for: name))
     }

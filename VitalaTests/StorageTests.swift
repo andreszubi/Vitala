@@ -1,4 +1,5 @@
 import Foundation
+import UIKit
 import Testing
 @testable import Vitala
 
@@ -84,5 +85,37 @@ struct ExportTests {
         #expect(json.contains("\"amountMl\" : 330"))
         #expect(json.contains("\"quality\" : \"great\""))
         #expect(json.contains("\"displayName\" : \"Sam\""))
+    }
+}
+
+@MainActor
+struct AvatarTests {
+    @Test func avatarIsDownscaledPersistedAndErased() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VitalaAvatar-\(UUID().uuidString)")
+        let defaults = UserDefaults(suiteName: "VitalaAvatar-\(UUID().uuidString)")!
+        let store = ProfileStore(files: SecureFileStore(directory: dir), defaults: defaults)
+        store.createProfile(displayName: "Sam")
+
+        let big = UIGraphicsImageRenderer(size: CGSize(width: 2000, height: 1500)).image { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2000, height: 1500))
+        }
+        #expect(store.setAvatar(imageData: try #require(big.pngData())))
+        let saved = try #require(store.avatar)
+        #expect(max(saved.size.width, saved.size.height) <= 600)
+
+        let relaunched = ProfileStore(files: SecureFileStore(directory: dir), defaults: defaults)
+        #expect(relaunched.avatar != nil)
+
+        relaunched.erase()
+        #expect(ProfileStore(files: SecureFileStore(directory: dir), defaults: defaults).avatar == nil)
+    }
+
+    @Test func rejectsNonImageData() {
+        let store = ProfileStore(files: SecureFileStore(directory: FileManager.default.temporaryDirectory
+            .appendingPathComponent("VitalaAvatar-\(UUID().uuidString)")),
+                                 defaults: UserDefaults(suiteName: "VitalaAvatar-\(UUID().uuidString)")!)
+        #expect(!store.setAvatar(imageData: Data("not an image".utf8)))
+        #expect(store.avatar == nil)
     }
 }

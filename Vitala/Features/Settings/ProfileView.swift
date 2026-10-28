@@ -38,7 +38,19 @@ struct ProfileView: View {
 
     private var avatarBlock: some View {
         VStack(spacing: 10) {
-            AvatarView(name: profileStore.profile?.displayName ?? "", size: 88)
+            ProfilePhotoPicker { hasPhoto in
+                AvatarView(size: 96)
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: hasPhoto ? "pencil" : "camera.fill")
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .frame(width: 30, height: 30)
+                            .background(Circle().fill(VitalaColor.primaryFill))
+                            .overlay(Circle().stroke(VitalaColor.background, lineWidth: 2))
+                    }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel(profileStore.avatar == nil ? "Add profile photo" : "Change profile photo")
             Text(profileStore.profile?.displayName ?? "")
                 .font(VitalaFont.title(22))
                 .foregroundStyle(VitalaColor.textPrimary)

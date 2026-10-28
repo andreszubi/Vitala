@@ -19,6 +19,29 @@ struct EditProfileView: View {
 
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: VitalaSpacing.md) {
+                    AvatarView(size: 64)
+                    VStack(alignment: .leading, spacing: 8) {
+                        ProfilePhotoPicker { hasPhoto in
+                            Text(hasPhoto ? "Change photo" : "Add photo")
+                        }
+                        if profileStore.avatar != nil {
+                            Button("Remove photo", role: .destructive) {
+                                profileStore.removeAvatar()
+                            }
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
+                .padding(.vertical, 4)
+            } header: {
+                Text("Photo")
+            } footer: {
+                Text("Your photo stays on this iPhone.")
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
+
             Section("Name") {
                 TextField("Name", text: $draft.displayName)
                     .textContentType(.name)

@@ -35,29 +35,44 @@ struct ScreenHeader: View {
     let title: String
     var subtitle: String? = nil
     var trailing: AnyView? = nil
+    /// Every tab shows the profile avatar so Profile & Settings is one tap away.
+    var showsProfile: Bool = true
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
-        // At accessibility text sizes the action drops below the title so
-        // neither gets squeezed.
-        let layout = typeSize.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: VitalaSpacing.sm))
-            : AnyLayout(HStackLayout(alignment: .top))
-        layout {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(VitalaFont.title(28))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(VitalaFont.body(15))
-                        .foregroundStyle(VitalaColor.textSecondary)
+        if typeSize.isAccessibilitySize {
+            // At accessibility text sizes the actions drop below the title so
+            // nothing gets squeezed.
+            VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+                HStack(alignment: .top) {
+                    titleBlock
+                    Spacer(minLength: VitalaSpacing.sm)
+                    if showsProfile { ProfileButton() }
                 }
+                if let trailing { trailing }
             }
-            if !typeSize.isAccessibilitySize { Spacer(minLength: VitalaSpacing.sm) }
-            if let trailing { trailing }
+        } else {
+            HStack(alignment: .top, spacing: VitalaSpacing.sm) {
+                titleBlock
+                Spacer(minLength: VitalaSpacing.sm)
+                if let trailing { trailing }
+                if showsProfile { ProfileButton() }
+            }
+        }
+    }
+
+    private var titleBlock: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+                .font(VitalaFont.title(28))
+                .foregroundStyle(VitalaColor.textPrimary)
+                .accessibilityAddTraits(.isHeader)
+            if let subtitle {
+                Text(subtitle)
+                    .font(VitalaFont.body(15))
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
         }
     }
 }

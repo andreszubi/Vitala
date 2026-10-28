@@ -20,6 +20,7 @@ enum DebugLaunchOptions {
         let files = SecureFileStore()
         files.delete(DataStore.fileName)
         files.delete(ProfileStore.fileName)
+        files.delete(ProfileStore.avatarFileName)
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)
         }
