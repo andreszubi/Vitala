@@ -53,11 +53,11 @@ struct SettingsView: View {
             }
 
             Section {
-                Toggle("Search the USDA food database", isOn: $onlineFoodSearch)
+                Toggle("Look up foods online", isOn: $onlineFoodSearch)
             } header: {
                 Text("Food search")
             } footer: {
-                Text("When on, food search sends only the words you type to USDA FoodData Central to look up nutrition. Nothing else leaves your iPhone.")
+                Text("When on, food search and barcode scanning send only the words you type or the barcode number to USDA FoodData Central and Open Food Facts to look up nutrition. Nothing else leaves your iPhone.")
                     .foregroundStyle(VitalaColor.textSecondary)
             }
 

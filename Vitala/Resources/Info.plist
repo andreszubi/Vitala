@@ -39,6 +39,8 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
+    <key>NSCameraUsageDescription</key>
+    <string>Vitala uses the camera to scan food barcodes so you can log packaged foods quickly. Nothing is recorded or saved.</string>
     <key>USDAAPIKey</key>
     <string>$(USDA_API_KEY)</string>
     <key>NSHealthShareUsageDescription</key>

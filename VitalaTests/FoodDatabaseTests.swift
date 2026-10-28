@@ -65,3 +65,51 @@ struct FoodDatabaseTests {
         #expect(FoodDatabaseClient().isConfigured)
     }
 }
+
+/// Barcode lookups against trimmed real responses.
+struct BarcodeTests {
+    @Test func canonicalFormMatchesUPCAndEAN() {
+        #expect(Barcode.canonical("016459200441") == Barcode.canonical("0016459200441"))
+        #expect(Barcode.canonical("3017620422003") == "3017620422003")
+        #expect(Barcode.isValid("016459200441"))
+        #expect(!Barcode.isValid("12345"))
+    }
+
+    @Test func usdaMatchesOnlyTheExactGTIN() throws {
+        let json = #"""
+        {"foods":[
+          {"fdcId":1,"gtinUpc":"099999999999","description":"OTHER","dataType":"Branded","foodNutrients":[{"nutrientId":1008,"value":50}]},
+          {"fdcId":2012128,"gtinUpc":"016459200441","description":"BANANA","dataType":"Branded","brandName":"BETTER'N PEANUT BUTTER","brandOwner":"Wonder Natural Foods Corp","servingSize":32.0,"servingSizeUnit":"g","householdServingFullText":"2 Tbsp","foodNutrients":[{"nutrientId":1008,"value":312},{"nutrientId":1003,"value":12.5}]}
+        ]}
+        """#
+        // Scanned as EAN-13 with a leading zero.
+        let match = try #require(try FoodDatabaseClient.parseBarcodeMatch(Data(json.utf8), barcode: "0016459200441"))
+        #expect(match.id == 2012128)
+        #expect(match.defaultPortion.label == "2 tbsp (32 g)")
+        #expect(try FoodDatabaseClient.parseBarcodeMatch(Data(json.utf8), barcode: "012345678905") == nil)
+    }
+
+    @Test func openFoodFactsProductParses() throws {
+        let json = #"{"code":"3017620422003","status":1,"product":{"product_name":"Nutella","brands":"Nutella, Ferrero","nutriments":{"carbohydrates_100g":57.5,"energy-kcal_100g":539,"energy_100g":2252,"fat_100g":30.9,"fiber_100g":0,"proteins_100g":6.3}}}"#
+        let food = try #require(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "3017620422003"))
+        #expect(food.name == "Nutella")
+        #expect(food.brand == "Nutella")
+        #expect(food.source == .openFoodFacts)
+        #expect(food.per100g.kcal == 539)
+        #expect(food.defaultPortion.label == "100 g")
+    }
+
+    @Test func openFoodFactsFallsBackToKilojoulesAndServing() throws {
+        let json = #"{"status":1,"product":{"product_name":"Oat bar","serving_size":"40 g","serving_quantity":"40","nutriments":{"energy_100g":1674,"proteins_100g":"8,5"}}}"#
+        let food = try #require(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "12345670"))
+        #expect(Int(food.per100g.kcal.rounded()) == 400)
+        #expect(food.per100g.protein == 8.5)
+        #expect(food.defaultPortion == .init(label: "1 serving (40 g)", grams: 40))
+        #expect(food.foodItem(portion: food.defaultPortion, quantity: 1).calories == 160)
+    }
+
+    @Test func unknownProductReturnsNil() {
+        let json = #"{"code":"0000","status":0,"status_verbose":"product not found"}"#
+        #expect(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "0000") == nil)
+    }
+}

@@ -17,12 +17,25 @@ struct FoodSearchResult: Identifiable, Hashable {
         var fiber: Double = 0
     }
 
-    let id: Int            // FDC id
+    /// Where the nutrition data came from, for attribution.
+    enum Source: Hashable {
+        case usda, openFoodFacts
+
+        var attribution: String {
+            switch self {
+            case .usda: "Nutrition data from USDA FoodData Central."
+            case .openFoodFacts: "Nutrition data from Open Food Facts (openfoodfacts.org), available under the Open Database License."
+            }
+        }
+    }
+
+    let id: Int            // FDC id, or the barcode for Open Food Facts
     let name: String
     let brand: String?
     let isBranded: Bool
     let per100g: Nutrients
     let portions: [Portion]
+    var source: Source = .usda
 
     var defaultPortion: Portion { portions.first ?? Portion(label: "100 g", grams: 100) }
 
@@ -117,6 +130,25 @@ struct FoodDatabaseClient {
         return try Self.parse(data)
     }
 
+    /// Looks up a packaged food by its UPC / EAN among USDA branded foods.
+    func food(barcode: String) async throws -> FoodSearchResult? {
+        guard let apiKey else { throw SearchError.notConfigured }
+        var components = URLComponents(string: "https://api.nal.usda.gov/fdc/v1/foods/search")!
+        components.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
+        var request = URLRequest(url: components.url!, timeoutInterval: 15)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: [
+            "query": Barcode.digits(barcode), "dataType": ["Branded"], "pageSize": 10
+        ])
+        let (data, response) = try await session.data(for: request)
+        switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
+        case 200: return try Self.parseBarcodeMatch(data, barcode: barcode)
+        case 429: throw SearchError.rateLimited
+        default: throw SearchError.unavailable
+        }
+    }
+
     // MARK: Parsing
 
     private struct Response: Decodable {
@@ -132,6 +164,7 @@ struct FoodDatabaseClient {
         let servingSize: Double?
         let servingSizeUnit: String?
         let householdServingFullText: String?
+        let gtinUpc: String?
         let foodNutrients: [Nutrient]?
         let foodMeasures: [Measure]?
     }
@@ -151,6 +184,14 @@ struct FoodDatabaseClient {
         let results = foods.compactMap(result(from:))
         // Generic foods first: "Banana, raw" beats a peanut butter called BANANA.
         return results.filter { !$0.isBranded } + results.filter(\.isBranded)
+    }
+
+    /// The branded food whose GTIN matches the scanned code, if any. Search
+    /// can also return foods that merely mention the digits, so match exactly.
+    static func parseBarcodeMatch(_ data: Data, barcode: String) throws -> FoodSearchResult? {
+        let foods = try JSONDecoder().decode(Response.self, from: data).foods
+        let wanted = Barcode.canonical(barcode)
+        return foods.first { $0.gtinUpc.map(Barcode.canonical) == wanted }.flatMap(result(from:))
     }
 
     private static func result(from food: Food) -> FoodSearchResult? {

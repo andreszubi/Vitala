@@ -45,6 +45,7 @@ struct FoodPortionSheet: View {
                 Stepper(value: $quantity, in: 0.5...20, step: 0.5) {
                     LabeledContent("Amount", value: "\(quantity.formatted()) × \(portion.label)")
                 }
+                .accessibilityValue("\(quantity.formatted()) × \(portion.label)")
             }
 
             Section {
@@ -56,7 +57,7 @@ struct FoodPortionSheet: View {
             } header: {
                 Text("Nutrition")
             } footer: {
-                Text("Nutrition data from USDA FoodData Central.")
+                Text(result.source.attribution)
                     .foregroundStyle(VitalaColor.textSecondary)
             }
         }

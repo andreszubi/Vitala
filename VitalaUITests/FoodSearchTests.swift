@@ -37,6 +37,28 @@ final class FoodSearchTests: XCTestCase {
     }
 
     @MainActor
+    func testBarcodeEntryFindsAProduct() throws {
+        let app = XCUIApplication()
+        app.launchArguments = ["-seedSampleData"]
+        app.launch()
+
+        app.buttons["quicklog.meal"].tap()
+        app.buttons["meal.scanBarcode"].tap()
+        // Simulators have no camera, so the scanner offers manual entry.
+        let field = app.textFields["Barcode"]
+        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        field.tap()
+        field.typeText("016459200441")
+        attach(app, "Barcode entry")
+        app.buttons["Look up"].tap()
+
+        XCTAssertTrue(app.navigationBars["Add food"].waitForExistence(timeout: 20), "Product should be found")
+        attach(app, "Scanned product")
+        app.navigationBars["Add food"].buttons["Add"].tap()
+        XCTAssertTrue(app.staticTexts["In this meal"].waitForExistence(timeout: 5))
+    }
+
+    @MainActor
     private func attach(_ app: XCUIApplication, _ name: String) {
         let a = XCTAttachment(screenshot: app.screenshot())
         a.name = name

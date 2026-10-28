@@ -27,8 +27,12 @@ final class AccessibilityAuditTests: XCTestCase {
     private static let verifiedUnclipped: Set<String> = ["Great", "Export my data"]
 
     /// Audits the current screen, attaching the screen name to failures.
+    /// - Parameter isSheet: on iOS 26+ sheets are inset, so a sliver of the
+    ///   screen underneath shows below their rounded corners. VoiceOver
+    ///   rightly ignores it while the sheet is up, but the audit's on-screen
+    ///   text detection reads those pixels and reports text with no element.
     @MainActor
-    private func audit(_ app: XCUIApplication, _ screen: String,
+    private func audit(_ app: XCUIApplication, _ screen: String, isSheet: Bool = false,
                        file: StaticString = #filePath, line: UInt = #line) {
         do {
             try app.performAccessibilityAudit(for: Self.auditTypes) { issue in
@@ -42,6 +46,9 @@ final class AccessibilityAuditTests: XCTestCase {
                 // behaviour at accessibility sizes is audited by
                 // testMainScreensAtLargeTextSizes.
                 if issue.auditType == .dynamicType && issue.compactDescription.contains("partially") {
+                    return true
+                }
+                if isSheet && issue.auditType == .elementDetection && issue.element == nil {
                     return true
                 }
                 // Verified false positives: these render in full on screen.
@@ -139,17 +146,49 @@ final class AccessibilityAuditTests: XCTestCase {
 
         app.buttons["quicklog.water"].tap()
         XCTAssertTrue(app.navigationBars["Water"].waitForExistence(timeout: 5))
-        audit(app, "Water sheet")
+        audit(app, "Water sheet", isSheet: true)
         app.buttons["Done"].tap()
 
         app.buttons["quicklog.meal"].tap()
         XCTAssertTrue(app.navigationBars["Log a meal"].waitForExistence(timeout: 5))
-        audit(app, "Log a meal")
+        audit(app, "Log a meal", isSheet: true)
         app.buttons["Cancel"].tap()
 
         app.buttons["quicklog.sleep"].tap()
         XCTAssertTrue(app.navigationBars["Log sleep"].waitForExistence(timeout: 5))
-        audit(app, "Log sleep")
+        audit(app, "Log sleep", isSheet: true)
         app.buttons["Cancel"].tap()
+    }
+
+    @MainActor
+    func testFormsAreAccessible() throws {
+        let app = launch(["-seedSampleData"])
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+
+        app.buttons["quicklog.meal"].tap()
+        XCTAssertTrue(app.navigationBars["Log a meal"].waitForExistence(timeout: 5))
+        app.buttons["meal.customFood"].tap()
+        XCTAssertTrue(app.navigationBars["Custom food"].waitForExistence(timeout: 5))
+        audit(app, "Custom food", isSheet: true)
+        app.navigationBars["Custom food"].buttons["Cancel"].tap()
+
+        app.buttons["meal.scanBarcode"].tap()
+        XCTAssertTrue(app.navigationBars["Scan barcode"].waitForExistence(timeout: 5))
+        audit(app, "Barcode entry", isSheet: true)
+        app.navigationBars["Scan barcode"].buttons["Cancel"].tap()
+        app.navigationBars["Log a meal"].buttons["Cancel"].tap()
+
+        openTab(app, "Activity")
+        app.buttons["Log an activity"].tap()
+        XCTAssertTrue(app.navigationBars["Log activity"].waitForExistence(timeout: 5))
+        audit(app, "Log activity", isSheet: true)
+        app.navigationBars["Log activity"].buttons["Cancel"].tap()
+
+        openTab(app, "Today")
+        app.buttons["profile.button"].firstMatch.tap()
+        app.buttons["Edit profile"].tap()
+        XCTAssertTrue(app.navigationBars["Edit profile"].waitForExistence(timeout: 5))
+        audit(app, "Edit profile", isSheet: true)
+        app.navigationBars["Edit profile"].buttons["Cancel"].tap()
     }
 }

@@ -27,6 +27,13 @@ struct AddMealView: View {
     @State private var portionFor: FoodSearchResult?
     private let foodDatabase = FoodDatabaseClient()
 
+    // Barcode scanning
+    @State private var showScanner = false
+    @State private var scannedCode: String?
+    @State private var lookingUpBarcode = false
+    @State private var missingBarcode: String?
+    @State private var barcodeError: String?
+
     private enum OnlineState: Equatable {
         case idle, searching, done, failed(String)
     }
@@ -69,34 +76,18 @@ struct AddMealView: View {
                     }
                 }
 
-                Button {
-                    showCustomSheet = true
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.title3)
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Add custom food")
-                                .font(VitalaFont.bodyMedium(15))
-                            Text("Can't find it? Create your own.")
-                                .font(VitalaFont.caption(12))
-                                .foregroundStyle(VitalaColor.textSecondary)
-                        }
-                        Spacer()
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(VitalaColor.muted)
-                            .accessibilityHidden(true)
+                if onlineSearchEnabled {
+                    actionRow(icon: "barcode.viewfinder", title: "Scan barcode",
+                              subtitle: "Point your camera at a packaged food.") {
+                        showScanner = true
                     }
-                    .padding(12)
-                    .frame(minHeight: 44)
-                    .foregroundStyle(VitalaColor.primary)
-                    .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
-                        .fill(VitalaColor.primary.opacity(0.08)))
-                    .contentShape(Rectangle())
+                    .accessibilityIdentifier("meal.scanBarcode")
                 }
-                .buttonStyle(PressableButtonStyle())
+                actionRow(icon: "plus.circle.fill", title: "Add custom food",
+                          subtitle: "Can't find it? Create your own.") {
+                    showCustomSheet = true
+                }
+                .accessibilityIdentifier("meal.customFood")
 
                 if !customFoods.isEmpty && query.isEmpty {
                     SectionHeader(title: "Your foods")
@@ -157,6 +148,36 @@ struct AddMealView: View {
             }
         }
         .task(id: trimmedQuery) { await searchOnline() }
+        .overlay {
+            if lookingUpBarcode {
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Looking up product…")
+                        .font(VitalaFont.bodyMedium(15))
+                }
+                .padding(.horizontal, 18).padding(.vertical, 12)
+                .liquidGlass(in: Capsule())
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .sheet(isPresented: $showScanner, onDismiss: lookUpScannedCode) {
+            NavigationStack {
+                BarcodeScannerSheet { code in scannedCode = code }
+            }
+        }
+        .alert("Product not found", isPresented: Binding(get: { missingBarcode != nil },
+                                                          set: { if !$0 { missingBarcode = nil } })) {
+            Button("Add custom food") { showCustomSheet = true }
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("No nutrition data for barcode \(missingBarcode ?? ""). You can add it as a custom food.")
+        }
+        .alert("Couldn't look that up", isPresented: Binding(get: { barcodeError != nil },
+                                                              set: { if !$0 { barcodeError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(barcodeError ?? "")
+        }
         .sheet(item: $portionFor) { result in
             NavigationStack {
                 FoodPortionSheet(result: result) { item in
@@ -226,6 +247,58 @@ struct AddMealView: View {
         .accessibilityActions {
             if isCustom {
                 Button("Delete custom food") { deleteCustom(item) }
+            }
+        }
+    }
+
+    private func actionRow(icon: String, title: String, subtitle: String,
+                           action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(VitalaFont.bodyMedium(15))
+                    Text(subtitle)
+                        .font(VitalaFont.caption(12))
+                        .foregroundStyle(VitalaColor.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(VitalaColor.muted)
+                    .accessibilityHidden(true)
+            }
+            .padding(12)
+            .frame(minHeight: 44)
+            .foregroundStyle(VitalaColor.primary)
+            .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
+                .fill(VitalaColor.primary.opacity(0.08)))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(PressableButtonStyle())
+    }
+
+    // MARK: Barcode
+
+    /// Runs after the scanner sheet has fully closed, so the portion sheet
+    /// can present cleanly.
+    private func lookUpScannedCode() {
+        guard let code = scannedCode else { return }
+        scannedCode = nil
+        lookingUpBarcode = true
+        Task {
+            defer { lookingUpBarcode = false }
+            do {
+                if let found = try await BarcodeLookup().food(barcode: code) {
+                    portionFor = found
+                } else {
+                    missingBarcode = code
+                }
+            } catch {
+                barcodeError = (error as? LocalizedError)?.errorDescription ?? "Try again in a moment."
             }
         }
     }

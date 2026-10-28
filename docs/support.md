@@ -30,6 +30,10 @@ Yes. During a session, tap the speaker button to choose **Spa & binaural**, **Sp
 
 Food search uses USDA FoodData Central, a free public nutrition database from the U.S. Department of Agriculture. Only the words you type are sent. Foods you add are saved on your iPhone so they're searchable offline. To keep search fully offline, turn off **Settings › Food search**.
 
+## How do I scan a barcode?
+
+In **Log a meal**, tap **Scan barcode** and point the camera at the barcode on the package. You can also type the number printed under the barcode. Vitala looks it up in USDA FoodData Central and Open Food Facts; if a product isn't found, you can add it as a custom food.
+
 ## How do I back up or move my data?
 
 Tap your avatar, then **Settings › Export my data**. Vitala creates a JSON file you can save to Files or share.

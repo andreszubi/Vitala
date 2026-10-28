@@ -23,11 +23,17 @@ If you choose to connect Apple Health, Vitala:
 
 Health data is never used for advertising, never shared with anyone, and never leaves your device through Vitala. You can change or revoke access at any time in **Settings › Health › Data Access & Devices › Vitala**.
 
-## Food search
+## Food search and barcodes
 
-When you search for a food, Vitala sends **only the words you type** (for example, "banana") to [USDA FoodData Central](https://fdc.nal.usda.gov), a public U.S. government nutrition database, to look up nutrition facts. No name, account, device identifier or health data is sent. Foods you add are saved on your device so you can find them again offline.
+When you search for a food, Vitala sends **only the words you type** (for example, "banana") to [USDA FoodData Central](https://fdc.nal.usda.gov), a public U.S. government nutrition database.
 
-You can turn online food search off in **Settings › Food search**; searches then only cover foods saved on your device.
+When you scan or type a barcode, Vitala sends **only the barcode number** to USDA FoodData Central and, if the product isn't found there, to [Open Food Facts](https://world.openfoodfacts.org), a free, open food database.
+
+No name, account, device identifier or health data is sent with either. Foods you add are saved on your device so you can find them again offline. You can turn online lookups off in **Settings › Food search**; searches then only cover foods saved on your device and scanning is hidden.
+
+## Camera
+
+Vitala uses the camera only to read barcodes while the scanner is open. Nothing is recorded or saved.
 
 ## Photos
 

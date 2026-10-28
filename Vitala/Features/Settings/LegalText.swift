@@ -13,8 +13,11 @@ enum LegalText {
     Apple Health
     If you choose to connect Apple Health, Vitala reads steps, active energy, exercise minutes, walking and running distance, heart rate, sleep and mindful minutes to show your daily progress, and writes the water, sleep, mindful sessions and workouts you log in Vitala. Health data is never used for advertising or shared with anyone. You can change or revoke access at any time in Settings › Health › Data Access & Devices › Vitala.
 
-    Food search
-    When you search for a food, Vitala sends the words you type to USDA FoodData Central, a public U.S. government nutrition database, to look up nutrition facts. No name, account, device identifier or health data is sent. You can turn this off in Settings › Food search.
+    Food search and barcodes
+    When you search for a food, Vitala sends the words you type to USDA FoodData Central, a public U.S. government nutrition database. When you scan or type a barcode, Vitala sends the barcode number to USDA FoodData Central and, if it isn't found there, to Open Food Facts, a free open food database. No name, account, device identifier or health data is sent. You can turn online lookups off in Settings › Food search.
+
+    Camera
+    The camera is used only to read barcodes while the scanner is open. Nothing is recorded or saved.
 
     Photos
     If you add a profile photo, you choose it with the system photo picker. Vitala only receives the single photo you select, never your library.
