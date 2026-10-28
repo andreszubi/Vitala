@@ -12,7 +12,7 @@ Vitala is built so your wellness data stays yours.
 
 Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep and mindful sessions you log — is stored **only on your iPhone**, in Vitala's private app storage, protected by iOS Data Protection.
 
-Vitala has no account system and no servers. We never receive, sell or share your data.
+Vitala has no account system and no servers of its own. We never receive, sell or share your data.
 
 ## Apple Health
 
@@ -22,6 +22,12 @@ If you choose to connect Apple Health, Vitala:
 - **writes** the water, sleep, mindful sessions and workouts you log in Vitala.
 
 Health data is never used for advertising, never shared with anyone, and never leaves your device through Vitala. You can change or revoke access at any time in **Settings › Health › Data Access & Devices › Vitala**.
+
+## Food search
+
+When you search for a food, Vitala sends **only the words you type** (for example, "banana") to [USDA FoodData Central](https://fdc.nal.usda.gov), a public U.S. government nutrition database, to look up nutrition facts. No name, account, device identifier or health data is sent. Foods you add are saved on your device so you can find them again offline.
+
+You can turn online food search off in **Settings › Food search**; searches then only cover foods saved on your device.
 
 ## Photos
 

@@ -1,0 +1,12 @@
+// Build settings for the Vitala app target.
+//
+// Secrets (API keys) live in Secrets.xcconfig next to this file. Git ignores
+// it, so keys never reach the repository. To set one up:
+//   cp Config/Secrets.example.xcconfig Config/Secrets.xcconfig
+// then paste your keys into Secrets.xcconfig.
+
+// USDA FoodData Central key for online food search (https://fdc.nal.usda.gov/api-key-signup).
+// Left empty here; Debug builds fall back to USDA's rate-limited DEMO_KEY.
+USDA_API_KEY =
+
+#include? "Secrets.xcconfig"

@@ -39,6 +39,8 @@
         <string>UIInterfaceOrientationPortrait</string>
     </array>
 
+    <key>USDAAPIKey</key>
+    <string>$(USDA_API_KEY)</string>
     <key>NSHealthShareUsageDescription</key>
     <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, and mindful minutes from Apple Health to show your daily progress.</string>
     <key>NSHealthUpdateUsageDescription</key>

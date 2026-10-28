@@ -6,3 +6,6 @@ buildServer.json
 # Xcode per-user state
 xcuserdata/
 *.xcuserstate
+
+# Local API keys
+Config/Secrets.xcconfig

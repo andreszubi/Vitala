@@ -20,15 +20,31 @@ struct AddMealView: View {
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
 
+    // Online search (USDA FoodData Central)
+    @AppStorage("vitala.onlineFoodSearch") private var onlineSearchEnabled = true
+    @State private var online: [FoodSearchResult] = []
+    @State private var onlineState: OnlineState = .idle
+    @State private var portionFor: FoodSearchResult?
+    private let foodDatabase = FoodDatabaseClient()
+
+    private enum OnlineState: Equatable {
+        case idle, searching, done, failed(String)
+    }
+
+    private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
     private var customFoods: [FoodItem] { store.customFoods }
+    private var recentFoods: [FoodItem] { store.recentFoods }
 
     private var results: [FoodItem] {
-        let trimmed = query.trimmingCharacters(in: .whitespaces)
         let library = FoodLibrary.common
-        guard !trimmed.isEmpty else { return library }
-        return (customFoods + library).filter {
-            $0.name.localizedCaseInsensitiveContains(trimmed) || ($0.brand?.localizedCaseInsensitiveContains(trimmed) ?? false)
+        guard !trimmedQuery.isEmpty else { return library }
+        return (customFoods + recentFoods + library).filter {
+            $0.name.localizedCaseInsensitiveContains(trimmedQuery) || ($0.brand?.localizedCaseInsensitiveContains(trimmedQuery) ?? false)
         }
+    }
+
+    private var showsOnlineSection: Bool {
+        onlineSearchEnabled && foodDatabase.isConfigured && trimmedQuery.count >= 2
     }
 
     private var selectedCalories: Int { selected.reduce(0) { $0 + $1.calories } }
@@ -89,9 +105,23 @@ struct AddMealView: View {
                     }
                 }
 
-                SectionHeader(title: query.isEmpty ? "Common foods" : "Results")
+                if !recentFoods.isEmpty && query.isEmpty {
+                    SectionHeader(title: "Recent")
+                    ForEach(recentFoods.prefix(8)) { item in
+                        foodButton(item, isCustom: false)
+                    }
+                }
+
+                if showsOnlineSection {
+                    onlineSection
+                }
+
+                SectionHeader(title: query.isEmpty ? "Common foods" : "Saved and common foods")
                 if results.isEmpty {
-                    EmptyStateRow(text: "No matches. Try another word or add a custom food.", icon: "magnifyingglass")
+                    EmptyStateRow(text: showsOnlineSection
+                                  ? "Nothing saved matches. Try the food database results above."
+                                  : "No matches. Try another word or add a custom food.",
+                                  icon: "magnifyingglass")
                 }
                 ForEach(results) { item in
                     foodButton(item, isCustom: customFoods.contains { $0.id == item.id })
@@ -125,6 +155,18 @@ struct AddMealView: View {
             ToolbarItem(placement: .cancellationAction) {
                 Button("Cancel") { dismiss() }
             }
+        }
+        .task(id: trimmedQuery) { await searchOnline() }
+        .sheet(item: $portionFor) { result in
+            NavigationStack {
+                FoodPortionSheet(result: result) { item in
+                    selected.append(item)
+                    store.rememberRecentFood(item)
+                    Haptics.selection()
+                    AccessibilityNotification.Announcement("Added \(item.name)").post()
+                }
+            }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showCustomSheet) {
             NavigationStack {
@@ -185,6 +227,68 @@ struct AddMealView: View {
             if isCustom {
                 Button("Delete custom food") { deleteCustom(item) }
             }
+        }
+    }
+
+    // MARK: Online search
+
+    private var onlineSection: some View {
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            SectionHeader(title: "Food database", trailing: "USDA")
+            switch onlineState {
+            case .idle, .searching:
+                HStack(spacing: 10) {
+                    ProgressView()
+                    Text("Searching…")
+                        .font(VitalaFont.body(14))
+                        .foregroundStyle(VitalaColor.textSecondary)
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .accessibilityElement(children: .combine)
+            case .failed(let message):
+                EmptyStateRow(text: message, icon: "wifi.exclamationmark")
+            case .done where online.isEmpty:
+                EmptyStateRow(text: "No foods found for \"\(trimmedQuery)\".", icon: "magnifyingglass")
+            case .done:
+                ForEach(online.prefix(15)) { result in
+                    Button {
+                        portionFor = result
+                    } label: {
+                        OnlineFoodRow(result: result)
+                    }
+                    .buttonStyle(PressableButtonStyle())
+                    .accessibilityHint("Choose an amount to add")
+                }
+                Text("Nutrition data from USDA FoodData Central.")
+                    .font(VitalaFont.caption(12))
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
+        }
+    }
+
+    private func searchOnline() async {
+        let term = trimmedQuery
+        guard onlineSearchEnabled, foodDatabase.isConfigured, term.count >= 2 else {
+            online = []
+            onlineState = .idle
+            return
+        }
+        onlineState = .searching
+        // Wait for typing to pause; a newer query cancels this task.
+        try? await Task.sleep(for: .milliseconds(450))
+        guard !Task.isCancelled else { return }
+        do {
+            let found = try await foodDatabase.search(term)
+            guard !Task.isCancelled else { return }
+            online = found
+            onlineState = .done
+            AccessibilityNotification.Announcement("\(found.count) foods found").post()
+        } catch is CancellationError {
+            return
+        } catch {
+            guard !Task.isCancelled else { return }
+            online = []
+            onlineState = .failed((error as? LocalizedError)?.errorDescription ?? "Couldn't search right now.")
         }
     }
 
@@ -281,5 +385,39 @@ private struct SelectedFoodRow: View {
         .padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
             .fill(VitalaColor.primary.opacity(0.06)))
+    }
+}
+
+private struct OnlineFoodRow: View {
+    let result: FoodSearchResult
+
+    private var subtitle: String {
+        let portion = result.defaultPortion
+        let kcal = Int(result.nutrients(for: portion, quantity: 1).kcal.rounded())
+        let base = "\(kcal) kcal per \(portion.label)"
+        return result.brand.map { "\($0) · \(base)" } ?? base
+    }
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: result.isBranded ? "barcode" : "leaf.fill")
+                .foregroundStyle(VitalaColor.primary)
+                .frame(width: 40, height: 40)
+                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.10)))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(result.name).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
+                Text(subtitle).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
+            }
+            Spacer(minLength: 8)
+            Image(systemName: "plus.circle.fill")
+                .font(.title3)
+                .foregroundStyle(VitalaColor.primary)
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 8).padding(.horizontal, 12)
+        .frame(minHeight: 44)
+        .surfaceCard()
+        .accessibilityElement(children: .combine)
     }
 }

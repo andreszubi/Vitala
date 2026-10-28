@@ -26,6 +26,10 @@ Tap your avatar, then **Settings › Reminders**. Turn each reminder on or off a
 
 Yes. During a session, tap the speaker button to choose **Spa & binaural**, **Spa**, **Ocean** or **Silent**. Binaural tones work best with headphones. Your choice is remembered.
 
+## Where does food nutrition come from?
+
+Food search uses USDA FoodData Central, a free public nutrition database from the U.S. Department of Agriculture. Only the words you type are sent. Foods you add are saved on your iPhone so they're searchable offline. To keep search fully offline, turn off **Settings › Food search**.
+
 ## How do I back up or move my data?
 
 Tap your avatar, then **Settings › Export my data**. Vitala creates a JSON file you can save to Files or share.

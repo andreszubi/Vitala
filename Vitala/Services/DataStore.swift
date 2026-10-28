@@ -14,6 +14,9 @@ final class DataStore: ObservableObject {
     @Published private(set) var sleep: [SleepEntry] = []
     @Published private(set) var mindfulness: [LoggedMindfulness] = []
     @Published private(set) var customFoods: [FoodItem] = []
+    /// Foods recently added from the online database, newest first, so
+    /// they can be found again instantly and offline.
+    @Published private(set) var recentFoods: [FoodItem] = []
 
     nonisolated static let fileName = "logs.json"
     /// Where data lived before 1.0. Read once, migrated, then removed.
@@ -144,6 +147,19 @@ final class DataStore: ObservableObject {
         persist()
     }
 
+    // MARK: Recent foods
+
+    static let recentFoodsLimit = 25
+
+    func rememberRecentFood(_ food: FoodItem) {
+        recentFoods.removeAll { $0.name == food.name && $0.servingSize == food.servingSize }
+        recentFoods.insert(food, at: 0)
+        if recentFoods.count > Self.recentFoodsLimit {
+            recentFoods.removeLast(recentFoods.count - Self.recentFoodsLimit)
+        }
+        persist()
+    }
+
     // MARK: Erase
 
     /// Permanently removes every log from this device. Copies already saved
@@ -156,6 +172,7 @@ final class DataStore: ObservableObject {
         sleep = []
         mindfulness = []
         customFoods = []
+        recentFoods = []
         files.delete(Self.fileName)
         defaults.removeObject(forKey: Self.legacyDefaultsKey)
         isReadOnly = false
@@ -171,11 +188,13 @@ final class DataStore: ObservableObject {
         var sleep: [SleepEntry]
         var mindfulness: [LoggedMindfulness]
         var customFoods: [FoodItem]?
+        var recentFoods: [FoodItem]? = nil
     }
 
     var snapshot: Snapshot {
         Snapshot(summaries: summaries, workouts: workouts, meals: meals, water: water,
-                 sleep: sleep, mindfulness: mindfulness, customFoods: customFoods)
+                 sleep: sleep, mindfulness: mindfulness, customFoods: customFoods,
+                 recentFoods: recentFoods)
     }
 
     private func upsert<T: Identifiable>(_ item: T, into array: inout [T]) {
@@ -224,6 +243,7 @@ final class DataStore: ObservableObject {
         sleep = snap.sleep
         mindfulness = snap.mindfulness
         customFoods = snap.customFoods ?? []
+        recentFoods = snap.recentFoods ?? []
     }
 
     static func dayKey(_ date: Date) -> String {

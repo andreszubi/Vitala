@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
+    @AppStorage("vitala.onlineFoodSearch") private var onlineFoodSearch = true
 
     private var exportFile: ExportFile? {
         (try? DataExport(profile: profileStore.profile, store: .shared).jsonData()).map(ExportFile.init)
@@ -49,6 +50,15 @@ struct SettingsView: View {
                 } label: {
                     LabeledContent("Apple Health", value: health.isAuthorized ? "Connected" : "Not connected")
                 }
+            }
+
+            Section {
+                Toggle("Search the USDA food database", isOn: $onlineFoodSearch)
+            } header: {
+                Text("Food search")
+            } footer: {
+                Text("When on, food search sends only the words you type to USDA FoodData Central to look up nutrition. Nothing else leaves your iPhone.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
 
             Section {

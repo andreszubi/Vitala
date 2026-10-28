@@ -12,7 +12,7 @@ Author: Andres Zubizarreta
 
 - **Today** — Move, Exercise and Steps rings against your own goals; one-tap logging for water, meals, mindful minutes and sleep; real streaks and weekly workout progress.
 - **Activity** — guided yoga, strength, HIIT, mobility and running sessions with per-exercise countdowns; log any activity with type, duration, energy and distance.
-- **Nutrition** — meals by type from a food list or your own custom foods, servings, macros, and a calorie target suggested from your profile (Mifflin–St Jeor × activity).
+- **Nutrition** — search hundreds of thousands of foods from USDA FoodData Central with real portions ("1 banana", "2 Tbsp"), plus custom and recent foods that work offline; servings, macros, and a calorie target suggested from your profile (Mifflin–St Jeor × activity).
 - **Mindful** — nine guided breathing sessions with category-specific rhythms and prompts, plus calming sound synthesised live on the device (spa pad, ocean, binaural tones).
 - **Sleep** — bedtime, wake time and quality with validation, a 7-night chart and history.
 - **Progress** — 7- and 30-day trends for steps, exercise, food, water, sleep and mindful minutes; a 28-day consistency grid.
@@ -36,7 +36,8 @@ Author: Andres Zubizarreta
 
 1. Open `Vitala.xcodeproj`.
 2. Vitala target → **Signing & Capabilities** → choose your Team (HealthKit requires a paid developer account on device).
-3. Run on an iPhone simulator or device.
+3. **Food search key (optional for development):** copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and paste your [USDA FoodData Central key](https://fdc.nal.usda.gov/api-key-signup) after `USDA_API_KEY =`. Git ignores `Secrets.xcconfig`. Without a key, Debug builds use USDA's shared `DEMO_KEY` and Release builds hide online search.
+4. Run on an iPhone simulator or device.
 
 The project uses folder-synchronised groups, so new files in `Vitala/`, `VitalaTests/` or `VitalaUITests/` are picked up automatically.
 

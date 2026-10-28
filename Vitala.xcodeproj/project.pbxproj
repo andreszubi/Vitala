@@ -26,6 +26,7 @@
 /* Begin PBXFileReference section */
 		37832BEE52484B5A998C32E6 /* Vitala.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vitala.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000001 /* VitalaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VitalaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A20000000000000000000010 /* Vitala.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Vitala.xcconfig; sourceTree = "<group>"; };
 		A20000000000000000000002 /* VitalaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VitalaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -92,8 +93,17 @@
 				A40000000000000000000001 /* Vitala */,
 				A40000000000000000000002 /* VitalaTests */,
 				A40000000000000000000003 /* VitalaUITests */,
+				A20000000000000000000011 /* Config */,
 				2AC8BA37DAC32D5437812408 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		A20000000000000000000011 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				A20000000000000000000010 /* Vitala.xcconfig */,
+			);
+			path = Config;
 			sourceTree = "<group>";
 		};
 		2AC8BA37DAC32D5437812408 /* Products */ = {
@@ -396,6 +406,7 @@
 		};
 		41EC14BFA61A85B336E4F999 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000010 /* Vitala.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -421,6 +432,7 @@
 		};
 		8668ED08E8535986A57FA16B /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A20000000000000000000010 /* Vitala.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;

@@ -119,3 +119,25 @@ struct AvatarTests {
         #expect(store.avatar == nil)
     }
 }
+
+@MainActor
+struct RecentFoodTests {
+    @Test func recentFoodsDedupeCapAndPersist() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("VitalaRecent-\(UUID().uuidString)")
+        let defaults = UserDefaults(suiteName: "VitalaRecent-\(UUID().uuidString)")!
+        let store = DataStore(files: SecureFileStore(directory: dir), defaults: defaults)
+        let banana = FoodItem(name: "Banana, raw", servingSize: "1 banana (126 g)", calories: 122,
+                              proteinG: 0.9, carbsG: 28.6, fatG: 0.4)
+        store.rememberRecentFood(banana)
+        store.rememberRecentFood(banana.newInstance())
+        #expect(store.recentFoods.count == 1, "same food and serving is kept once")
+
+        for i in 0..<40 {
+            store.rememberRecentFood(FoodItem(name: "Food \(i)", servingSize: "100 g", calories: i,
+                                              proteinG: 0, carbsG: 0, fatG: 0))
+        }
+        #expect(store.recentFoods.count == DataStore.recentFoodsLimit)
+        #expect(store.recentFoods.first?.name == "Food 39")
+        #expect(DataStore(files: SecureFileStore(directory: dir), defaults: defaults).recentFoods.count == DataStore.recentFoodsLimit)
+    }
+}

@@ -6,6 +6,8 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 
 ## 1. Before you archive (You)
 
+0. **Add your USDA FoodData Central key** (free from https://fdc.nal.usda.gov/api-key-signup). Open `Config/Secrets.xcconfig` (Git ignores it) and paste the key after `USDA_API_KEY =`. Without a key, Release builds hide online food search; Debug builds use USDA's shared, heavily rate-limited `DEMO_KEY`. A key allows 1,000 requests per hour per key across all users; if Vitala grows past that, request a higher limit from api.data.gov or route searches through a small proxy.
+
 1. **Join the Apple Developer Program** (paid membership is required for HealthKit and App Store distribution).
 2. **Choose the bundle ID.** The project uses `com.vitala.healthyliving`. If that's taken or you prefer your own domain (for example `com.andreszubizarreta.vitala`), change `PRODUCT_BUNDLE_IDENTIFIER` for the Vitala target (and the two test targets' `.tests` / `.uitests` suffixes).
 3. In Xcode → Vitala target → **Signing & Capabilities**: pick your **Team**. Xcode registers the bundle ID and enables the **HealthKit** capability from `Vitala.entitlements`.
@@ -89,11 +91,11 @@ wellness,habit,water,hydration,sleep,meditation,breathing,calorie,fitness,mindfu
 
 ## 4. App Privacy ("nutrition label")
 
-Answer **"No, we do not collect data from this app."**
+Recommended answer: **"No, we do not collect data from this app."**
 
-Why this is accurate: "collect" means data transmitted off the device. Vitala has no servers, analytics, ads or third-party SDKs; everything is stored on the device and in the user's own Apple Health. The privacy manifest (`Vitala/Resources/PrivacyInfo.xcprivacy`) declares no tracking and no collected data types, and the one required-reason API (UserDefaults, reason CA92.1).
+Why: "collect" means data transmitted off the device in a way that you or third-party partners can access beyond serving the request in real time. Vitala has no servers, analytics, ads or third-party SDKs; logs stay on the device and in the user's own Apple Health. The privacy manifest (`Vitala/Resources/PrivacyInfo.xcprivacy`) declares no tracking and no collected data types, and the one required-reason API (UserDefaults, reason CA92.1).
 
-> If you later add an online food database or cloud sync, revisit this answer and the privacy policy.
+**Food search is the one judgement call.** The typed search words (e.g. "banana") go to USDA FoodData Central, a public government API, with no identifiers, only to answer that search. That fits "processed in real time to serve the request", so "Data Not Collected" stays defensible. If you'd rather be maximally cautious, declare **Search History → App Functionality → Not linked to the user → Not used for tracking** instead. Either way the privacy policy already discloses it, and users can switch it off in Settings › Food search.
 
 ## 5. Notes for App Review
 
@@ -106,6 +108,8 @@ Paste into **App Review Information › Notes**:
 > Mindfulness sessions play ambient sound synthesised on the device; no audio files or third-party content are included.
 >
 > Notifications are optional daily reminders the user configures in Settings › Reminders.
+>
+> Food search: when the user searches for a food, the typed words are sent to USDA FoodData Central (api.nal.usda.gov), a public U.S. government nutrition database, to look up nutrition facts. No user identifiers are sent; this can be turned off in Settings › Food search.
 
 No demo account is needed.
 
