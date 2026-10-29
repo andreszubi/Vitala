@@ -20,6 +20,8 @@ final class BreathHaptics {
     }
 
     static let storageKey = "vitala.breathingHaptics"
+    /// Taps much lighter than this are hard to feel on an iPhone.
+    nonisolated static let feltIntensity: Float = 0.3
 
     private var engine: CHHapticEngine?
     private var engineRunning = false
@@ -88,21 +90,22 @@ final class BreathHaptics {
         var all: [Pulse] = []
         switch kind {
         case .inhale:
-            // Slowly quickening (1.4 s apart down to 0.8 s), from barely
-            // there to a moderate, rounded tap.
+            // Slowly quickening (1.4 s apart down to 0.8 s) and growing from
+            // a light tap to a moderate one. Every tap stays at or above
+            // `feltIntensity`, so none is lost.
             all += taps(length: length, interval: { 1.4 - 0.6 * $0 }) { p in
-                (0.08 + 0.52 * pow(p, 1.3), 0.05 + 0.3 * p)
+                (feltIntensity + 0.35 * pow(p, 1.1), 0.1 + 0.3 * p)
             }
-            all += swell(length: length, from: 0.03, to: 0.28)
+            all += swell(length: length, from: 0.05, to: 0.3)
         case .exhale:
-            // Slowly easing off (0.8 s apart out to 1.4 s), from a moderate
-            // tap to nothing, and ever softer.
+            // Slowly easing off (0.8 s apart out to 1.4 s) and fading from a
+            // moderate tap back to a light one, ever softer.
             all += taps(length: length, interval: { 0.8 + 0.6 * $0 }) { p in
-                (0.04 + 0.56 * pow(1 - p, 1.6), 0.35 - 0.32 * p)
+                (feltIntensity + 0.35 * pow(1 - p, 1.1), 0.4 - 0.3 * p)
             }
-            all += swell(length: length, from: 0.26, to: 0)
+            all += swell(length: length, from: 0.3, to: 0.05)
         case .hold:
-            all.append(Pulse(kind: .tap, time: 0, intensity: 0.22, sharpness: 0.05))
+            all.append(Pulse(kind: .tap, time: 0, intensity: feltIntensity, sharpness: 0.05))
         }
         // Skip what has already passed, and time the rest from now.
         return all.compactMap { pulse in

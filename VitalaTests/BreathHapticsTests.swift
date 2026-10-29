@@ -21,7 +21,7 @@ struct BreathHapticsTests {
         let g = gaps(t)
         #expect(zip(g, g.dropFirst()).allSatisfy { $0 > $1 }, "taps come faster and faster")
         #expect(g.allSatisfy { $0 >= 0.75 }, "always unhurried")
-        #expect(t.first!.intensity < 0.15 && t.last!.intensity > 0.4)
+        #expect(t.last!.intensity - t.first!.intensity > 0.25, "clearly building")
         let s = swell(pulses)
         #expect(s.first!.intensity < s.last!.intensity)
         #expect(abs(s.reduce(0) { $0 + $1.duration } - 4) < 0.001, "the swell spans the whole breath")
@@ -33,7 +33,7 @@ struct BreathHapticsTests {
         #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity > $1.intensity && $0.sharpness > $1.sharpness })
         let g = gaps(t)
         #expect(zip(g, g.dropFirst()).allSatisfy { $0 < $1 }, "taps come slower and slower")
-        #expect(t.first!.intensity > 0.4 && t.last!.intensity < 0.15)
+        #expect(t.first!.intensity - t.last!.intensity > 0.25, "clearly fading")
         let s = swell(pulses)
         #expect(s.first!.intensity > s.last!.intensity)
     }
@@ -41,7 +41,7 @@ struct BreathHapticsTests {
     @Test func holdIsOneLightTap() {
         let pulses = BreathHaptics.pulses(.hold, from: 0, length: 7)
         #expect(pulses.count == 1)
-        #expect(pulses[0].kind == .tap && pulses[0].intensity < 0.5)
+        #expect(pulses[0].kind == .tap && pulses[0].intensity <= 0.35)
         // Rejoining a hold partway through stays still.
         #expect(BreathHaptics.pulses(.hold, from: 3, length: 7).isEmpty)
     }
@@ -58,10 +58,20 @@ struct BreathHapticsTests {
         #expect(BreathHaptics.pulses(.inhale, from: 4, length: 4).isEmpty)
     }
 
+    @Test func everyTapCanBeFelt() {
+        for kind in [MindfulnessSession.BreathStep.Kind.inhale, .exhale, .hold] {
+            for length in [4.0, 6.0, 7.0, 8.0] {
+                for tap in taps(BreathHaptics.pulses(kind, from: 0, length: length)) {
+                    #expect(tap.intensity >= BreathHaptics.feltIntensity, "\(kind) \(length) s at \(tap.time)")
+                }
+            }
+        }
+    }
+
     @Test func nothingIsHard() {
         for kind in [MindfulnessSession.BreathStep.Kind.inhale, .exhale, .hold] {
             for pulse in BreathHaptics.pulses(kind, from: 0, length: 8) {
-                #expect(pulse.intensity <= 0.6 && pulse.sharpness <= 0.4)
+                #expect(pulse.intensity <= 0.65 && pulse.sharpness <= 0.4)
             }
         }
     }
