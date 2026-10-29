@@ -4,6 +4,8 @@ A calm iPhone companion for movement, food, water, sleep, mindful breathing and 
 
 Author: Andres Zubizarreta
 
+**[▶ Try the live demo](https://appetize.io/app/b_cvskuwfinwn5sb6wt2okkj3gja)** — runs Vitala in your browser, no install needed.
+
 <p align="center">
   <img src="docs/app-store/screenshots-overview.png" alt="Vitala screens: Today, Activity, Nutrition, Sleep, Breathing, Journal, Progress" width="100%">
 </p>
