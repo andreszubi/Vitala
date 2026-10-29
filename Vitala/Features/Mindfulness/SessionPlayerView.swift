@@ -10,6 +10,8 @@ struct SessionPlayerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
     @State private var ambient = AmbientSoundPlayer()
+    @State private var haptics = BreathHaptics()
+    @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
 
     @State private var startedAt: Date = .now
     /// Wall-clock bookkeeping so timing stays right if the app is backgrounded.
@@ -34,6 +36,17 @@ struct SessionPlayerView: View {
     private var progress: Double { min(1, elapsedPrecise / Double(max(totalSeconds, 1))) }
 
     /// Where we are in the breathing cycle.
+    /// The current phase, how far into it we are, and how long it lasts,
+    /// to the fraction of a second, so haptics can join mid-breath.
+    private var phaseTiming: (index: Int, into: Double, length: Double) {
+        var t = elapsedPrecise.truncatingRemainder(dividingBy: Double(max(cycleLength, 1)))
+        for (i, step) in pattern.enumerated() {
+            if t < Double(step.seconds) { return (i, t, Double(step.seconds)) }
+            t -= Double(step.seconds)
+        }
+        return (0, 0, Double(pattern.first?.seconds ?? 4))
+    }
+
     private var position: (index: Int, remaining: Int) {
         var t = elapsed % max(cycleLength, 1)
         for (i, step) in pattern.enumerated() {
@@ -85,6 +98,11 @@ struct SessionPlayerView: View {
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             ambient.stop()
+            haptics.shutDown()
+        }
+        .onChange(of: hapticsOn) { _, on in
+            // Off stops at once; on picks up partway through the current breath.
+            if on { lastStepIndex = -1 } else { haptics.stop() }
         }
         .onChange(of: soundChoice) { _, _ in
             ambient.play(sound, for: session.category)
@@ -92,8 +110,12 @@ struct SessionPlayerView: View {
         }
         .onChange(of: expanded) { _, isExpanded in ambient.setBreath(expanded: isExpanded) }
         .onChange(of: scenePhase) { _, phase in
-            // The audio engine stops in the background; restart it on return.
-            if phase == .active && isPlaying && !finished { ambient.play(sound, for: session.category) }
+            // The audio and haptic engines stop in the background; restart
+            // them on return, the haptics partway through the current breath.
+            if phase == .active && isPlaying && !finished {
+                ambient.play(sound, for: session.category)
+                lastStepIndex = -1
+            }
         }
         .task {
             while !Task.isCancelled {
@@ -304,9 +326,16 @@ struct SessionPlayerView: View {
         now = .now
         let index = position.index
         if isPlaying && index != lastStepIndex {
+            let rejoining = lastStepIndex == -1
             lastStepIndex = index
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-            AccessibilityNotification.Announcement(step.label).post()
+            if hapticsOn {
+                let timing = phaseTiming
+                haptics.play(step.kind, from: timing.into, length: timing.length)
+            }
+            // Announce new phases, not a resume partway through one.
+            if !rejoining || elapsedPrecise < 0.5 {
+                AccessibilityNotification.Announcement(step.label).post()
+            }
         }
         if elapsed >= totalSeconds { save() }
     }
@@ -317,9 +346,12 @@ struct SessionPlayerView: View {
             accumulated += t.timeIntervalSince(since)
             runningSince = nil
             ambient.pause()
+            haptics.stop()
         } else {
             runningSince = t
             ambient.resume()
+            // Rejoin the breath where it was paused.
+            lastStepIndex = -1
         }
         now = t
     }
@@ -347,6 +379,7 @@ struct SessionPlayerView: View {
             Haptics.success()
         }
         ambient.stop()
+        haptics.shutDown()
         UIApplication.shared.isIdleTimerDisabled = false
         saved = entry
     }
@@ -362,6 +395,7 @@ private struct SoundMenuButton: View, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool { true }
 
     @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
+    @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
 
     private var sound: AmbientSoundPlayer.Sound {
         AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .defaultSound
@@ -381,6 +415,11 @@ private struct SoundMenuButton: View, Equatable {
                     Label(option.label, systemImage: option.icon).tag(option.rawValue)
                 }
             }
+            Section {
+                Toggle(isOn: $hapticsOn) {
+                    Label("Breathing haptics", systemImage: "iphone.radiowaves.left.and.right")
+                }
+            }
         } label: {
             Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
                 .font(.system(size: 16, weight: .semibold))
@@ -393,8 +432,8 @@ private struct SoundMenuButton: View, Equatable {
         }
         .buttonBorderShape(.circle)
         .glassButtonStyle()
-        .accessibilityLabel("Sound")
-        .accessibilityValue(sound.label)
+        .accessibilityLabel("Sound and haptics")
+        .accessibilityValue("\(sound.label), haptics \(hapticsOn ? "on" : "off")")
         // Never let an animation from the breathing guide drive the menu.
         .transaction { $0.animation = nil }
     }
