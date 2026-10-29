@@ -9,21 +9,30 @@ struct BreathHapticsTests {
         pulses.filter { $0.kind == .swell }
     }
 
-    @Test func inhaleTapsGrowStrongerUnderARisingSwell() {
+    private func gaps(_ t: [BreathHaptics.Pulse]) -> [Double] {
+        zip(t, t.dropFirst()).map { $1.time - $0.time }
+    }
+
+    @Test func inhaleTapsSpeedUpGrowStrongerAndCrisper() {
         let pulses = BreathHaptics.pulses(.inhale, from: 0, length: 4)
         let t = taps(pulses)
-        #expect(t.count == 8)                                   // every 0.5 s
-        #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity < $1.intensity })
+        #expect(t.count >= 6)
+        #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity < $1.intensity && $0.sharpness < $1.sharpness })
+        let g = gaps(t)
+        #expect(zip(g, g.dropFirst()).allSatisfy { $0 > $1 }, "taps come faster and faster")
+        #expect(t.first!.intensity < 0.2 && t.last!.intensity > 0.75)
         let s = swell(pulses)
         #expect(s.first!.intensity < s.last!.intensity)
         #expect(abs(s.reduce(0) { $0 + $1.duration } - 4) < 0.001, "the swell spans the whole breath")
     }
 
-    @Test func exhaleTapsFadeAndSlow() {
+    @Test func exhaleTapsSlowDownFadeAndSoften() {
         let pulses = BreathHaptics.pulses(.exhale, from: 0, length: 8)
         let t = taps(pulses)
-        #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity > $1.intensity })
-        #expect(abs(t[1].time - t[0].time - 0.6) < 0.001, "further apart than the in-breath")
+        #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity > $1.intensity && $0.sharpness > $1.sharpness })
+        let g = gaps(t)
+        #expect(zip(g, g.dropFirst()).allSatisfy { $0 < $1 }, "taps come slower and slower")
+        #expect(t.first!.intensity > 0.75 && t.last!.intensity < 0.2)
         let s = swell(pulses)
         #expect(s.first!.intensity > s.last!.intensity)
     }

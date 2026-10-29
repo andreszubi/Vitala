@@ -1,9 +1,11 @@
 import CoreHaptics
 import Foundation
 
-/// Haptic guidance for the breathing player. Through each in-breath a soft
-/// swell rises under taps that grow stronger; through each out-breath both
-/// fade and the taps slow; a hold gets one light tap, then stillness.
+/// Haptic guidance for the breathing player, built so the two halves of a
+/// breath feel like opposites. Breathing in, taps speed up, grow stronger
+/// and crisper over a rising swell: filling up. Breathing out, they slow
+/// down, fade and soften while the swell drains away: letting go. A hold
+/// gets one light tap, then stillness.
 @MainActor
 final class BreathHaptics {
     /// One moment of feedback, in seconds from the start of what's played.
@@ -86,19 +88,19 @@ final class BreathHaptics {
         var all: [Pulse] = []
         switch kind {
         case .inhale:
-            // Taps every half second, rising from soft to firm.
-            for t in stride(from: 0, to: length - 0.2, by: 0.5) {
-                let p = Float(t / length)
-                all.append(Pulse(kind: .tap, time: t, intensity: 0.3 + 0.55 * p, sharpness: 0.2 + 0.25 * p))
+            // Speeding up (0.7 s apart down to 0.25 s), from barely there to
+            // full strength, and from dull to crisp.
+            all += taps(length: length, interval: { 0.7 - 0.45 * $0 }) { p in
+                (0.12 + 0.88 * pow(p, 1.3), 0.1 + 0.6 * p)
             }
-            all += swell(length: length, from: 0.08, to: 0.32)
+            all += swell(length: length, from: 0.04, to: 0.5)
         case .exhale:
-            // Taps a little further apart, fading as the breath empties.
-            for t in stride(from: 0, to: length - 0.2, by: 0.6) {
-                let p = Float(t / length)
-                all.append(Pulse(kind: .tap, time: t, intensity: 0.75 - 0.6 * p, sharpness: 0.35 - 0.25 * p))
+            // Slowing down (0.25 s apart out to 0.9 s), from strong to
+            // nothing, and from crisp to soft.
+            all += taps(length: length, interval: { 0.25 + 0.65 * $0 }) { p in
+                (0.06 + 0.88 * pow(1 - p, 1.6), 0.6 - 0.55 * p)
             }
-            all += swell(length: length, from: 0.32, to: 0.04)
+            all += swell(length: length, from: 0.45, to: 0)
         case .hold:
             all.append(Pulse(kind: .tap, time: 0, intensity: 0.35, sharpness: 0.1))
         }
@@ -118,6 +120,21 @@ final class BreathHaptics {
             return shifted
         }
         .sorted { $0.time < $1.time }
+    }
+
+    /// Taps across a phase whose spacing and feel change with progress `p`
+    /// (0 at the start of the phase, 1 at the end).
+    private nonisolated static func taps(length: Double, interval: (Double) -> Double,
+                                         feel: (Float) -> (intensity: Float, sharpness: Float)) -> [Pulse] {
+        var result: [Pulse] = []
+        var t = 0.0
+        while t < length - 0.15 {
+            let p = t / length
+            let f = feel(Float(p))
+            result.append(Pulse(kind: .tap, time: t, intensity: f.intensity, sharpness: f.sharpness))
+            t += interval(p)
+        }
+        return result
     }
 
     /// A soft, low vibration rising or falling across the phase, as short
