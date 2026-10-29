@@ -26,6 +26,17 @@ struct SessionPlayerView: View {
     @State private var finished = false
     /// Set once a session is saved; shows the completion screen.
     @State private var saved: LoggedMindfulness? = nil
+    /// This session's cues, shuffled when it opens.
+    @State private var prompts: [String]
+
+    init(session: MindfulnessSession, onJournal: ((LoggedMindfulness) -> Void)? = nil) {
+        self.session = session
+        self.onJournal = onJournal
+        _prompts = State(initialValue: PromptDeck.deal(for: session))
+    }
+
+    /// How long each cue stays on screen.
+    private static let promptSeconds = 20
 
     private var pattern: [MindfulnessSession.BreathStep] { session.category.pattern }
     private var cycleLength: Int { pattern.reduce(0) { $0 + $1.seconds } }
@@ -60,8 +71,8 @@ struct SessionPlayerView: View {
     }
     private var step: MindfulnessSession.BreathStep { pattern[position.index] }
     private var prompt: String {
-        let prompts = session.category.prompts
-        return prompts[(elapsed / 30) % prompts.count]
+        guard !prompts.isEmpty else { return "" }
+        return prompts[(elapsed / Self.promptSeconds) % prompts.count]
     }
 
     private var sound: AmbientSoundPlayer.Sound {
