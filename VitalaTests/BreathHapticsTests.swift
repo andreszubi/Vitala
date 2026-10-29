@@ -20,6 +20,7 @@ struct BreathHapticsTests {
         #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity < $1.intensity && $0.sharpness < $1.sharpness })
         let g = gaps(t)
         #expect(zip(g, g.dropFirst()).allSatisfy { $0 > $1 }, "taps come faster and faster")
+        #expect(g.allSatisfy { $0 >= 0.45 }, "never faster than about two taps a second")
         #expect(t.first!.intensity < 0.2 && t.last!.intensity > 0.75)
         let s = swell(pulses)
         #expect(s.first!.intensity < s.last!.intensity)

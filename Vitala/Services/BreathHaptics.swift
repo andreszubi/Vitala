@@ -88,16 +88,16 @@ final class BreathHaptics {
         var all: [Pulse] = []
         switch kind {
         case .inhale:
-            // Speeding up (0.7 s apart down to 0.25 s), from barely there to
-            // full strength, and from dull to crisp.
-            all += taps(length: length, interval: { 0.7 - 0.45 * $0 }) { p in
+            // Gently quickening (about 1 s apart down to 0.5 s), from barely
+            // there to full strength, and from dull to crisp.
+            all += taps(length: length, interval: { 0.95 - 0.45 * $0 }) { p in
                 (0.12 + 0.88 * pow(p, 1.3), 0.1 + 0.6 * p)
             }
             all += swell(length: length, from: 0.04, to: 0.5)
         case .exhale:
-            // Slowing down (0.25 s apart out to 0.9 s), from strong to
+            // Gently slowing (0.5 s apart out to about 1 s), from strong to
             // nothing, and from crisp to soft.
-            all += taps(length: length, interval: { 0.25 + 0.65 * $0 }) { p in
+            all += taps(length: length, interval: { 0.5 + 0.45 * $0 }) { p in
                 (0.06 + 0.88 * pow(1 - p, 1.6), 0.6 - 0.55 * p)
             }
             all += swell(length: length, from: 0.45, to: 0)
