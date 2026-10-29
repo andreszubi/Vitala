@@ -14,7 +14,8 @@ final class ScreenshotTests: XCTestCase {
     @MainActor
     func testCaptureAppStoreScreenshots() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-seedSampleData"]
+        // Greet as at 9:41, the time in the screenshots' status bar.
+        app.launchArguments = ["-seedSampleData", "-greetingHour", "9"]
         app.launch()
         XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
         settle()

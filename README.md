@@ -53,6 +53,7 @@ The project uses folder-synchronised groups, so new files in `Vitala/`, `VitalaT
 |---|---|
 | `-resetData` | Start from a clean first-launch state |
 | `-seedSampleData` | Skip onboarding and load two weeks of realistic logs |
+| `-greetingHour 9` | Greet as if it were that hour (used for screenshots) |
 
 Add them in **Product › Scheme › Edit Scheme › Run › Arguments**. They're compiled out of Release builds.
 
