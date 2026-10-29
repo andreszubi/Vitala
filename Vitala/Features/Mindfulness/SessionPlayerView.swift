@@ -8,8 +8,13 @@ struct SessionPlayerView: View {
     @Environment(\.dismiss) var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage("vitala.sessionSound") private var soundChoice: String = AmbientSoundPlayer.Sound.spaBinaural.rawValue
+    @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
     @State private var ambient = AmbientSoundPlayer()
+    @State private var haptics = BreathHaptics()
+    /// Every session starts on the scene that suits it; a change from the
+    /// menu lasts for this session only.
+    @State private var scene: ZenScene = .automatic
+    @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
 
     @State private var startedAt: Date = .now
     /// Wall-clock bookkeeping so timing stays right if the app is backgrounded.
@@ -21,6 +26,17 @@ struct SessionPlayerView: View {
     @State private var finished = false
     /// Set once a session is saved; shows the completion screen.
     @State private var saved: LoggedMindfulness? = nil
+    /// This session's cues, shuffled when it opens.
+    @State private var prompts: [String]
+
+    init(session: MindfulnessSession, onJournal: ((LoggedMindfulness) -> Void)? = nil) {
+        self.session = session
+        self.onJournal = onJournal
+        _prompts = State(initialValue: PromptDeck.deal(for: session))
+    }
+
+    /// How long each cue stays on screen.
+    private static let promptSeconds = 20
 
     private var pattern: [MindfulnessSession.BreathStep] { session.category.pattern }
     private var cycleLength: Int { pattern.reduce(0) { $0 + $1.seconds } }
@@ -34,6 +50,17 @@ struct SessionPlayerView: View {
     private var progress: Double { min(1, elapsedPrecise / Double(max(totalSeconds, 1))) }
 
     /// Where we are in the breathing cycle.
+    /// The current phase, how far into it we are, and how long it lasts,
+    /// to the fraction of a second, so haptics can join mid-breath.
+    private var phaseTiming: (index: Int, into: Double, length: Double) {
+        var t = elapsedPrecise.truncatingRemainder(dividingBy: Double(max(cycleLength, 1)))
+        for (i, step) in pattern.enumerated() {
+            if t < Double(step.seconds) { return (i, t, Double(step.seconds)) }
+            t -= Double(step.seconds)
+        }
+        return (0, 0, Double(pattern.first?.seconds ?? 4))
+    }
+
     private var position: (index: Int, remaining: Int) {
         var t = elapsed % max(cycleLength, 1)
         for (i, step) in pattern.enumerated() {
@@ -44,12 +71,12 @@ struct SessionPlayerView: View {
     }
     private var step: MindfulnessSession.BreathStep { pattern[position.index] }
     private var prompt: String {
-        let prompts = session.category.prompts
-        return prompts[(elapsed / 30) % prompts.count]
+        guard !prompts.isEmpty else { return "" }
+        return prompts[(elapsed / Self.promptSeconds) % prompts.count]
     }
 
     private var sound: AmbientSoundPlayer.Sound {
-        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .spaBinaural
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .defaultSound
     }
 
     private var expanded: Bool {
@@ -63,9 +90,8 @@ struct SessionPlayerView: View {
     var body: some View {
         let tint = Color(hex: session.tint)
         ZStack {
-            LinearGradient(colors: [tint, tint.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-                .background(Color.black)
-                .ignoresSafeArea()
+            SessionBackground(category: session.category, tint: tint, scene: scene)
+                .equatable()
 
             if let saved {
                 completion(saved)
@@ -78,11 +104,19 @@ struct SessionPlayerView: View {
         .preferredColorScheme(.dark)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            // Every session starts on the default sound; a change made from
+            // the menu lasts for that session only.
+            soundChoice = AmbientSoundPlayer.Sound.defaultSound.rawValue
             ambient.play(sound, for: session.category)
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             ambient.stop()
+            haptics.shutDown()
+        }
+        .onChange(of: hapticsOn) { _, on in
+            // Off stops at once; on picks up partway through the current breath.
+            if on { lastStepIndex = -1 } else { haptics.stop() }
         }
         .onChange(of: soundChoice) { _, _ in
             ambient.play(sound, for: session.category)
@@ -90,8 +124,12 @@ struct SessionPlayerView: View {
         }
         .onChange(of: expanded) { _, isExpanded in ambient.setBreath(expanded: isExpanded) }
         .onChange(of: scenePhase) { _, phase in
-            // The audio engine stops in the background; restart it on return.
-            if phase == .active && isPlaying && !finished { ambient.play(sound, for: session.category) }
+            // The audio and haptic engines stop in the background; restart
+            // them on return, the haptics partway through the current breath.
+            if phase == .active && isPlaying && !finished {
+                ambient.play(sound, for: session.category)
+                lastStepIndex = -1
+            }
         }
         .task {
             while !Task.isCancelled {
@@ -126,6 +164,7 @@ struct SessionPlayerView: View {
                     .foregroundStyle(.white.opacity(0.9))
             }
             .multilineTextAlignment(.center)
+            .readableOnScene()
 
             breathingCircle
 
@@ -137,11 +176,13 @@ struct SessionPlayerView: View {
                 .frame(minHeight: 48)
                 .id(prompt)
                 .transition(.opacity)
+                .readableOnScene()
 
-            if sound == .spaBinaural {
+            if sound.usesBinaural {
                 Label("Binaural tones work best with headphones", systemImage: "headphones")
                     .font(VitalaFont.caption(12))
                     .foregroundStyle(.white.opacity(0.9))
+                    .readableOnScene()
             }
 
             Spacer(minLength: 0)
@@ -168,6 +209,7 @@ struct SessionPlayerView: View {
                     .multilineTextAlignment(.center)
             }
             .foregroundStyle(.white)
+            .readableOnScene()
             Spacer(minLength: 0)
             VStack(spacing: 12) {
                 if let onJournal {
@@ -206,40 +248,19 @@ struct SessionPlayerView: View {
             Text(session.category.label)
                 .font(VitalaFont.caption())
                 .foregroundStyle(.white.opacity(0.9))
+                .readableOnScene()
             Spacer()
-            soundMenu
+            HStack(spacing: 8) {
+                // `.equatable()` keeps the countdown's four updates a second
+                // from reaching the menus; they redraw only when their own
+                // saved choice changes. Without it an open menu was rebuilt
+                // mid-tap, dropping taps and making UIKit log "Decomposition
+                // of 'bounds' was requested…".
+                SceneMenuButton(selection: scene) { scene = $0 }.equatable()
+                SoundMenuButton().equatable()
+            }
         }
         .padding(.top, VitalaSpacing.xs)
-    }
-
-    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
-    /// there to match the 44pt close button.
-    private var glassLabelSize: CGFloat {
-        if #available(iOS 26.0, *) { return 28 }
-        return 44
-    }
-
-    private var soundMenu: some View {
-        Menu {
-            Picker("Sound", selection: $soundChoice) {
-                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
-                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
-                }
-            }
-        } label: {
-            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: glassLabelSize, height: glassLabelSize)
-                .background {
-                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
-                }
-                .contentShape(Circle())
-        }
-        .buttonBorderShape(.circle)
-        .glassButtonStyle()
-        .accessibilityLabel("Sound")
-        .accessibilityValue(sound.label)
     }
 
     private var breathingCircle: some View {
@@ -268,6 +289,7 @@ struct SessionPlayerView: View {
             }
             .animation(.easeOut(duration: 0.2), value: step.label)
             .animation(.easeOut(duration: 0.2), value: position.remaining)
+            .readableOnScene()
         }
         .frame(height: 300)
         .accessibilityElement(children: .ignore)
@@ -318,9 +340,16 @@ struct SessionPlayerView: View {
         now = .now
         let index = position.index
         if isPlaying && index != lastStepIndex {
+            let rejoining = lastStepIndex == -1
             lastStepIndex = index
-            UIImpactFeedbackGenerator(style: .soft).impactOccurred()
-            AccessibilityNotification.Announcement(step.label).post()
+            if hapticsOn {
+                let timing = phaseTiming
+                haptics.play(step.kind, from: timing.into, length: timing.length)
+            }
+            // Announce new phases, not a resume partway through one.
+            if !rejoining || elapsedPrecise < 0.5 {
+                AccessibilityNotification.Announcement(step.label).post()
+            }
         }
         if elapsed >= totalSeconds { save() }
     }
@@ -331,9 +360,12 @@ struct SessionPlayerView: View {
             accumulated += t.timeIntervalSince(since)
             runningSince = nil
             ambient.pause()
+            haptics.stop()
         } else {
             runningSince = t
             ambient.resume()
+            // Rejoin the breath where it was paused.
+            lastStepIndex = -1
         }
         now = t
     }
@@ -361,6 +393,7 @@ struct SessionPlayerView: View {
             Haptics.success()
         }
         ambient.stop()
+        haptics.shutDown()
         UIApplication.shared.isIdleTimerDisabled = false
         saved = entry
     }
@@ -369,3 +402,108 @@ struct SessionPlayerView: View {
         String(format: "%02d:%02d", secs / 60, secs % 60)
     }
 }
+
+/// The sound picker in the player's top bar. It has no inputs, so it is
+/// always equal to its previous self; see `topBar` for why that matters.
+private struct SoundMenuButton: View, Equatable {
+    static func == (lhs: Self, rhs: Self) -> Bool { true }
+
+    @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
+    @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
+
+    private var sound: AmbientSoundPlayer.Sound {
+        AmbientSoundPlayer.Sound(rawValue: soundChoice) ?? .defaultSound
+    }
+
+    /// Glass buttons add their own padding on iOS 26+, so the label is smaller
+    /// there to match the 44pt close button.
+    private var labelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Sound", selection: $soundChoice) {
+                ForEach(AmbientSoundPlayer.Sound.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                }
+            }
+            Section {
+                Toggle(isOn: $hapticsOn) {
+                    Label("Breathing haptics", systemImage: "iphone.radiowaves.left.and.right")
+                }
+            }
+        } label: {
+            Image(systemName: sound == .silent ? "speaker.slash.fill" : "speaker.wave.2.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: labelSize, height: labelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Sound and haptics")
+        .accessibilityValue("\(sound.label), haptics \(hapticsOn ? "on" : "off")")
+        // Never let an animation from the breathing guide drive the menu.
+        .transaction { $0.animation = nil }
+    }
+}
+
+/// The animated scene. Equatable on its inputs, so it redraws only when the
+/// scene changes, never with the countdown.
+private struct SessionBackground: View, Equatable {
+    let category: MindfulnessSession.Category
+    let tint: Color
+    let scene: ZenScene
+
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.category == rhs.category && lhs.tint == rhs.tint && lhs.scene == rhs.scene
+    }
+
+    var body: some View {
+        ZenBackground(scene: scene.resolved(for: category), tint: tint)
+    }
+}
+
+/// Picks the background scene. Equal whenever the selection is, so the
+/// countdown's updates never reach it (see `topBar`).
+private struct SceneMenuButton: View, Equatable {
+    let selection: ZenScene
+    let onSelect: (ZenScene) -> Void
+
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.selection == rhs.selection }
+
+    private var labelSize: CGFloat {
+        if #available(iOS 26.0, *) { return 28 }
+        return 44
+    }
+
+    var body: some View {
+        Menu {
+            Picker("Scene", selection: Binding(get: { selection }, set: onSelect)) {
+                ForEach(ZenScene.allCases) { option in
+                    Label(option.label, systemImage: option.icon).tag(option)
+                }
+            }
+        } label: {
+            Image(systemName: "photo.on.rectangle.angled")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: labelSize, height: labelSize)
+                .background {
+                    if #unavailable(iOS 26.0) { Circle().fill(.white.opacity(0.2)) }
+                }
+                .contentShape(Circle())
+        }
+        .buttonBorderShape(.circle)
+        .glassButtonStyle()
+        .accessibilityLabel("Scene")
+        .accessibilityValue(selection.label)
+        .transaction { $0.animation = nil }
+    }
+}
+

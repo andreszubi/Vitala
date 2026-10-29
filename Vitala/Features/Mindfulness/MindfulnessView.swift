@@ -206,7 +206,7 @@ struct MindfulnessView: View {
 
     private var browseLibrarySection: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            SectionHeader(title: "Browse", trailing: "\(sessions.count) sessions")
+            SectionHeader(title: "Browse", trailing: "\(sessions.count) \(sessions.count == 1 ? "session" : "sessions")")
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {

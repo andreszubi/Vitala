@@ -24,7 +24,11 @@ Tap your avatar, then **Settings › Reminders**. Turn each reminder on or off a
 
 ## The breathing sessions play sound — can I change it?
 
-Yes. During a session, tap the speaker button to choose **Spa & binaural**, **Spa**, **Ocean** or **Silent**. Binaural tones work best with headphones. Your choice is remembered.
+Yes. During a session, tap the speaker button to choose **Spa, binaural & bowls**, **Spa & binaural**, **Spa**, **Crystal bowls**, **Ocean** or **Silent**. Binaural tones work best with headphones. Each session starts on Spa, binaural & bowls.
+
+## Can I change the background or turn off the vibrations?
+
+Yes. The picture button beside the speaker chooses the scene; each session opens on the one that matches it. The speaker menu also has a **Breathing haptics** switch. With **Reduce Motion** on in iOS Settings, scenes hold still.
 
 ## Where does food nutrition come from?
 

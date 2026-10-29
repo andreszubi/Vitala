@@ -59,7 +59,7 @@ final class AccessibilityAuditTests: XCTestCase {
                    element.elementType == .searchField || Self.verifiedUnclipped.contains(element.label) {
                     return true
                 }
-                print("[\(screen)] \(issue.auditType): \(issue.compactDescription) — \(issue.element?.debugDescription.prefix(200) ?? "no element")")
+                print("[\(screen)] \(issue.auditType): \(issue.compactDescription) / \(issue.detailedDescription) — \(issue.element?.debugDescription.prefix(200) ?? "no element")")
                 return false
             }
         } catch {

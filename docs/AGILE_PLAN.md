@@ -236,6 +236,21 @@ Requests raised after the 1.0 build, plus issues found testing on a real iPhone.
 
 **Retro:** a phase-length animation attached to a whole view also animates its text; scope long animations to the shapes they're meant for. Read-only imported entries needed a row without Edit/Delete, so `EditableRow` now accepts neither.
 
+### Sprint 6 — Calmer sessions and richer nutrition ✅
+
+| ID | Story | Acceptance criteria | Pts |
+|----|-------|---------------------|-----|
+| E7-1 | As a user, I want sounds that really differ. | Binaural tones audible over the spa pad; crystal singing bowls; a Spa, binaural & bowls mix that every session starts on; tests check each sound is distinct and never clips. | 5 |
+| E7-2 | As a user, I want a peaceful scene behind the breathing guide. | Five scenes drawn live (ocean, rain, stars, mist, aurora), each session opening on its matching one; still under Reduce Motion; light enough not to delay taps. | 5 |
+| E7-3 | As a user, I want to feel the breath. | Core Haptics that gently quicken and strengthen through the in-breath and ease off through the out-breath; every tap strong enough to feel; on/off switch; rejoins mid-breath. | 5 |
+| E7-4 | As a user, I want fresh, fitting guidance. | About 14 cues per kind of session plus lines per session, shuffled each time, no repeats, never opening on the last session's first cue. | 2 |
+| E7-5 | As a user, I want to see what I ate in detail. | Full food names with brand; fiber, sugar, sodium and the kinds of fat stored and totalled; "Not listed" when unknown; nutrition for each food and each meal section. | 8 |
+| E7-6 | As a user, I want the player to respond to every tap. | Menus kept out of the countdown's redraws; audio session work off the main thread with one shared queue. | 3 |
+
+**Found in device testing:** the sound menu dropped taps and showed the wrong choice, audio flickered when a session opened, and Xcode flagged audio-session hang risks. All traced to the player redrawing four times a second and to audio work on the main thread (E7-6). The decomposition and "cannot add handler" log lines that remain come from iOS's own glass animations.
+
+**Retro:** the aurora took several rounds of feedback; once the preferred look was found, it was committed before adding detail, so it could always be restored. Haptics were tuned on device in small steps — taps under about 30% strength can't be felt on an iPhone.
+
 ---
 
 ## 7. Next backlog (1.1+)

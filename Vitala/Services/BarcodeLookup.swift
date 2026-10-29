@@ -65,7 +65,15 @@ struct OpenFoodFactsClient {
             protein: number(nutriments["proteins_100g"]) ?? 0,
             carbs: number(nutriments["carbohydrates_100g"]) ?? 0,
             fat: number(nutriments["fat_100g"]) ?? 0,
-            fiber: number(nutriments["fiber_100g"]) ?? 0)
+            fiber: number(nutriments["fiber_100g"]) ?? 0,
+            sugar: number(nutriments["sugars_100g"]),
+            saturatedFat: number(nutriments["saturated-fat_100g"]),
+            // Sodium is listed in grams; some products only list salt (2.5 × sodium).
+            sodiumMg: number(nutriments["sodium_100g"]).map { $0 * 1000 }
+                ?? number(nutriments["salt_100g"]).map { $0 * 400 },
+            monounsaturatedFat: number(nutriments["monounsaturated-fat_100g"]),
+            polyunsaturatedFat: number(nutriments["polyunsaturated-fat_100g"]),
+            transFat: number(nutriments["trans-fat_100g"]))
 
         var portions: [FoodSearchResult.Portion] = []
         if let grams = number(product["serving_quantity"]), grams > 0 {

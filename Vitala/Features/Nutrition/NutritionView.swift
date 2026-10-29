@@ -8,6 +8,17 @@ struct NutritionView: View {
     @State private var date: Date = .now
     @State private var editingMeal: Meal? = nil
     @State private var addingMealType: Meal.MealType? = nil
+    @State private var viewingFood: FoodDetail? = nil
+    @State private var viewingMealType: Meal.MealType? = nil
+    /// Opened once the food details sheet has closed.
+    @State private var editAfterDetail: Meal? = nil
+
+    /// A food tapped in a meal card, with the meal it belongs to.
+    struct FoodDetail: Identifiable {
+        let group: FoodGroup
+        let meal: Meal
+        var id: String { meal.id + group.id }
+    }
 
     private var meals: [Meal] {
         store.allMeals
@@ -36,6 +47,7 @@ struct NutritionView: View {
 
                 summaryCard
                 macroBreakdown
+                nutrientDetails
                 mealsByType
             }
             .padding(.horizontal, VitalaSpacing.lg)
@@ -48,6 +60,23 @@ struct NutritionView: View {
         }
         .sheet(item: $editingMeal) { meal in
             NavigationStack { AddMealView(editing: meal) }
+        }
+        .sheet(item: $viewingMealType) { type in
+            NavigationStack {
+                MealNutritionSheet(type: type, date: date, meals: meals.filter { $0.type == type })
+            }
+        }
+        .sheet(item: $viewingFood, onDismiss: {
+            if let meal = editAfterDetail {
+                editAfterDetail = nil
+                editingMeal = meal
+            }
+        }) { detail in
+            NavigationStack {
+                FoodDetailSheet(item: detail.group.item, count: detail.group.count,
+                                onEditMeal: detail.meal.isFromHealth ? nil : { editAfterDetail = detail.meal })
+            }
+            .presentationDetents([.medium, .large])
         }
         .refreshable { await HealthKitService.shared.refreshHistory() }
         .task { await HealthKitService.shared.refreshHistory() }
@@ -116,6 +145,33 @@ struct NutritionView: View {
         .accessibilityElement(children: .combine)
     }
 
+    /// Fiber, sugar, saturated fat and sodium for the day, against the FDA
+    /// daily values where there is one.
+    private var nutrientDetails: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            SectionHeader(title: "More nutrients")
+            NutrientBar(label: "Fiber", amount: meals.reduce(0) { $0 + $1.totalFiber }, unit: "g",
+                        dailyValue: 28, tint: VitalaColor.sage)
+            NutrientBar(label: "Sugar", amount: Meal.listedTotal(meals.map(\.totalSugar)), unit: "g",
+                        dailyValue: nil, tint: VitalaColor.coral)
+            NutrientBar(label: "Saturated fat", amount: Meal.listedTotal(meals.map(\.totalSaturatedFat)), unit: "g",
+                        dailyValue: 20, tint: Color(red: 0.93, green: 0.70, blue: 0.30))
+            NutrientBar(label: "Unsaturated fat", amount: Meal.listedTotal(meals.map(\.totalUnsaturatedFat)), unit: "g",
+                        dailyValue: nil, tint: VitalaColor.primary)
+            NutrientBar(label: "Sodium", amount: Meal.listedTotal(meals.map(\.totalSodiumMg)), unit: "mg",
+                        dailyValue: 2300, tint: VitalaColor.water)
+            Group {
+                if meals.contains(where: \.hasUnlistedNutrients) {
+                    Text("Some foods don't list sugar, the kinds of fat or sodium, so these totals may be low.")
+                }
+                Text("Daily values from the FDA, for a 2,000-calorie diet.")
+            }
+            .font(VitalaFont.caption(12))
+            .foregroundStyle(VitalaColor.textSecondary)
+        }
+        .vitalaCard()
+    }
+
     private var mealsByType: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.md) {
             ForEach(Meal.MealType.allCases) { type in
@@ -124,7 +180,9 @@ struct NutritionView: View {
                     meals: meals.filter { $0.type == type },
                     onAdd: { addingMealType = type },
                     onEdit: { editingMeal = $0 },
-                    onDelete: { meal in Task { try? await store.deleteMeal(meal) } }
+                    onDelete: { meal in Task { try? await store.deleteMeal(meal) } },
+                    onSelectFood: { meal, group in viewingFood = FoodDetail(group: group, meal: meal) },
+                    onShowNutrition: { viewingMealType = type }
                 )
             }
         }
@@ -149,15 +207,33 @@ private struct MealSection: View {
     let onAdd: () -> Void
     let onEdit: (Meal) -> Void
     let onDelete: (Meal) -> Void
+    let onSelectFood: (Meal, FoodGroup) -> Void
+    let onShowNutrition: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Label(type.label, systemImage: type.icon)
-                    .font(VitalaFont.headline(17))
-                    .foregroundStyle(VitalaColor.textPrimary)
-                    .labelStyle(TintedIconLabelStyle())
-                    .accessibilityAddTraits(.isHeader)
+                // Opens the section's nutrition once something is logged.
+                Button(action: onShowNutrition) {
+                    HStack(spacing: 6) {
+                        Label(type.label, systemImage: type.icon)
+                            .font(VitalaFont.headline(17))
+                            .foregroundStyle(VitalaColor.textPrimary)
+                            .labelStyle(TintedIconLabelStyle())
+                        if !meals.isEmpty {
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(VitalaColor.muted)
+                                .accessibilityHidden(true)
+                        }
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(meals.isEmpty)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityHint(meals.isEmpty ? "" : "Shows \(type.label.lowercased()) nutrition")
                 Spacer()
                 Text("\(meals.reduce(0) { $0 + $1.totalCalories }) kcal")
                     .font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
@@ -181,7 +257,8 @@ private struct MealSection: View {
                 ForEach(meals) { meal in
                     MealCard(meal: meal,
                              onEdit: meal.isFromHealth ? nil : { onEdit(meal) },
-                             onDelete: meal.isFromHealth ? nil : { onDelete(meal) })
+                             onDelete: meal.isFromHealth ? nil : { onDelete(meal) },
+                             onSelectFood: { onSelectFood(meal, $0) })
                 }
             }
         }
@@ -197,14 +274,17 @@ private struct TintedIconLabelStyle: LabelStyle {
     }
 }
 
+/// A logged meal. Each food opens its nutrition details; the meal itself
+/// is edited or deleted from the "More options" menu.
 private struct MealCard: View {
     let meal: Meal
     let onEdit: (() -> Void)?
     let onDelete: (() -> Void)?
+    let onSelectFood: (FoodGroup) -> Void
 
     var body: some View {
-        EditableRow(noun: "meal", onEdit: onEdit, onDelete: onDelete) {
-            VStack(alignment: .leading, spacing: 6) {
+        EditableRow(noun: "meal", onEdit: onEdit, onDelete: onDelete, tapEdits: false) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Text(meal.date, style: .time)
                         .font(VitalaFont.caption(12))
@@ -219,24 +299,109 @@ private struct MealCard: View {
                         .font(VitalaFont.bodyMedium(14))
                         .foregroundStyle(VitalaColor.textPrimary)
                 }
+                .accessibilityElement(children: .combine)
                 ForEach(FoodGroup.grouping(meal.items)) { group in
-                    HStack(spacing: 8) {
-                        Image(systemName: group.item.icon)
-                            .foregroundStyle(VitalaColor.primary)
-                            .frame(width: 18)
-                            .accessibilityHidden(true)
-                        Text(group.count > 1 ? "\(group.item.name) × \(group.count)" : group.item.name)
-                            .font(VitalaFont.body(14))
-                            .foregroundStyle(VitalaColor.textPrimary)
-                        Spacer()
-                        Text("\(group.item.calories * group.count) kcal")
-                            .font(VitalaFont.caption(12))
-                            .foregroundStyle(VitalaColor.textSecondary)
-                    }
+                    Button { onSelectFood(group) } label: { FoodLine(group: group) }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Shows nutrition details")
                 }
             }
             .padding(.vertical, 4)
         }
+    }
+}
+
+/// One food in a meal card: full name with brand, the amount eaten, energy.
+private struct FoodLine: View {
+    let group: FoodGroup
+
+    private var item: FoodItem { group.item }
+    private var amount: String {
+        group.count > 1 ? "\(group.count) × \(item.servingSize)" : item.servingSize
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: item.displayIcon)
+                .foregroundStyle(VitalaColor.primary)
+                .frame(width: 20)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(item.fullName)
+                    .font(VitalaFont.body(14))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(amount)
+                    .font(VitalaFont.caption(12))
+                    .foregroundStyle(VitalaColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 8)
+            Text("\(item.calories * group.count) kcal")
+                .font(VitalaFont.caption(12))
+                .foregroundStyle(VitalaColor.textSecondary)
+                .padding(.top, 2)
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(VitalaColor.muted)
+                .padding(.top, 4)
+                .accessibilityHidden(true)
+        }
+        .padding(.vertical, 6)
+        .frame(minHeight: 44)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A day's total for one nutrient, with a bar against its daily value.
+private struct NutrientBar: View {
+    let label: String
+    /// Nil when nothing eaten that day lists this nutrient.
+    let amount: Double?
+    let unit: String
+    let dailyValue: Double?
+    let tint: Color
+
+    private var summary: String {
+        guard let amount else { return "Not listed" }
+        return dailyValue.map { "\(text(amount)) of \(text($0))" } ?? text(amount)
+    }
+
+    private func text(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(0...(unit == "mg" ? 0 : 1))))) \(unit)"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label)
+                    .font(VitalaFont.bodyMedium(15))
+                    .foregroundStyle(VitalaColor.textPrimary)
+                Spacer()
+                Text(summary)
+                    .font(VitalaFont.caption(13))
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
+            if let dailyValue {
+                GeometryReader { geo in
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(tint.opacity(0.2))
+                        Capsule().fill(tint).frame(width: geo.size.width * min(1, (amount ?? 0) / dailyValue))
+                    }
+                }
+                .frame(height: 6)
+                .accessibilityHidden(true)
+            } else {
+                // Same height as rows with a bar, so the rows line up and each
+                // stays a comfortable target for VoiceOver.
+                Color.clear.frame(height: 6)
+            }
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
+        .accessibilityValue(amount == nil || dailyValue == nil ? summary : summary + " daily value")
     }
 }
 
@@ -270,13 +435,14 @@ struct FoodRow: View {
     let item: FoodItem
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: item.icon)
+            Image(systemName: item.displayIcon)
                 .foregroundStyle(VitalaColor.primary)
                 .frame(width: 40, height: 40)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.10)))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                Text(item.name).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
+                Text(item.fullName).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(item.servingSize).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
             }
             Spacer(minLength: 8)

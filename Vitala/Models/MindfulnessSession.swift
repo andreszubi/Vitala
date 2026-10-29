@@ -29,22 +29,6 @@ struct MindfulnessSession: Codable, Identifiable, Hashable {
                 [.init(.inhale, 5), .init(.exhale, 5)]
             }
         }
-
-        /// Gentle cues that rotate during a session.
-        var prompts: [String] {
-            switch self {
-            case .breathing:
-                ["Let your shoulders drop.", "Breathe in through your nose.", "Nothing to fix. Just breathe."]
-            case .focus:
-                ["Name the one thing you'll do next.", "Notice where your attention goes, then return.", "Soften your jaw and eyes."]
-            case .sleep:
-                ["Let the day go, one breath at a time.", "Feel the weight of your body resting.", "Long, slow exhale."]
-            case .stress:
-                ["Scan from your forehead down to your feet.", "Wherever you feel tension, breathe into it.", "Your exhale is longer than your inhale."]
-            case .gratitude:
-                ["Think of someone who made today easier.", "Recall a small moment that felt good.", "What's one thing you're glad you have?"]
-            }
-        }
     }
 
     struct BreathStep: Hashable, Codable {

@@ -15,6 +15,13 @@ struct FoodSearchResult: Identifiable, Hashable {
         var carbs: Double = 0
         var fat: Double = 0
         var fiber: Double = 0
+        /// Nil when the source doesn't list it.
+        var sugar: Double? = nil
+        var saturatedFat: Double? = nil
+        var sodiumMg: Double? = nil
+        var monounsaturatedFat: Double? = nil
+        var polyunsaturatedFat: Double? = nil
+        var transFat: Double? = nil
     }
 
     /// Where the nutrition data came from, for attribution.
@@ -44,7 +51,13 @@ struct FoodSearchResult: Identifiable, Hashable {
         let factor = portion.grams * quantity / 100
         return Nutrients(kcal: per100g.kcal * factor, protein: per100g.protein * factor,
                          carbs: per100g.carbs * factor, fat: per100g.fat * factor,
-                         fiber: per100g.fiber * factor)
+                         fiber: per100g.fiber * factor,
+                         sugar: per100g.sugar.map { $0 * factor },
+                         saturatedFat: per100g.saturatedFat.map { $0 * factor },
+                         sodiumMg: per100g.sodiumMg.map { $0 * factor },
+                         monounsaturatedFat: per100g.monounsaturatedFat.map { $0 * factor },
+                         polyunsaturatedFat: per100g.polyunsaturatedFat.map { $0 * factor },
+                         transFat: per100g.transFat.map { $0 * factor })
     }
 
     /// A loggable item for `quantity` × `portion`.
@@ -59,7 +72,13 @@ struct FoodSearchResult: Identifiable, Hashable {
                         carbsG: (n.carbs * 10).rounded() / 10,
                         fatG: (n.fat * 10).rounded() / 10,
                         fiberG: (n.fiber * 10).rounded() / 10,
-                        icon: isBranded ? "barcode" : "leaf.fill")
+                        icon: isBranded ? "basket.fill" : "leaf.fill",
+                        sugarG: n.sugar.map { ($0 * 10).rounded() / 10 },
+                        saturatedFatG: n.saturatedFat.map { ($0 * 10).rounded() / 10 },
+                        sodiumMg: n.sodiumMg.map { $0.rounded() },
+                        monounsaturatedFatG: n.monounsaturatedFat.map { ($0 * 10).rounded() / 10 },
+                        polyunsaturatedFatG: n.polyunsaturatedFat.map { ($0 * 10).rounded() / 10 },
+                        transFatG: n.transFat.map { ($0 * 10).rounded() / 10 })
     }
 }
 
@@ -202,9 +221,17 @@ struct FoodDatabaseClient {
         // Energy is 1008 (kcal) for most foods; Foundation foods may only
         // report the Atwater factors 2047 / 2048.
         guard let kcal = values[1008] ?? values[2047] ?? values[2048] else { return nil }
+        // Sugars: 2000 (total incl. NLEA) or 1063; sodium 1093 (mg); fats:
+        // saturated 1258, monounsaturated 1292, polyunsaturated 1293, trans 1257.
         let per100g = FoodSearchResult.Nutrients(kcal: kcal, protein: values[1003] ?? 0,
                                                  carbs: values[1005] ?? 0, fat: values[1004] ?? 0,
-                                                 fiber: values[1079] ?? 0)
+                                                 fiber: values[1079] ?? 0,
+                                                 sugar: values[2000] ?? values[1063],
+                                                 saturatedFat: values[1258],
+                                                 sodiumMg: values[1093],
+                                                 monounsaturatedFat: values[1292],
+                                                 polyunsaturatedFat: values[1293],
+                                                 transFat: values[1257])
         let isBranded = food.dataType == "Branded"
 
         var portions: [FoodSearchResult.Portion] = []

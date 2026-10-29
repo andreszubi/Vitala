@@ -9,6 +9,9 @@ struct EditableRow<Content: View>: View {
     var onEdit: (() -> Void)? = nil
     /// Nil for read-only entries, such as ones from Apple Health.
     var onDelete: (() -> Void)? = nil
+    /// False when the content has its own buttons (a meal's foods); Edit is
+    /// then offered from the menu and as a VoiceOver action only.
+    var tapEdits: Bool = true
     @ViewBuilder let content: () -> Content
 
     @State private var confirmingDelete = false
@@ -16,15 +19,20 @@ struct EditableRow<Content: View>: View {
     var body: some View {
         HStack(spacing: 4) {
             Group {
-                if let onEdit {
+                if let onEdit, tapEdits {
                     Button(action: onEdit) { rowContent }
                         .buttonStyle(.plain)
                         .accessibilityHint("Edits this \(noun)")
-                } else {
+                } else if tapEdits {
                     rowContent.accessibilityElement(children: .combine)
+                } else {
+                    rowContent.accessibilityElement(children: .contain)
                 }
             }
             .accessibilityActions {
+                if let onEdit, !tapEdits {
+                    Button("Edit \(noun)", action: onEdit)
+                }
                 if onDelete != nil {
                     Button("Delete") { confirmingDelete = true }
                 }

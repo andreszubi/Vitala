@@ -54,6 +54,12 @@ struct FoodPortionSheet: View {
                 LabeledContent("Carbs", value: grams(nutrients.carbs))
                 LabeledContent("Fat", value: grams(nutrients.fat))
                 LabeledContent("Fiber", value: grams(nutrients.fiber))
+                if let sugar = nutrients.sugar { LabeledContent("Sugar", value: grams(sugar)) }
+                if let saturated = nutrients.saturatedFat { LabeledContent("Saturated fat", value: grams(saturated)) }
+                if let mono = nutrients.monounsaturatedFat { LabeledContent("Monounsaturated fat", value: grams(mono)) }
+                if let poly = nutrients.polyunsaturatedFat { LabeledContent("Polyunsaturated fat", value: grams(poly)) }
+                if let trans = nutrients.transFat { LabeledContent("Trans fat", value: grams(trans)) }
+                if let sodium = nutrients.sodiumMg { LabeledContent("Sodium", value: "\(Int(sodium.rounded())) mg") }
             } header: {
                 Text("Nutrition")
             } footer: {
