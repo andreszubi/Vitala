@@ -130,9 +130,9 @@ No demo account is needed.
 
 1. `01-Today.png` — rings, quick log, today's activity
 2. `02-Activity.png` — sessions and the workout library
-3. `03-Nutrition.png` — intake ring, macros, meals
+3. `03-Nutrition.png` — intake ring, macros and the More nutrients card
 4. `04-Sleep.png` — latest night, 7-night chart
-5. `05-Breathing.png` — guided breathing with sound
+5. `05-Breathing.png` — guided breathing over the Ocean at dusk scene
 6. `06-Progress.png` — consistency and trends
 7. `07-Journal.png` — a mood journal entry
 

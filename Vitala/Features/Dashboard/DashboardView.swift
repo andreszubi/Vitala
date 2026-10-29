@@ -50,7 +50,13 @@ struct DashboardView: View {
     private var workoutsThisWeek: Int { Insights.workoutsThisWeek(store.workouts) }
 
     private var greeting: String {
-        switch Calendar.current.component(.hour, from: .now) {
+        let hour: Int = {
+            #if DEBUG
+            if let hour = DebugLaunchOptions.greetingHour { return hour }
+            #endif
+            return Calendar.current.component(.hour, from: .now)
+        }()
+        return switch hour {
         case 5..<12: "Good morning"
         case 12..<17: "Good afternoon"
         case 17..<22: "Good evening"

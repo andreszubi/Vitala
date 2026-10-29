@@ -6,7 +6,16 @@ import Foundation
 ///
 /// - `-resetData`: start from a clean first-launch state.
 /// - `-seedSampleData`: skip onboarding and fill two weeks of realistic logs.
+/// - `-greetingHour <0–23>`: greet as if it were that hour, so screenshots
+///   read "Good morning" under a 9:41 status bar whenever they're taken.
 enum DebugLaunchOptions {
+    static var greetingHour: Int? {
+        let args = ProcessInfo.processInfo.arguments
+        guard let i = args.firstIndex(of: "-greetingHour"), i + 1 < args.count,
+              let hour = Int(args[i + 1]), (0..<24).contains(hour) else { return nil }
+        return hour
+    }
+
     static func apply(arguments: [String] = ProcessInfo.processInfo.arguments) {
         if arguments.contains("-resetData") || arguments.contains("-seedSampleData") {
             reset()
