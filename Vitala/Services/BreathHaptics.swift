@@ -88,21 +88,21 @@ final class BreathHaptics {
         var all: [Pulse] = []
         switch kind {
         case .inhale:
-            // Gently quickening (about 1 s apart down to 0.5 s), from barely
-            // there to full strength, and from dull to crisp.
-            all += taps(length: length, interval: { 0.95 - 0.45 * $0 }) { p in
-                (0.12 + 0.88 * pow(p, 1.3), 0.1 + 0.6 * p)
+            // Slowly quickening (1.4 s apart down to 0.8 s), from barely
+            // there to a moderate, rounded tap.
+            all += taps(length: length, interval: { 1.4 - 0.6 * $0 }) { p in
+                (0.08 + 0.52 * pow(p, 1.3), 0.05 + 0.3 * p)
             }
-            all += swell(length: length, from: 0.04, to: 0.5)
+            all += swell(length: length, from: 0.03, to: 0.28)
         case .exhale:
-            // Gently slowing (0.5 s apart out to about 1 s), from strong to
-            // nothing, and from crisp to soft.
-            all += taps(length: length, interval: { 0.5 + 0.45 * $0 }) { p in
-                (0.06 + 0.88 * pow(1 - p, 1.6), 0.6 - 0.55 * p)
+            // Slowly easing off (0.8 s apart out to 1.4 s), from a moderate
+            // tap to nothing, and ever softer.
+            all += taps(length: length, interval: { 0.8 + 0.6 * $0 }) { p in
+                (0.04 + 0.56 * pow(1 - p, 1.6), 0.35 - 0.32 * p)
             }
-            all += swell(length: length, from: 0.45, to: 0)
+            all += swell(length: length, from: 0.26, to: 0)
         case .hold:
-            all.append(Pulse(kind: .tap, time: 0, intensity: 0.35, sharpness: 0.1))
+            all.append(Pulse(kind: .tap, time: 0, intensity: 0.22, sharpness: 0.05))
         }
         // Skip what has already passed, and time the rest from now.
         return all.compactMap { pulse in

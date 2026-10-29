@@ -16,12 +16,12 @@ struct BreathHapticsTests {
     @Test func inhaleTapsSpeedUpGrowStrongerAndCrisper() {
         let pulses = BreathHaptics.pulses(.inhale, from: 0, length: 4)
         let t = taps(pulses)
-        #expect(t.count >= 6)
+        #expect(t.count >= 3)
         #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity < $1.intensity && $0.sharpness < $1.sharpness })
         let g = gaps(t)
         #expect(zip(g, g.dropFirst()).allSatisfy { $0 > $1 }, "taps come faster and faster")
-        #expect(g.allSatisfy { $0 >= 0.45 }, "never faster than about two taps a second")
-        #expect(t.first!.intensity < 0.2 && t.last!.intensity > 0.75)
+        #expect(g.allSatisfy { $0 >= 0.75 }, "always unhurried")
+        #expect(t.first!.intensity < 0.15 && t.last!.intensity > 0.4)
         let s = swell(pulses)
         #expect(s.first!.intensity < s.last!.intensity)
         #expect(abs(s.reduce(0) { $0 + $1.duration } - 4) < 0.001, "the swell spans the whole breath")
@@ -33,7 +33,7 @@ struct BreathHapticsTests {
         #expect(zip(t, t.dropFirst()).allSatisfy { $0.intensity > $1.intensity && $0.sharpness > $1.sharpness })
         let g = gaps(t)
         #expect(zip(g, g.dropFirst()).allSatisfy { $0 < $1 }, "taps come slower and slower")
-        #expect(t.first!.intensity > 0.75 && t.last!.intensity < 0.2)
+        #expect(t.first!.intensity > 0.4 && t.last!.intensity < 0.15)
         let s = swell(pulses)
         #expect(s.first!.intensity > s.last!.intensity)
     }
@@ -56,6 +56,14 @@ struct BreathHapticsTests {
         #expect(restTaps.first!.intensity > full.first!.intensity)
         #expect(abs(swell(rest).reduce(0) { $0 + $1.duration } - 1.8) < 0.001)
         #expect(BreathHaptics.pulses(.inhale, from: 4, length: 4).isEmpty)
+    }
+
+    @Test func nothingIsHard() {
+        for kind in [MindfulnessSession.BreathStep.Kind.inhale, .exhale, .hold] {
+            for pulse in BreathHaptics.pulses(kind, from: 0, length: 8) {
+                #expect(pulse.intensity <= 0.6 && pulse.sharpness <= 0.4)
+            }
+        }
     }
 
     @Test func strengthsStayInRange() {
