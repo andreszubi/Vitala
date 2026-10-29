@@ -11,6 +11,9 @@ struct SessionPlayerView: View {
     @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
     @State private var ambient = AmbientSoundPlayer()
     @State private var haptics = BreathHaptics()
+    /// Every session starts on the scene that suits it; a change from the
+    /// menu lasts for this session only.
+    @State private var scene: ZenScene = .automatic
     @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
 
     @State private var startedAt: Date = .now
@@ -76,7 +79,7 @@ struct SessionPlayerView: View {
     var body: some View {
         let tint = Color(hex: session.tint)
         ZStack {
-            SessionBackground(category: session.category, tint: tint)
+            SessionBackground(category: session.category, tint: tint, scene: scene)
                 .equatable()
 
             if let saved {
@@ -242,7 +245,7 @@ struct SessionPlayerView: View {
                 // saved choice changes. Without it an open menu was rebuilt
                 // mid-tap, dropping taps and making UIKit log "Decomposition
                 // of 'bounds' was requested…".
-                SceneMenuButton().equatable()
+                SceneMenuButton(selection: scene) { scene = $0 }.equatable()
                 SoundMenuButton().equatable()
             }
         }
@@ -439,31 +442,29 @@ private struct SoundMenuButton: View, Equatable {
     }
 }
 
-/// The animated scene, read from storage so changing it from the menu
-/// redraws only the background, never the countdown.
+/// The animated scene. Equatable on its inputs, so it redraws only when the
+/// scene changes, never with the countdown.
 private struct SessionBackground: View, Equatable {
     let category: MindfulnessSession.Category
     let tint: Color
+    let scene: ZenScene
 
     static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.category == rhs.category && lhs.tint == rhs.tint
+        lhs.category == rhs.category && lhs.tint == rhs.tint && lhs.scene == rhs.scene
     }
-    @AppStorage("vitala.sessionScene") private var sceneChoice: String = ZenScene.automatic.rawValue
 
     var body: some View {
-        let choice = ZenScene(rawValue: sceneChoice) ?? .automatic
-        ZenBackground(scene: choice.resolved(for: category), tint: tint)
+        ZenBackground(scene: scene.resolved(for: category), tint: tint)
     }
 }
 
-/// Picks the background scene. Kept out of the countdown's updates for the
-/// same reason as `SoundMenuButton`.
+/// Picks the background scene. Equal whenever the selection is, so the
+/// countdown's updates never reach it (see `topBar`).
 private struct SceneMenuButton: View, Equatable {
-    static func == (lhs: Self, rhs: Self) -> Bool { true }
+    let selection: ZenScene
+    let onSelect: (ZenScene) -> Void
 
-    @AppStorage("vitala.sessionScene") private var sceneChoice: String = ZenScene.automatic.rawValue
-
-    private var scene: ZenScene { ZenScene(rawValue: sceneChoice) ?? .automatic }
+    static func == (lhs: Self, rhs: Self) -> Bool { lhs.selection == rhs.selection }
 
     private var labelSize: CGFloat {
         if #available(iOS 26.0, *) { return 28 }
@@ -472,9 +473,9 @@ private struct SceneMenuButton: View, Equatable {
 
     var body: some View {
         Menu {
-            Picker("Scene", selection: $sceneChoice) {
+            Picker("Scene", selection: Binding(get: { selection }, set: onSelect)) {
                 ForEach(ZenScene.allCases) { option in
-                    Label(option.label, systemImage: option.icon).tag(option.rawValue)
+                    Label(option.label, systemImage: option.icon).tag(option)
                 }
             }
         } label: {
@@ -490,7 +491,7 @@ private struct SceneMenuButton: View, Equatable {
         .buttonBorderShape(.circle)
         .glassButtonStyle()
         .accessibilityLabel("Scene")
-        .accessibilityValue(scene.label)
+        .accessibilityValue(selection.label)
         .transaction { $0.animation = nil }
     }
 }
