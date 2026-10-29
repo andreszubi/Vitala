@@ -61,10 +61,13 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > • Search hundreds of thousands of foods with real portions, or scan a barcode to log packaged food
 > • Log breakfast, lunch, dinner and snacks, with custom and recent foods that work offline
 > • See calories, protein, carbs and fat against a target suggested from your profile
+> • Track fiber, sugar, saturated and unsaturated fat and sodium, and tap any food or meal for its full nutrition
 >
 > BREATHE
-> • Nine guided breathing sessions for focus, stress, sleep and gratitude, each with its own rhythm
-> • Calming spa sound, ocean waves and optional binaural tones, generated live on your iPhone
+> • Nine guided breathing sessions for focus, stress, sleep and gratitude, each with its own rhythm and calming cues
+> • Spa sound, crystal singing bowls, ocean waves and optional binaural tones, generated live on your iPhone
+> • Peaceful animated scenes — ocean at dusk, rain on water, starry night, misty mountains, aurora
+> • Gentle haptics you can feel building as you breathe in and easing as you breathe out
 >
 > REFLECT
 > • Keep a private mood journal: pick how you feel, write whatever's on your mind
@@ -111,7 +114,7 @@ Paste into **App Review Information › Notes**:
 >
 > HealthKit: Vitala reads steps, active energy, exercise minutes, walking/running distance, heart rate, sleep analysis, mindful minutes, and dietary energy, protein, carbohydrates and fat recorded by other apps to show daily progress and history, and writes dietary water, sleep analysis, mindful sessions and workouts that the user logs in the app. HealthKit is optional; the Connect button is on the Today screen and in Profile › Apple Health. HealthKit data is never shared, sold or used for advertising, and never leaves the device through Vitala.
 >
-> Mindfulness sessions play ambient sound synthesised on the device; no audio files or third-party content are included. Journal entries (a mood and free text) are stored only on the device and are not written to HealthKit.
+> Mindfulness sessions play ambient sound and animated scenes generated on the device, with optional haptic guidance; no audio, video or third-party content is included. Journal entries (a mood and free text) are stored only on the device and are not written to HealthKit.
 >
 > Notifications are optional daily reminders the user configures in Settings › Reminders.
 >
@@ -153,7 +156,9 @@ Set a clean status bar first with `xcrun simctl status_bar booted override --tim
 - [ ] Apple Health import: Apple Watch or sleep-schedule nights appear in Sleep, and food from another app appears in Nutrition, marked "Apple Health" and not editable; a night logged in Vitala replaces the overlapping Health night
 - [ ] Journal: write an entry from the Mindfulness header, choose a mood, save, edit and delete it; finish a session and use Write in journal from the completion screen
 - [ ] Reminders: allow notifications, set a time a minute ahead, receive it; turn it off and confirm nothing arrives
-- [ ] Breathing session: sound starts, follows the breath, pauses with the session, works with AirPods; switching to Silent stops it
+- [ ] Breathing session: sound starts on Spa, binaural & bowls, follows the breath, pauses with the session, works with AirPods; switching sounds takes one tap; Silent stops it
+- [ ] Breathing session: opens on the scene matching its kind; haptics build on the in-breath, ease on the out-breath, stop on pause and can be switched off; cues change every 20 seconds and differ between sessions
+- [ ] Nutrition: a scanned product shows its full name and brand; tapping a food shows its nutrition; tapping Breakfast/Lunch/Dinner/Snack shows that meal's totals
 - [ ] Profile photo: add, change and remove
 - [ ] Export my data produces a readable JSON file; Erase all data returns to onboarding
 - [ ] VoiceOver walkthrough of every tab; Larger Text at the largest size; Dark Mode; Reduce Motion
