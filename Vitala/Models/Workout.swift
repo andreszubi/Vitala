@@ -50,6 +50,18 @@ struct Exercise: Codable, Identifiable, Hashable {
     var sets: Int?
     var instructions: String
     var icon: String
+
+    /// "3 × 12 reps", "4 × 40 sec" or "1 min"; nil when nothing is prescribed.
+    var prescription: String? {
+        if seconds > 0 {
+            let time = seconds >= 60 ? "\(seconds / 60) min" : "\(seconds) sec"
+            if let sets, sets > 1 { return "\(sets) × \(time)" }
+            return time
+        }
+        if let sets, let reps { return "\(sets) × \(reps) reps" }
+        if let reps { return "\(reps) reps" }
+        return nil
+    }
 }
 
 /// A logged workout session.
