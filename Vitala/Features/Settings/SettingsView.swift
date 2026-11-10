@@ -10,6 +10,7 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
+    @ObservedObject private var sync = CloudSync.shared
     /// Data files that were damaged and set aside, if any.
     @State private var damagedFiles: [URL] = []
     @State private var confirmingDeleteDamaged = false
@@ -61,6 +62,11 @@ struct SettingsView: View {
             }
 
             Section {
+                NavigationLink {
+                    CloudSyncView()
+                } label: {
+                    LabeledContent("iCloud sync", value: sync.isOn ? "On" : "Off")
+                }
                 ShareLink(item: ExportFile(profile: profileStore.profile),
                           preview: SharePreview("Vitala data export")) {
                     Label("Export my data", systemImage: "square.and.arrow.up")
@@ -74,7 +80,9 @@ struct SettingsView: View {
             } header: {
                 Text("Your data")
             } footer: {
-                Text("Vitala keeps everything on this iPhone. Export creates a JSON file you can save anywhere.")
+                Text(sync.isOn
+                     ? "Vitala keeps everything on this iPhone and, with iCloud sync on, in your private iCloud. Export creates a JSON file you can save anywhere."
+                     : "Vitala keeps everything on this iPhone. Export creates a JSON file you can save anywhere.")
                     .foregroundStyle(VitalaColor.textSecondary)
             }
 
@@ -125,7 +133,9 @@ struct SettingsView: View {
             Button("Erase everything", role: .destructive, action: eraseEverything)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
+            Text(sync.isOn
+                 ? "This permanently deletes your profile, goals and every log from this iPhone, and every log from iCloud and your other devices that sync with it. Anything already saved to Apple Health stays there."
+                 : "This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
         }
     }
 
@@ -136,7 +146,9 @@ struct SettingsView: View {
     }
 
     private func eraseEverything() {
-        DataStore.shared.eraseAll()
+        // With sync on, the erase is passed on to iCloud and other devices.
+        DataStore.shared.eraseAll(everywhere: sync.isOn)
+        if sync.isOn { Task { await sync.syncNow() } }
         notifications.reset()
         profileStore.erase()
         unitsService.system = .metric

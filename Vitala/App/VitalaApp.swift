@@ -13,6 +13,8 @@ struct VitalaApp: App {
         #if DEBUG
         DebugLaunchOptions.apply()
         #endif
+        // Starts following changes if the user has iCloud sync on.
+        _ = CloudSync.shared
     }
 
     var body: some Scene {
