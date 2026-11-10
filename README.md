@@ -13,11 +13,11 @@ Author: Andres Zubizarreta
 ## Features
 
 - **Today** — Move, Exercise and Steps rings against your own goals; one-tap logging for water, meals, mindful minutes and sleep; real streaks and weekly workout progress.
-- **Activity** — guided yoga, strength, HIIT, mobility and running sessions with per-exercise countdowns; log any activity with type, duration, energy and distance.
-- **Nutrition** — search hundreds of thousands of foods from USDA FoodData Central with real portions ("1 banana", "2 Tbsp"), scan barcodes (VisionKit, with USDA and Open Food Facts lookup), plus custom and recent foods that work offline; a calorie target suggested from your profile (Mifflin–St Jeor × activity). Protein, carbs and fat for the day, plus a **More nutrients** card for fiber, sugar, saturated and unsaturated fat and sodium, with bars against FDA daily values. Meals list each food by its full name with brand and the amount eaten. Tap a food for its nutrition (calories, macros and their share of calories, sugar, sodium, and saturated, monounsaturated, polyunsaturated and trans fat), or tap Breakfast, Lunch, Dinner or Snack for that meal's totals. Nutrients a label doesn't give show as "Not listed", never as zero. Food logged in other apps appears alongside your meals through Apple Health.
+- **Activity** — guided yoga, strength, HIIT, mobility and running sessions with per-exercise countdowns; log any activity with type, duration, energy and distance. Every exercise has a **looping demonstration**: a figure drawn in the app moves through it in the workout player (and pauses with it), and each exercise in a workout's list shows a still and opens a closer look with instructions.
+- **Nutrition** — search hundreds of thousands of foods from USDA FoodData Central with real portions ("1 banana", "2 Tbsp"), scan barcodes (VisionKit, with USDA and Open Food Facts lookup), plus custom and recent foods that work offline. **Restaurant meals:** type a chain's name, or pick it from the row under the search field, to list its menu (20 chains USDA covers, among them McDonald's, Wendy's, Burger King, Taco Bell, KFC and Subway); restaurant items are labelled with their chain and log by the item, not per 100 g. Also a calorie target suggested from your profile (Mifflin–St Jeor × activity). Protein, carbs and fat for the day, plus a **More nutrients** card for fiber, sugar, saturated and unsaturated fat and sodium, with bars against FDA daily values. Meals list each food by its full name with brand and the amount eaten. Tap a food for its nutrition (calories, macros and their share of calories, sugar, sodium, and saturated, monounsaturated, polyunsaturated and trans fat), or tap Breakfast, Lunch, Dinner or Snack for that meal's totals. Nutrients a label doesn't give show as "Not listed", never as zero. Food logged in other apps appears alongside your meals through Apple Health.
 - **Mindful** — nine guided breathing sessions, each with its own rhythm:
   - **Cues:** themed messages for each kind of session (breathing, focus, sleep, stress, gratitude) plus lines written for each session, shuffled every time and changing every 20 seconds.
-  - **Sound**, synthesised live on the device: Spa, binaural & bowls (the default every session starts on), Spa & binaural, Spa, Crystal bowls, Ocean or Silent.
+  - **Sound**, synthesised live on the device: Spa, binaural & bowls (the default every session starts on), Spa & binaural, Spa, Crystal bowls, Ocean or Silent. Switching crossfades from one to the next.
   - **Scenes**, drawn live behind the guide: ocean at dusk, rain on water, starry night, misty mountains or aurora. Every session opens on the scene that matches its kind and can switch for that session.
   - **Haptics** that build through each in-breath (taps gently quicken and strengthen) and ease off through each out-breath, with an on/off switch in the sound menu.
   - A completion screen saves the session and offers to write about it.
@@ -37,7 +37,7 @@ Author: Andres Zubizarreta
 
 ## Requirements
 
-- Xcode 26 or later (built and tested with Xcode 27.1)
+- Xcode 26 or later (built and tested with Xcode 27.2)
 - iOS 17.0+ deployment target, iPhone only for 1.0
 
 ## Getting started
@@ -48,6 +48,10 @@ Author: Andres Zubizarreta
 4. Run on an iPhone simulator or device.
 
 The project uses folder-synchronised groups, so new files in `Vitala/`, `VitalaTests/` or `VitalaUITests/` are picked up automatically.
+
+### Adding filmed exercise clips (optional)
+
+Exercises are demonstrated by a figure drawn in the app. To show filmed footage instead, add a clip to the `Vitala/` folder named after the exercise in lowercase with hyphens: `goblet-squat.mp4`, `plank-to-up-dog.mp4`, `childs-pose.mp4` (`.mp4`, `.mov` or `.m4v`). The workout player and the exercise's closer look then play it on a loop, without sound, in place of the figure. Use only footage you have the right to distribute.
 
 ### Handy launch arguments (Debug builds only)
 
@@ -66,7 +70,7 @@ xcodebuild test -project Vitala.xcodeproj -scheme Vitala \
   -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
-- `VitalaTests` (Swift Testing): storage and migration, journal entries, Health sync helpers, grouping Health sleep into nights and food into meals, insights and streaks, calorie suggestion, units, nutrition grouping and detailed-nutrient totals, food search and barcode parsing, export, profile photos, colour contrast, offline rendering of every ambient sound (including that each one sounds distinct and never clips), breathing haptic patterns, scene choice, and the breathing cue pools and shuffle.
+- `VitalaTests` (Swift Testing): storage and migration, journal entries, Health sync helpers, grouping Health sleep into nights and food into meals, insights and streaks, calorie suggestion, units, nutrition grouping and detailed-nutrient totals, food search and barcode parsing, restaurant names and menus, export, profile photos, colour contrast, offline rendering of every ambient sound (including that each one sounds distinct, never clips, and crossfades without a click), breathing haptic patterns, scene choice, the breathing cue pools and shuffle, and the exercise demonstrations (limbs never stretch, planted hands and feet don't slide, every loop closes).
 - `VitalaUITests`: launch test, accessibility audits on every main screen and form (including the journal), and food search. `ScreenshotTests` regenerates App Store screenshots (see `docs/APP_STORE.md`). Live network tests run only with `TEST_RUNNER_VITALA_NETWORK_TESTS=1`.
 
 ## Project structure
@@ -77,11 +81,11 @@ Vitala/
 ├── DesignSystem/   Colours, type ramp, glass helpers, brand mark, chart accessibility, components
 ├── Features/       Onboarding, ProfileSetup, Dashboard, Activity, Nutrition, Water, Sleep,
 │                   Mindfulness, Progress, Settings
-├── Models/         Profile and goals, workouts, meals, water, sleep, mindfulness and its
-│                   cues, journal
+├── Models/         Profile and goals, workouts and exercise demonstrations, meals, water,
+│                   sleep, mindfulness and its cues, journal
 ├── Services/       DataStore, ProfileStore, SecureFileStore, HealthKitService,
 │                   NotificationService, AmbientSoundPlayer, BreathHaptics, FoodDatabase,
-│                   BarcodeLookup, Insights, DataExport, Units, Theme
+│                   RestaurantFoods, BarcodeLookup, Insights, DataExport, Units, Theme
 ├── ViewModels/     AppState (top-level routing and tabs)
 └── Resources/      Info.plist, entitlements, privacy manifest, assets, AppIcon.icon
 docs/               Release plan, App Store kit, privacy policy, support page, screenshots
@@ -94,7 +98,9 @@ docs/               Release plan, App Store kit, privacy policy, support page, s
 - **Apple Health import.** `HealthKitService` reads recent sleep and nutrition written by other apps, skipping Vitala's own samples, and groups them into nights and meals. `DataStore.allSleep` and `allMeals` merge them with local logs; a night logged in Vitala wins over an overlapping Health night. Imported entries are never stored or written back.
 - **Insights.** Streaks, weekly counts and daily totals are pure functions in `Insights`, shared by Today, Profile and Progress.
 - **Nutrition data.** Foods keep sugar, sodium and each kind of fat as optional values: nil means the source didn't list it, so totals say "Not listed" rather than showing a false zero, and foods saved before these fields existed still load.
-- **Sound.** `AmbientSoundPlayer` renders audio in real time with `AVAudioEngine`; the render loop never allocates or locks. Audio session changes run on one background queue shared by every player, which counts who is using the session, so the UI never waits on the hardware and a session closing never silences one that just opened.
+- **Restaurant foods.** `RestaurantChain` recognises a chain in each of the ways USDA writes it ("McDONALD'S, BIG MAC", "Big Mac (McDonalds)") and tidies the name. A search that is just a chain's name asks USDA for that chain's lab-analysed and survey foods and shows them as a menu. Lab-analysed items come back per 100 g, so their real serving is fetched when one is opened.
+- **Exercise demonstrations.** `ExerciseDemo` describes each exercise as a loop of poses for a jointed figure. Poses are joint angles, so limbs can't stretch; the figure's lowest point rests on the ground and one hand, foot or knee is pinned so it doesn't slide. `FigureRenderer` draws it in a `Canvas`. `ExerciseVideo` finds a bundled clip named after the exercise, which is shown instead.
+- **Sound.** `AmbientSoundPlayer` renders audio in real time with `AVAudioEngine`; the render loop never allocates or locks. Each layer's level glides to its target, so changing sound crossfades; the engine is restarted if the output changes or a call interrupts it. Audio session changes run on one background queue shared by every player, which counts who is using the session, so the UI never waits on the hardware and a session closing never silences one that just opened.
 - **Scenes.** `ZenBackground` draws each scene in a SwiftUI `Canvas`: the still backdrop once, the moving parts 20 times a second, with any soft glow applied as a GPU blur on the layer rather than per frame.
 - **Haptics.** `BreathHaptics` plays one Core Haptics pattern per breathing phase, built from pure functions so the patterns are unit-tested; it rejoins mid-breath after a pause, a return from the background or being switched back on.
 - **Breathing player.** The countdown redraws four times a second, so the background, scene menu and sound menu are `Equatable` views that only redraw when their own inputs change; this keeps glass menus from being rebuilt mid-tap.
