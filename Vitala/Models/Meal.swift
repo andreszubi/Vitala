@@ -95,7 +95,23 @@ struct Meal: Codable, Identifiable, Hashable {
     }
 }
 
-/// Curated common foods for quick logging on the AddMeal screen.
+/// A meal the user eats often ("My usual breakfast"), kept so it can be
+/// logged again in one tap.
+struct SavedMeal: Codable, Identifiable, Hashable {
+    var id: String = UUID().uuidString
+    var name: String
+    var items: [FoodItem]
+
+    var totalCalories: Int { items.reduce(0) { $0 + $1.calories } }
+
+    /// "Oatmeal, Banana and 2 more"
+    var summary: String {
+        let names = FoodGroup.grouping(items).map(\.item.name)
+        guard names.count > 2 else { return names.joined(separator: ", ") }
+        return names.prefix(2).joined(separator: ", ") + " and \(names.count - 2) more"
+    }
+}
+
 /// A set of foods added up: one food, a meal, or a whole section of the
 /// day. The optional nutrients are nil when none of the foods list them.
 struct NutritionTotals {
@@ -139,6 +155,7 @@ struct NutritionTotals {
     }
 }
 
+/// Curated common foods for quick logging on the AddMeal screen.
 /// Typical values per serving, from USDA FoodData Central.
 enum FoodLibrary {
     static let common: [FoodItem] = [

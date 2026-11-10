@@ -10,6 +10,9 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
+    /// Data files that were damaged and set aside, if any.
+    @State private var damagedFiles: [URL] = []
+    @State private var confirmingDeleteDamaged = false
     @AppStorage("vitala.onlineFoodSearch") private var onlineFoodSearch = true
 
     var body: some View {
@@ -75,6 +78,25 @@ struct SettingsView: View {
                     .foregroundStyle(VitalaColor.textSecondary)
             }
 
+            if !damagedFiles.isEmpty {
+                Section {
+                    ShareLink(items: damagedFiles) {
+                        Label("Send damaged \(damagedFiles.count == 1 ? "file" : "files")", systemImage: "square.and.arrow.up")
+                    }
+                    Button(role: .destructive) {
+                        confirmingDeleteDamaged = true
+                    } label: {
+                        Label("Delete damaged \(damagedFiles.count == 1 ? "file" : "files")", systemImage: "trash")
+                            .foregroundStyle(VitalaColor.danger)
+                    }
+                } header: {
+                    Text("Recovered data")
+                } footer: {
+                    Text("Vitala found a data file it couldn't read and set it aside instead of deleting it. It may contain your logs or journal, so send it only to someone you trust, such as Vitala support.")
+                        .foregroundStyle(VitalaColor.textSecondary)
+                }
+            }
+
             Section("About") {
                 NavigationLink("Privacy policy") { LegalView(title: "Privacy Policy", bodyText: LegalText.privacy) }
                 NavigationLink("Terms of use") { LegalView(title: "Terms of Use", bodyText: LegalText.terms) }
@@ -88,6 +110,17 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .task { await notifications.refreshStatus() }
+        .onAppear { damagedFiles = SecureFileStore().damagedFiles }
+        .confirmationDialog("Delete the damaged \(damagedFiles.count == 1 ? "file" : "files")?",
+                            isPresented: $confirmingDeleteDamaged, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                SecureFileStore().deleteDamagedFiles()
+                damagedFiles = []
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Anything in it that Vitala couldn't recover will be gone for good.")
+        }
         .confirmationDialog("Erase all data?", isPresented: $confirmingErase, titleVisibility: .visible) {
             Button("Erase everything", role: .destructive, action: eraseEverything)
             Button("Cancel", role: .cancel) {}
