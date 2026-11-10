@@ -9,6 +9,7 @@ struct FoodDetailSheet: View {
     var onEditMeal: (() -> Void)? = nil
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var store = DataStore.shared
 
     var body: some View {
         Form {
@@ -36,8 +37,15 @@ struct FoodDetailSheet: View {
             NutritionFactsSections(totals: NutritionTotals(Array(repeating: item, count: count)),
                                    gapsNote: "\"Not listed\" means the label or database didn't include it.")
 
-            if let onEditMeal {
-                Section {
+            Section {
+                Button {
+                    store.toggleFavourite(item)
+                    Haptics.selection()
+                } label: {
+                    Label(store.isFavourite(item) ? "Remove from favourites" : "Add to favourites",
+                          systemImage: store.isFavourite(item) ? "star.fill" : "star")
+                }
+                if let onEditMeal {
                     Button {
                         onEditMeal()
                         dismiss()
@@ -45,6 +53,9 @@ struct FoodDetailSheet: View {
                         Label("Edit meal", systemImage: "pencil")
                     }
                 }
+            } footer: {
+                Text("Favourites are listed first whenever you log a meal.")
+                    .foregroundStyle(VitalaColor.textSecondary)
             }
         }
         .scrollContentBackground(.hidden)

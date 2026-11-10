@@ -80,6 +80,20 @@ struct Meal: Codable, Identifiable, Hashable {
     /// Recorded by another app and read from Apple Health; not editable here.
     var isFromHealth: Bool { id.hasPrefix("health.") }
 
+    /// Everything eaten for one kind of meal on the day before `day`, as
+    /// fresh copies ready to log again. Empty when nothing was logged.
+    static func eaten(_ type: MealType, theDayBefore day: Date, in meals: [Meal],
+                      calendar: Calendar = .current) -> [FoodItem] {
+        guard let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: day)) else {
+            return []
+        }
+        return meals
+            .filter { $0.type == type && calendar.isDate($0.date, inSameDayAs: yesterday) }
+            .sorted { $0.date < $1.date }
+            .flatMap(\.items)
+            .map { $0.newInstance() }
+    }
+
     enum MealType: String, Codable, CaseIterable, Identifiable {
         case breakfast, lunch, dinner, snack
         var id: String { rawValue }

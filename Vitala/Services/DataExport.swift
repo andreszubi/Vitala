@@ -15,6 +15,9 @@ struct DataExport: Codable {
     var mindfulness: [LoggedMindfulness]
     var journal: [JournalEntry]
     var customFoods: [FoodItem]
+    var favouriteFoods: [FoodItem]
+    var savedMeals: [SavedMeal]
+    var customWorkouts: [Workout]
 
     @MainActor
     init(profile: UserProfile?, store: DataStore, now: Date = .now) {
@@ -28,6 +31,9 @@ struct DataExport: Codable {
         mindfulness = store.mindfulness.sorted { $0.completedAt < $1.completedAt }
         journal = store.journal.sorted { $0.date < $1.date }
         customFoods = store.customFoods
+        favouriteFoods = store.favouriteFoods
+        savedMeals = store.savedMeals
+        customWorkouts = store.customWorkouts
     }
 
     func jsonData() throws -> Data {
