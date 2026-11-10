@@ -42,33 +42,80 @@ final class AmbientSoundPlayer {
         }
     }
 
-    private let engine = AVAudioEngine()
+    /// Created with the first sound, so a player that never plays costs nothing.
+    private lazy var engine = AVAudioEngine()
     private let synth = AmbientSynth()
     private var stopTask: Task<Void, Never>?
     /// Whether this player is currently counted as using the audio session.
     private let lease = AudioSessionLease()
+    /// True from the first sound until `stop()`: the engine should be running.
+    private var wantsSound = false
+    private var observers: [NSObjectProtocol] = []
 
-    /// Starts (or switches to) a sound with a gentle fade-in.
-    func play(_ sound: Sound, for category: MindfulnessSession.Category) {
+    /// Starts (or switches to) a sound with a gentle fade-in. `paused`
+    /// switches the sound without letting it be heard yet.
+    func play(_ sound: Sound, for category: MindfulnessSession.Category, paused: Bool = false) {
         stopTask?.cancel()
         guard sound != .silent else { stop(); return }
         synth.configure(sound: sound, category: category)
         // The synth fades in from silence, so it can start ramping now.
+        synth.targetGain = paused ? 0 : 1
+        wantsSound = true
+        observeHardware()
+        start()
+    }
+
+    func pause() { synth.targetGain = 0 }
+
+    /// Fades back in, restarting the engine if the system stopped it while
+    /// the session was paused (in the background, say).
+    func resume() {
+        guard wantsSound else { return }
         synth.targetGain = 1
+        start()
+    }
+
+    /// Makes sure the session is active and the engine is running. Safe to
+    /// call when they already are.
+    private func start(reactivating: Bool = false) {
         Self.audioQueue.async { [engine, synth, lease] in
             do {
-                try Self.acquireSession(lease)
+                try Self.acquireSession(lease, reactivating: reactivating)
                 Self.attachSourceIfNeeded(to: engine, synth: synth)
-                if !engine.isRunning { try engine.start() }
+                if !engine.isRunning {
+                    // Nothing is rendering, so the level can be reset: the
+                    // sound fades in again rather than cutting in.
+                    synth.startFromSilence()
+                    try engine.start()
+                }
             } catch {
                 // Sound is a nice-to-have; the session works silently.
             }
         }
     }
 
-    func pause() { synth.targetGain = 0 }
+    /// The engine stops itself when the output changes (headphones plugged
+    /// in or out) and the session is suspended by a call or an alarm. Either
+    /// way, carry on once the hardware is ready again.
+    private func observeHardware() {
+        guard observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
+                                            queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hardwareChanged(reactivating: false) }
+        })
+        observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification,
+                                            object: AVAudioSession.sharedInstance(), queue: .main) { [weak self] note in
+            let type = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            guard type == AVAudioSession.InterruptionType.ended.rawValue else { return }
+            MainActor.assumeIsolated { self?.hardwareChanged(reactivating: true) }
+        })
+    }
 
-    func resume() { synth.targetGain = 1 }
+    private func hardwareChanged(reactivating: Bool) {
+        guard wantsSound else { return }
+        start(reactivating: reactivating)
+    }
 
     /// Follows the breathing guide: the pad and waves swell on the in-breath.
     func setBreath(expanded: Bool) { synth.targetSwell = expanded ? 1 : 0.55 }
@@ -77,8 +124,14 @@ final class AmbientSoundPlayer {
     func stop() {
         synth.targetGain = 0
         stopTask?.cancel()
+        guard wantsSound else { return }
+        wantsSound = false
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
         stopTask = Task { [engine, lease] in
-            try? await Task.sleep(for: .milliseconds(1600))
+            // Long enough for the fade to reach silence; cutting the engine
+            // off sooner is heard as a tick.
+            try? await Task.sleep(for: .milliseconds(2800))
             guard !Task.isCancelled else { return }
             Self.audioQueue.async {
                 engine.stop()
@@ -100,12 +153,16 @@ final class AmbientSoundPlayer {
     /// Runs on `audioQueue`. Configures and activates the session only when
     /// it isn't already set up, so starting a sound never re-routes audio
     /// that is already playing.
-    private nonisolated static func acquireSession(_ lease: AudioSessionLease) throws {
+    private nonisolated static func acquireSession(_ lease: AudioSessionLease, reactivating: Bool = false) throws {
         let session = AVAudioSession.sharedInstance()
         if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         }
-        guard !lease.held else { return }
+        guard !lease.held else {
+            // After an interruption the system has deactivated the session.
+            if reactivating { try session.setActive(true) }
+            return
+        }
         if activePlayers == 0 { try session.setActive(true) }
         activePlayers += 1
         lease.held = true
@@ -160,6 +217,9 @@ final class AmbientSynth: @unchecked Sendable {
 
     private var gain: Float = 0
     private var swell: Float = 0.75
+
+    /// Only while nothing is rendering (the engine is stopped).
+    func startFromSilence() { gain = 0 }
 
     // Configuration
     /// Four chord tones. A tuple, not an array, so reassigning it from the

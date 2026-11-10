@@ -155,6 +155,9 @@ struct AddMealView: View {
             }
         }
         .task(id: trimmedQuery) { await searchOnline() }
+        // Nothing else can be opened while a scan is being looked up, so
+        // its result never has to queue behind another sheet.
+        .allowsHitTesting(!lookingUpBarcode)
         .overlay {
             if lookingUpBarcode {
                 HStack(spacing: 10) {

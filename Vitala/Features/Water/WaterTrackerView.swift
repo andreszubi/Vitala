@@ -11,6 +11,7 @@ struct WaterTrackerView: View {
 
     @State private var showingCustom = false
     @State private var customAmount = ""
+    @State private var tooMuch = false
 
     private var entries: [WaterEntry] {
         store.water
@@ -80,6 +81,11 @@ struct WaterTrackerView: View {
             } message: {
                 Text("How much did you drink, in \(units.volumeUnitLabel())?")
             }
+            .alert("That looks like too much", isPresented: $tooMuch) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("One drink can be up to \(units.formatVolume(ml: Self.largestDrinkMl)). Check the amount and try again.")
+            }
         }
     }
 
@@ -127,9 +133,18 @@ struct WaterTrackerView: View {
         AccessibilityNotification.Announcement("Added \(units.formatVolume(ml: Double(ml)))").post()
     }
 
+    static let largestDrinkMl = 5_000.0
+
     private func logCustom() {
-        guard let value = Double(customAmount.replacingOccurrences(of: ",", with: ".")), value > 0 else { return }
+        guard let value = Double(customAmount.replacingOccurrences(of: ",", with: ".")),
+              value.isFinite, value > 0 else { return }
         let ml = units.system == .metric ? value : value / 0.033814
+        // Nobody drinks more than this in one go; a slipped digit shouldn't
+        // reach the totals or Apple Health.
+        guard ml <= Self.largestDrinkMl else {
+            tooMuch = true
+            return
+        }
         log(ml: Int(ml.rounded()))
     }
 }

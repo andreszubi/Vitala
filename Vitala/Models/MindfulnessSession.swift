@@ -9,7 +9,6 @@ struct MindfulnessSession: Codable, Identifiable, Hashable {
     var icon: String
     /// Hex colour. Deep enough that white text on it meets WCAG AA.
     var tint: String
-    var audioURL: URL?               // optional remote audio
 
     enum Category: String, Codable, CaseIterable, Identifiable {
         case breathing, focus, sleep, stress, gratitude
@@ -49,7 +48,7 @@ struct MindfulnessSession: Codable, Identifiable, Hashable {
 
 enum MindfulnessLibrary {
     static let quickReset = MindfulnessSession(
-        title: "Quick reset", subtitle: "One minute of box breathing", minutes: 1,
+        id: fixedID("Quick reset"), title: "Quick reset", subtitle: "One minute of box breathing", minutes: 1,
         category: .breathing, icon: "wind", tint: "#3F7F6E")
 
     static let all: [MindfulnessSession] = [
@@ -62,7 +61,17 @@ enum MindfulnessLibrary {
         .init(title: "Stress reset",        subtitle: "Longer exhales",           minutes: 5,  category: .stress,    icon: "leaf.fill",          tint: "#4A7F47"),
         .init(title: "Body scan",           subtitle: "Head-to-toe release",      minutes: 10, category: .stress,    icon: "figure.mind.and.body", tint: "#3F6E52"),
         .init(title: "Three good things",   subtitle: "Gratitude prompts",        minutes: 5,  category: .gratitude, icon: "heart.fill",         tint: "#B5503F")
-    ]
+    ].map {
+        // The same ids on every launch, so a logged session or journal
+        // entry can always be matched back to its session.
+        var session = $0
+        session.id = fixedID(session.title)
+        return session
+    }
+
+    private static func fixedID(_ title: String) -> String {
+        "library." + ExerciseVideo.fileName(for: title)
+    }
 }
 
 struct LoggedMindfulness: Codable, Identifiable, Hashable {

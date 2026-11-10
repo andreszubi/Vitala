@@ -307,8 +307,9 @@ struct DashboardView: View {
     }
 
     static func hoursText(_ hours: Double) -> String {
-        let h = Int(hours)
-        let m = Int(((hours - Double(h)) * 60).rounded())
+        // Round to the minute first, so 7 h 59.7 min reads "8h", not "7h 60m".
+        let minutes = Int((max(0, hours) * 60).rounded())
+        let h = minutes / 60, m = minutes % 60
         return m == 0 ? "\(h)h" : "\(h)h \(m)m"
     }
 }

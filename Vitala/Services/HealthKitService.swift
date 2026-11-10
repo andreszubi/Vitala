@@ -67,6 +67,8 @@ final class HealthKitService: ObservableObject {
         do {
             try await store.requestAuthorization(toShare: writeTypes, read: readTypes)
             await refreshAuthorizationState()
+            // Whatever was read before access was granted is out of date.
+            lastHistoryRefresh = nil
             await refreshToday()
         } catch {
             log.error("HealthKit authorization failed: \(error.localizedDescription, privacy: .public)")
@@ -112,19 +114,28 @@ final class HealthKitService: ObservableObject {
         summary.heartRate = (try? await hr).flatMap { Int($0) }
         summary.sleepHours = (try? await sleep) ?? 0
         summary.mindfulMinutes = Int((((try? await mindful) ?? 0) * 60).rounded())
-        self.todaySummary = summary
+        if todaySummary != summary { todaySummary = summary }
         await refreshHistory()
     }
 
     /// Re-reads recent sleep and nutrition written by other apps.
-    func refreshHistory() async {
+    /// Opening one tab after another asks for this each time; a read from
+    /// the last few seconds is still good, unless `force` says otherwise.
+    func refreshHistory(force: Bool = false) async {
         guard isAvailable else { return }
+        if !force, let last = lastHistoryRefresh, Date.now.timeIntervalSince(last) < Self.historyFreshFor { return }
+        lastHistoryRefresh = .now
         let start = Calendar.current.date(byAdding: .day, value: -Self.historyDays, to: .now) ?? .now
         async let nights = sleepNights(since: start)
         async let meals = importedMeals(since: start)
-        importedSleep = await nights
-        importedMeals = await meals
+        let (newNights, newMeals) = await (nights, meals)
+        // Publishing an unchanged list would still redraw every screen.
+        if importedSleep != newNights { importedSleep = newNights }
+        if importedMeals != newMeals { importedMeals = newMeals }
     }
+
+    private var lastHistoryRefresh: Date?
+    private static let historyFreshFor: TimeInterval = 20
 
     // MARK: Imported history
 

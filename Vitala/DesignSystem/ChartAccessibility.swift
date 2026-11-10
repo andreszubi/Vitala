@@ -8,6 +8,14 @@ struct DailyChartDescriptor: AXChartDescriptorRepresentable {
     let unit: String
     let points: [(Date, Double)]
     var goal: Double? = nil
+    /// True when the goal is a ceiling to stay under rather than a target to reach.
+    var goalIsLimit = false
+
+    /// Days that reached the goal, or, for a limit, days with something
+    /// logged that stayed within it.
+    static func daysOnGoal(_ points: [(Date, Double)], goal: Double, isLimit: Bool) -> Int {
+        points.filter { isLimit ? $0.1 > 0 && $0.1 <= goal : $0.1 >= goal }.count
+    }
 
     func makeChartDescriptor() -> AXChartDescriptor {
         let labels = points.map { $0.0.formatted(.dateTime.weekday(.abbreviated).month().day()) }
@@ -30,8 +38,8 @@ struct DailyChartDescriptor: AXChartDescriptorRepresentable {
         var text = "Average \(Int(average.rounded())) \(unit) on \(logged.count) of \(points.count) days. "
         text += "Highest \(Int(best.1.rounded())) \(unit) on \(best.0.formatted(.dateTime.weekday(.wide)))."
         if let goal {
-            let met = points.filter { $0.1 >= goal }.count
-            text += " Goal met on \(met) days."
+            let met = Self.daysOnGoal(points, goal: goal, isLimit: goalIsLimit)
+            text += goalIsLimit ? " Within target on \(met) days." : " Goal met on \(met) days."
         }
         return text
     }

@@ -5,6 +5,9 @@ import SwiftUI
 struct DateNavigator: View {
     @Binding var date: Date
     @State private var showPicker = false
+    @Environment(\.scenePhase) private var scenePhase
+    /// The day that counted as today when this last looked.
+    @State private var today = Calendar.current.startOfDay(for: .now)
 
     private var isToday: Bool { Calendar.current.isDateInToday(date) }
 
@@ -24,12 +27,12 @@ struct DateNavigator: View {
                         .font(VitalaFont.bodyMedium(15))
                         .foregroundStyle(VitalaColor.textPrimary)
                 }
-                .frame(maxWidth: .infinity, minHeight: 32)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .padding(.horizontal, 6)
+                .contentShape(Rectangle())
             }
             .buttonBorderShape(.capsule)
             .glassButtonStyle()
-            .frame(minHeight: 44)
             .accessibilityLabel("Showing \(label)")
             .accessibilityHint("Opens a calendar to choose another day")
 
@@ -61,6 +64,20 @@ struct DateNavigator: View {
             }
             .presentationDetents([.medium, .large])
         }
+        // A screen left open overnight would otherwise keep showing, and
+        // logging to, what has become yesterday.
+        .onAppear(perform: followToday)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { followToday() }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
+            .receive(on: DispatchQueue.main)) { _ in followToday() }
+    }
+
+    private func followToday() {
+        let now = Date.now
+        date = DayFollowing.selection(date, lastToday: today, now: now)
+        today = Calendar.current.startOfDay(for: now)
     }
 
     private var label: String {
@@ -80,5 +97,16 @@ struct DateNavigator: View {
         guard let new = Calendar.current.date(byAdding: .day, value: 1, to: date) else { return }
         // Don't go past today
         date = min(new, .now)
+    }
+}
+
+/// Keeps a day picker on today across midnight.
+enum DayFollowing {
+    /// The day to show now. A selection that was "today" when last checked
+    /// moves on to the new today; a day the user chose on purpose stays.
+    static func selection(_ selected: Date, lastToday: Date, now: Date, calendar: Calendar = .current) -> Date {
+        guard !calendar.isDate(lastToday, inSameDayAs: now),
+              calendar.isDate(selected, inSameDayAs: lastToday) else { return selected }
+        return now
     }
 }

@@ -39,11 +39,16 @@ struct DataExport: Codable {
 }
 
 /// Share-sheet payload for the export.
+/// Built when the share sheet asks for it, not while Settings is drawn:
+/// encoding everything the user has logged is too much work to repeat on
+/// every redraw.
 struct ExportFile: Transferable {
-    let data: Data
+    let profile: UserProfile?
 
     static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .json) { $0.data }
-            .suggestedFileName("Vitala Export.json")
+        DataRepresentation(exportedContentType: .json) { file in
+            try await MainActor.run { try DataExport(profile: file.profile, store: .shared).jsonData() }
+        }
+        .suggestedFileName("Vitala Export.json")
     }
 }

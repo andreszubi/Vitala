@@ -167,7 +167,8 @@ struct ActiveWorkoutView: View {
                             size: 84, prominent: true, tint: VitalaColor.primaryFill) { togglePause() }
             GlassIconButton(systemName: isLast ? "checkmark" : "forward.fill",
                             label: isLast ? "Finish workout" : "Next exercise", size: 60) {
-                isLast ? save() : move(by: 1)
+                // Too short to save: say so rather than closing without a word.
+                if !isLast { move(by: 1) } else if elapsed >= 60 { save() } else { confirmingEnd = true }
             }
         }
         .glassGroup(spacing: 20)
@@ -180,7 +181,8 @@ struct ActiveWorkoutView: View {
     private func tick() {
         guard !finished else { return }
         now = .now
-        if let duration = exerciseDuration, isRunning, exerciseElapsed >= duration {
+        // Not behind the "End workout?" question: Discard must stay possible.
+        if let duration = exerciseDuration, isRunning, !confirmingEnd, exerciseElapsed >= duration {
             Haptics.success()
             if isLast { save() } else { move(by: 1) }
         }

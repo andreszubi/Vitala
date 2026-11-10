@@ -107,13 +107,25 @@ final class NotificationService: ObservableObject {
         }
     }
 
-    /// Replaces Vitala's pending requests with the enabled reminders.
+    /// Replaces Vitala's pending requests with the enabled reminders. A
+    /// newer call takes over from one still running, so quick changes to a
+    /// time or a switch can't leave an older choice scheduled.
     func reschedule() async {
+        rescheduling?.cancel()
+        let task = Task { await scheduleAll() }
+        rescheduling = task
+        await task.value
+    }
+
+    private var rescheduling: Task<Void, Never>?
+
+    private func scheduleAll() async {
         center.removePendingNotificationRequests(withIdentifiers: Reminder.Kind.allCases.map {
             Reminder(kind: $0, isOn: false, hour: 0, minute: 0).id
         } + Self.legacyIdentifiers)
         guard isAllowed else { return }
         for reminder in reminders where reminder.isOn {
+            guard !Task.isCancelled else { return }
             let content = UNMutableNotificationContent()
             content.title = reminder.title
             content.body = reminder.body

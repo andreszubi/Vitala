@@ -58,9 +58,8 @@ enum VitalaColor {
 
 extension Color {
     init(hex: String) {
-        let s = hex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
-        var rgb: UInt64 = 0
-        Scanner(string: s).scanHexInt64(&rgb)
+        // Called while drawing scenes, many times a frame, so it stays cheap.
+        let rgb = UInt64(hex.drop { $0 == "#" }, radix: 16) ?? 0
         let r = Double((rgb & 0xFF0000) >> 16) / 255
         let g = Double((rgb & 0x00FF00) >> 8) / 255
         let b = Double(rgb & 0x0000FF) / 255

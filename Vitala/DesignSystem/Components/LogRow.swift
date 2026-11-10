@@ -124,6 +124,7 @@ struct ActivityLogRow: View {
     let session: WorkoutSession
     let onEdit: () -> Void
     let onDelete: () -> Void
+    @EnvironmentObject private var units: UnitsService
 
     var body: some View {
         LogRow(icon: session.category?.icon ?? "figure.run",
@@ -141,8 +142,8 @@ struct ActivityLogRow: View {
                      "\(mins) min",
                      "\(session.caloriesBurned) kcal"]
         if let km = session.distanceKm, km > 0 {
-            parts.append(Measurement(value: km, unit: UnitLength.kilometers)
-                .formatted(.measurement(width: .abbreviated, usage: .road)))
+            // The app's own units setting, the same one the distance was entered in.
+            parts.append(units.formatDistance(km: km))
         }
         return parts.joined(separator: " · ")
     }

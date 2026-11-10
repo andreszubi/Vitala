@@ -12,10 +12,6 @@ struct SettingsView: View {
     @State private var confirmingErase = false
     @AppStorage("vitala.onlineFoodSearch") private var onlineFoodSearch = true
 
-    private var exportFile: ExportFile? {
-        (try? DataExport(profile: profileStore.profile, store: .shared).jsonData()).map(ExportFile.init)
-    }
-
     var body: some View {
         Form {
             Section("You") {
@@ -62,10 +58,9 @@ struct SettingsView: View {
             }
 
             Section {
-                if let exportFile {
-                    ShareLink(item: exportFile, preview: SharePreview("Vitala data export")) {
-                        Label("Export my data", systemImage: "square.and.arrow.up")
-                    }
+                ShareLink(item: ExportFile(profile: profileStore.profile),
+                          preview: SharePreview("Vitala data export")) {
+                    Label("Export my data", systemImage: "square.and.arrow.up")
                 }
                 Button(role: .destructive) {
                     confirmingErase = true

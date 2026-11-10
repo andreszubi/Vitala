@@ -26,13 +26,16 @@ struct SessionPlayerView: View {
     @State private var finished = false
     /// Set once a session is saved; shows the completion screen.
     @State private var saved: LoggedMindfulness? = nil
-    /// This session's cues, shuffled when it opens.
-    @State private var prompts: [String]
+    /// This session's cues, shuffled when it opens. Dealt on appear, not in
+    /// `init`, which also runs for copies of this view that never show.
+    @State private var prompts: [String] = []
+    /// The clock stopped because the app left the screen, not because the
+    /// user paused; it starts again on return.
+    @State private var pausedForBackground = false
 
     init(session: MindfulnessSession, onJournal: ((LoggedMindfulness) -> Void)? = nil) {
         self.session = session
         self.onJournal = onJournal
-        _prompts = State(initialValue: PromptDeck.deal(for: session))
     }
 
     /// How long each cue stays on screen.
@@ -108,6 +111,7 @@ struct SessionPlayerView: View {
             // the menu lasts for that session only.
             soundChoice = AmbientSoundPlayer.Sound.defaultSound.rawValue
             ambient.play(sound, for: session.category)
+            if prompts.isEmpty { prompts = PromptDeck.deal(for: session) }
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
@@ -119,16 +123,31 @@ struct SessionPlayerView: View {
             if on { lastStepIndex = -1 } else { haptics.stop() }
         }
         .onChange(of: soundChoice) { _, _ in
-            ambient.play(sound, for: session.category)
-            if !isPlaying { ambient.pause() }
+            ambient.play(sound, for: session.category, paused: !isPlaying)
         }
         .onChange(of: expanded) { _, isExpanded in ambient.setBreath(expanded: isExpanded) }
         .onChange(of: scenePhase) { _, phase in
-            // The audio and haptic engines stop in the background; restart
-            // them on return, the haptics partway through the current breath.
-            if phase == .active && isPlaying && !finished {
-                ambient.play(sound, for: session.category)
-                lastStepIndex = -1
+            guard !finished else { return }
+            switch phase {
+            case .background:
+                // Sound and haptics stop in the background, so the clock
+                // does too: time away isn't counted as breathing.
+                if isPlaying {
+                    togglePlay()
+                    pausedForBackground = true
+                }
+            case .active:
+                if pausedForBackground {
+                    pausedForBackground = false
+                    if !isPlaying { togglePlay() }
+                } else if isPlaying {
+                    // Back from a brief interruption: restart anything the
+                    // system stopped, the haptics partway through the breath.
+                    ambient.play(sound, for: session.category)
+                    lastStepIndex = -1
+                }
+            default:
+                break
             }
         }
         .task {
@@ -351,7 +370,8 @@ struct SessionPlayerView: View {
                 AccessibilityNotification.Announcement(step.label).post()
             }
         }
-        if elapsed >= totalSeconds { save() }
+        // Not behind the "End session?" question: Discard must stay possible.
+        if elapsed >= totalSeconds && !confirmingEnd { save() }
     }
 
     private func togglePlay() {
@@ -364,6 +384,7 @@ struct SessionPlayerView: View {
         } else {
             runningSince = t
             ambient.resume()
+            pausedForBackground = false
             // Rejoin the breath where it was paused.
             lastStepIndex = -1
         }
@@ -376,6 +397,8 @@ struct SessionPlayerView: View {
         startedAt = .now
         lastStepIndex = -1
         now = .now
+        // Restarting also un-pauses, so bring the sound back with the clock.
+        ambient.resume()
     }
 
     private func endTapped() {

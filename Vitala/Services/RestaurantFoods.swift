@@ -8,10 +8,20 @@ struct RestaurantChain: Identifiable, Hashable {
     let name: String
     /// What to send USDA to list its items.
     let searchTerm: String
-    /// Other spellings USDA uses, when they differ from `name`.
-    var aliases: [String] = []
+    /// Every spelling of the chain as a key: its name, what USDA is asked
+    /// for, and any other spellings USDA uses.
+    let keys: [String]
+    /// Longest spelling first, so "Carrabba's Italian Grill" wins over "Carrabba's".
+    let prefixKeys: [String]
 
     var id: String { name }
+
+    init(name: String, searchTerm: String, aliases: [String] = []) {
+        self.name = name
+        self.searchTerm = searchTerm
+        keys = ([name, searchTerm] + aliases).map(Self.key)
+        prefixKeys = keys.sorted { $0.count > $1.count }
+    }
 
     static let all: [RestaurantChain] = [
         .init(name: "McDonald's", searchTerm: "mcdonalds"),
@@ -40,10 +50,6 @@ struct RestaurantChain: Identifiable, Hashable {
     static func key(_ text: String) -> String {
         String(text.lowercased().unicodeScalars.filter(CharacterSet.alphanumerics.contains))
     }
-
-    private var keys: [String] { ([name, searchTerm] + aliases).map(Self.key) }
-    /// Longest spelling first, so "Carrabba's Italian Grill" wins over "Carrabba's".
-    private var prefixKeys: [String] { keys.sorted { $0.count > $1.count } }
 
     /// The chain a search is asking for, when the whole query is its name.
     static func matching(_ query: String) -> RestaurantChain? {

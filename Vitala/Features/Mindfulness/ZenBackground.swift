@@ -53,6 +53,9 @@ struct ZenBackground: View {
     let scene: ZenScene
     let tint: Color
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// Motion is timed from here, a different point in its cycle each
+    /// session, so it never has a seam to jump across mid-session.
+    @State private var origin = Date.now.addingTimeInterval(-Double.random(in: 0..<900))
 
     var body: some View {
         Group {
@@ -63,9 +66,8 @@ struct ZenBackground: View {
                 ZStack {
                     Canvas { context, size in ZenPainter.backdrop(scene, context, size) }
                     TimelineView(.animation(minimumInterval: 1.0 / 20, paused: reduceMotion)) { timeline in
-                        // A fixed moment when motion is reduced; otherwise wall-clock seconds.
-                        let t = reduceMotion ? 40 : timeline.date.timeIntervalSinceReferenceDate
-                            .truncatingRemainder(dividingBy: 86_400)
+                        // A fixed moment when motion is reduced; otherwise seconds since the scene opened.
+                        let t = reduceMotion ? 40 : timeline.date.timeIntervalSince(origin)
                         ZStack {
                             Canvas(rendersAsynchronously: true) { context, size in
                                 ZenPainter.motion(scene, context, size, t)
