@@ -494,6 +494,18 @@ extension ExerciseDemo {
             .init(pose: $0, move: 0.17, ease: .linear)
         }, keyStep: 0))
 
+        // The same movements under the names used when building a workout.
+        if let squat = all[key("Goblet squat")] {
+            add("Squat", ExerciseDemo(squat.steps))
+        }
+        add("Plank", ExerciseDemo([
+            .init(pose: plank, move: 1.6, hold: 0.6),
+            .init(pose: plank.with { $0.hips = 106; $0.chest = 107 }, move: 1.6, hold: 0.6),
+        ], keyStep: 0))
+        if let run = all[key("Easy pace run")] {
+            add("Jog on the spot", run)
+        }
+
         return all
     }()
 }

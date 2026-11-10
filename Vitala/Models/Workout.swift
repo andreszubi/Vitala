@@ -63,6 +63,80 @@ struct Exercise: Codable, Identifiable, Hashable {
     }
 }
 
+extension Exercise {
+    /// Roughly how long the exercise takes as prescribed: its time for a
+    /// timed one; about three seconds a rep, with half a minute's rest
+    /// between sets, for a counted one.
+    var estimatedSeconds: Int {
+        let rounds = max(1, sets ?? 1)
+        if seconds > 0 { return seconds * rounds }
+        if let reps { return reps * 3 * rounds + 30 * (rounds - 1) }
+        return 60
+    }
+}
+
+extension Workout {
+    /// Built by the user rather than shipped with the app.
+    var isCustom: Bool { id.hasPrefix(Self.customPrefix) }
+    static let customPrefix = "custom."
+
+    /// A new workout built by the user, with its length and energy worked
+    /// out from the exercises in it.
+    static func custom(id: String? = nil, name: String, category: Category, difficulty: Difficulty,
+                       exercises: [Exercise], weightKg: Double?) -> Workout {
+        let id = id ?? customPrefix + UUID().uuidString
+        let minutes = estimatedMinutes(for: exercises)
+        return Workout(id: id, name: name, category: category, durationMinutes: minutes,
+                       caloriesBurned: estimatedCalories(category: category, minutes: minutes, weightKg: weightKg),
+                       difficulty: difficulty, imageSystemName: category.icon, coverTint: category.coverTint,
+                       exercises: exercises.enumerated().map { index, exercise in
+                           // The same exercise can appear twice; each needs its own id.
+                           var copy = exercise
+                           copy.id = "\(id).\(index).\(ExerciseVideo.fileName(for: exercise.name))"
+                           return copy
+                       })
+    }
+
+    /// Whole minutes to do every exercise as prescribed, at least one.
+    static func estimatedMinutes(for exercises: [Exercise]) -> Int {
+        let seconds = exercises.reduce(0) { $0 + $1.estimatedSeconds }
+        return max(1, Int((Double(seconds) / 60).rounded()))
+    }
+
+    /// Energy for a session of this kind, from typical effort (MET) for the
+    /// category, the time, and body weight (70 kg when it isn't known).
+    static func estimatedCalories(category: Category, minutes: Int, weightKg: Double?) -> Int {
+        let weight = weightKg.flatMap { $0 > 0 ? $0 : nil } ?? 70
+        return Int((category.typicalMET * weight * Double(minutes) / 60).rounded())
+    }
+}
+
+extension Workout.Category {
+    /// Typical effort, in METs, from the Compendium of Physical Activities.
+    var typicalMET: Double {
+        switch self {
+        case .yoga, .pilates: 3.0
+        case .mobility: 2.5
+        case .walking: 3.5
+        case .strength: 5.0
+        case .cardio: 7.0
+        case .running: 8.0
+        case .hiit: 9.0
+        }
+    }
+
+    /// Cover colour for a workout the user builds.
+    var coverTint: String {
+        switch self {
+        case .yoga: "#F4C28A"
+        case .strength, .mobility: "#88B5A6"
+        case .hiit, .cardio: "#E8806E"
+        case .pilates: "#B79BC9"
+        case .walking, .running: "#2F6B5C"
+        }
+    }
+}
+
 /// A logged workout session.
 struct WorkoutSession: Codable, Identifiable, Hashable {
     var id: String = UUID().uuidString
@@ -185,6 +259,45 @@ enum WorkoutLibrary {
             ]
         )
     ].map(\.withFixedIDs)
+}
+
+/// Every exercise a workout can be built from: the ones in the shipped
+/// workouts plus a few staples, each with a demonstration.
+enum ExerciseLibrary {
+    struct Entry: Identifiable, Hashable {
+        let exercise: Exercise
+        let category: Workout.Category
+        var id: String { exercise.id }
+    }
+
+    static let all: [Entry] = {
+        var seen = Set<String>()
+        var entries: [Entry] = []
+        func add(_ exercise: Exercise, _ category: Workout.Category) {
+            guard seen.insert(ExerciseDemo.key(exercise.name)).inserted else { return }
+            var copy = exercise
+            copy.id = "exercise." + ExerciseVideo.fileName(for: exercise.name)
+            entries.append(Entry(exercise: copy, category: category))
+        }
+        for workout in WorkoutLibrary.all {
+            for exercise in workout.exercises { add(exercise, workout.category) }
+        }
+        add(.init(name: "Squat", seconds: 0, reps: 15, sets: 3,
+                  instructions: "Feet shoulder-width, sit hips back and down, chest up.",
+                  icon: "figure.strengthtraining.functional"), .strength)
+        add(.init(name: "Plank", seconds: 30, reps: nil, sets: 3,
+                  instructions: "On hands and toes, body in one line. Breathe.",
+                  icon: "figure.core.training"), .strength)
+        add(.init(name: "Jog on the spot", seconds: 60, reps: nil, sets: nil,
+                  instructions: "Light feet, relaxed shoulders, easy breath.",
+                  icon: "figure.run"), .hiit)
+        return entries
+    }()
+
+    /// The categories that have exercises, in the order they are shown.
+    static var categories: [Workout.Category] {
+        Workout.Category.allCases.filter { category in all.contains { $0.category == category } }
+    }
 }
 
 private extension Workout {

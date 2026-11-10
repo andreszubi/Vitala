@@ -5,6 +5,7 @@ struct WorkoutsListView: View {
     @State private var showingLogActivity = false
     @State private var editingSession: WorkoutSession? = nil
     @State private var selectedDate: Date = .now
+    @State private var buildingWorkout = false
     @Environment(\.dynamicTypeSize) private var typeSize
 
     @ObservedObject private var store = DataStore.shared
@@ -12,6 +13,13 @@ struct WorkoutsListView: View {
     private var workouts: [Workout] {
         guard let category else { return WorkoutLibrary.all }
         return WorkoutLibrary.all.filter { $0.category == category }
+    }
+
+    private var sessionCount: Int { workouts.count + customWorkouts.count }
+
+    private var customWorkouts: [Workout] {
+        guard let category else { return store.customWorkouts }
+        return store.customWorkouts.filter { $0.category == category }
     }
 
     private var sessionsOnSelectedDate: [WorkoutSession] {
@@ -23,7 +31,7 @@ struct WorkoutsListView: View {
     private var columns: [GridItem] {
         typeSize.isAccessibilitySize
             ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)]
+            : [GridItem(.flexible(), spacing: 14, alignment: .top), GridItem(.flexible(), spacing: 14, alignment: .top)]
     }
 
     var body: some View {
@@ -45,8 +53,9 @@ struct WorkoutsListView: View {
                 sessionsForDateSection
 
                 VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-                    SectionHeader(title: "Library", trailing: "\(workouts.count) \(workouts.count == 1 ? "session" : "sessions")")
+                    SectionHeader(title: "Library", trailing: "\(sessionCount) \(sessionCount == 1 ? "session" : "sessions")")
                     categoryFilter
+                    yourWorkouts
                     LazyVGrid(columns: columns, spacing: 14) {
                         ForEach(workouts) { w in
                             NavigationLink(destination: WorkoutDetailView(workout: w)) {
@@ -55,7 +64,7 @@ struct WorkoutsListView: View {
                             .buttonStyle(PressableButtonStyle())
                         }
                     }
-                    if workouts.isEmpty {
+                    if sessionCount == 0 {
                         EmptyStateRow(text: "No sessions in this category yet.", icon: "sparkles")
                     }
                 }
@@ -70,6 +79,55 @@ struct WorkoutsListView: View {
         }
         .sheet(item: $editingSession) { session in
             NavigationStack { LogActivityView(editing: session) }
+        }
+        .sheet(isPresented: $buildingWorkout) {
+            NavigationStack { WorkoutBuilderView() }
+        }
+    }
+
+    /// Workouts the user built, above the shipped ones, and the way to
+    /// build another.
+    private var yourWorkouts: some View {
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            if !customWorkouts.isEmpty {
+                LazyVGrid(columns: columns, spacing: 14) {
+                    ForEach(customWorkouts) { w in
+                        NavigationLink(destination: WorkoutDetailView(workout: w)) {
+                            WorkoutCard(workout: w)
+                        }
+                        .buttonStyle(PressableButtonStyle())
+                    }
+                }
+            }
+            Button {
+                buildingWorkout = true
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title3)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Build your own workout")
+                            .font(VitalaFont.bodyMedium(15))
+                        Text("Pick exercises, then set the time or reps for each.")
+                            .font(VitalaFont.caption(12))
+                            .foregroundStyle(VitalaColor.textSecondary)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(VitalaColor.muted)
+                        .accessibilityHidden(true)
+                }
+                .padding(12)
+                .frame(minHeight: 44)
+                .foregroundStyle(VitalaColor.primary)
+                .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
+                    .fill(VitalaColor.primary.opacity(0.08)))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityIdentifier("activity.buildWorkout")
         }
     }
 
@@ -176,12 +234,23 @@ struct WorkoutCard: View {
                     .shadow(color: .black.opacity(0.15), radius: 4, y: 2)
             }
             .frame(height: 110)
+            .overlay(alignment: .topLeading) {
+                if workout.isCustom {
+                    Text("Yours")
+                        .font(VitalaFont.caption(11))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(.black.opacity(0.35)))
+                        .foregroundStyle(.white)
+                        .padding(8)
+                }
+            }
             .accessibilityHidden(true)
 
             Text(workout.name)
                 .font(VitalaFont.bodyMedium(15))
                 .foregroundStyle(VitalaColor.textPrimary)
                 .lineLimit(2, reservesSpace: true)
+                .multilineTextAlignment(.leading)
             ViewThatFits(in: .horizontal) {
                 HStack(spacing: 6) {
                     duration
@@ -199,7 +268,7 @@ struct WorkoutCard: View {
         .surfaceCard()
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(workout.name)
-        .accessibilityValue("\(workout.category.label), \(workout.durationMinutes) minutes, \(workout.difficulty.label)")
+        .accessibilityValue("\(workout.isCustom ? "Built by you, " : "")\(workout.category.label), \(workout.durationMinutes) minutes, \(workout.difficulty.label)")
     }
 
     private var duration: some View {

@@ -1,10 +1,23 @@
 import SwiftUI
 
 struct WorkoutDetailView: View {
-    let workout: Workout
+    /// The workout as it was when this screen opened.
+    private let opened: Workout
     @State private var startSession = false
     @State private var showing: Exercise?
+    @State private var editing = false
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var store = DataStore.shared
+
+    init(workout: Workout) {
+        opened = workout
+    }
+
+    /// A workout the user built can be edited from here, so show it as it is now.
+    private var workout: Workout {
+        store.customWorkouts.first { $0.id == opened.id } ?? opened
+    }
 
     var body: some View {
         ScrollView {
@@ -21,6 +34,18 @@ struct WorkoutDetailView: View {
         .navigationTitle(workout.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
+        .toolbar {
+            if workout.isCustom {
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Edit") { editing = true }
+                }
+            }
+        }
+        .sheet(isPresented: $editing) {
+            NavigationStack {
+                WorkoutBuilderView(editing: workout, onDelete: { dismiss() })
+            }
+        }
         .bottomActionBar {
             PrimaryButton(title: "Start session", icon: "play.fill") {
                 startSession = true
