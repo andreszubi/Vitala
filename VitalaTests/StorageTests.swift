@@ -90,10 +90,11 @@ struct StorageTests {
 
         let recovered = DataStore(files: files, defaults: defaults)
         #expect(recovered.water.map(\.amountMl) == [250])
-        guard case .restoredBackup = recovered.notice else {
+        guard case .restoredBackup(let savedOn) = recovered.notice else {
             Issue.record("expected a restore notice, got \(String(describing: recovered.notice))")
             return
         }
+        #expect(savedOn != nil, "the notice can say when the copy was saved")
         #expect(files.damagedFiles.count == 1)
         recovered.flush()
         #expect(DataStore(files: files, defaults: defaults).water.count == 1)

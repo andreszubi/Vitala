@@ -74,10 +74,6 @@ struct SecureFileStore {
         try? FileManager.default.removeItem(at: url(for: name))
     }
 
-    func modificationDate(_ name: String) -> Date? {
-        (try? FileManager.default.attributesOfItem(atPath: url(for: name).path))?[.modificationDate] as? Date
-    }
-
     /// Replaces `copy` with the current contents of `name`.
     func copy(_ name: String, to copy: String) {
         guard let data = loadData(name) else { return }

@@ -42,12 +42,10 @@ struct WorkoutBuilderView: View {
     var body: some View {
         Form {
             Section {
-                TextField("Name", text: $name, prompt: Text("Name, such as Morning circuit"))
-                    .textInputAutocapitalization(.sentences)
-                    .accessibilityLabel("Workout name")
+                FormTextField(label: "Name", text: $name, prompt: "Morning circuit")
                 Picker("Type", selection: $category) {
                     ForEach(Workout.Category.allCases) { c in
-                        Label(c.label, systemImage: c.icon).tag(c)
+                        Text(c.label).tag(c)
                     }
                 }
                 Picker("Level", selection: $difficulty) {

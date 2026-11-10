@@ -33,6 +33,9 @@ final class DataStore: ObservableObject {
     nonisolated static let fileName = "logs.json"
     /// The data file as it was the last time it loaded cleanly.
     nonisolated static let backupFileName = "logs.backup.json"
+    /// When the backup copy was last made. Kept here rather than read from
+    /// the file's timestamp, which is an API that needs a declared reason.
+    nonisolated static let backupDateKey = "vitala.logsBackupDate"
     /// Where data lived before 1.0. Read once, migrated, then removed.
     nonisolated static let legacyDefaultsKey = "vitala.demo.firestore"
 
@@ -281,6 +284,7 @@ final class DataStore: ObservableObject {
         files.delete(Self.backupFileName)
         files.deleteDamagedFiles()
         defaults.removeObject(forKey: Self.legacyDefaultsKey)
+        defaults.removeObject(forKey: Self.backupDateKey)
         isReadOnly = false
         changes = ChangeLog()
         if everywhere {
@@ -377,7 +381,10 @@ final class DataStore: ObservableObject {
             } else {
                 apply(snap)
                 // A copy to fall back on if the file is ever damaged.
-                saver.afterWrites { [files] in files.copy(Self.fileName, to: Self.backupFileName) }
+                saver.afterWrites { [files, defaults] in
+                    files.copy(Self.fileName, to: Self.backupFileName)
+                    defaults.set(Date.now, forKey: Self.backupDateKey)
+                }
             }
         case .damaged:
             recoverFromDamage()
@@ -398,7 +405,7 @@ final class DataStore: ObservableObject {
         }
         if case .loaded(let backup) = files.load(Snapshot.self, from: Self.backupFileName) {
             apply(backup)
-            notice = .restoredBackup(savedOn: files.modificationDate(Self.backupFileName))
+            notice = .restoredBackup(savedOn: defaults.object(forKey: Self.backupDateKey) as? Date)
             persist(notifying: false)
         } else {
             notice = .startedFresh
