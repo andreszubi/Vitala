@@ -10,7 +10,9 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 
 1. **Join the Apple Developer Program** (paid membership is required for HealthKit and App Store distribution).
 2. **Choose the bundle ID.** The project uses `com.vitala.healthyliving`. If that's taken or you prefer your own domain (for example `com.andreszubizarreta.vitala`), change `PRODUCT_BUNDLE_IDENTIFIER` for the Vitala target (and the two test targets' `.tests` / `.uitests` suffixes).
-3. In Xcode → Vitala target → **Signing & Capabilities**: pick your **Team**. Xcode registers the bundle ID and enables the **HealthKit** capability from `Vitala.entitlements`.
+3. In Xcode → Vitala target → **Signing & Capabilities**: pick your **Team**. Xcode registers the bundle ID and enables the **HealthKit** and **iCloud** capabilities from `Vitala.entitlements`.
+3a. **Create the iCloud container (once).** Still in Signing & Capabilities, the **iCloud** section should show **CloudKit** ticked and a container named `iCloud.` followed by the bundle ID (`iCloud.com.vitala.healthyliving`). If the container is listed in red or missing, press the refresh arrow, or **+** and enter that exact name, so Xcode creates it. Until it exists, builds for a real iPhone fail to sign. If you change the bundle ID, the container name follows it automatically.
+3b. **Deploy the CloudKit schema to Production before submitting.** Run a build from Xcode on your iPhone, turn on **Settings › iCloud sync** and log something, so the record type `VitalaData` is created in the Development environment. Then open [CloudKit Console](https://icloud.developer.apple.com) → the container → **Deploy Schema Changes…** and deploy to Production. TestFlight and App Store builds use Production: without this step, sync fails for every user while working for you in Xcode.
 4. **Publish the privacy policy and support pages.** In GitHub → repository **Settings › Pages**, deploy from the `main` branch, `/docs` folder. The pages then live at:
    - `https://andreszubi.github.io/Vitala/privacy-policy`
    - `https://andreszubi.github.io/Vitala/support`
@@ -42,7 +44,7 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 
 ### Promotional text (≤170)
 
-> Water, meals, movement, sleep, breathing and journaling in one calm daily rhythm. Private by design — everything stays on your iPhone.
+> Water, meals, movement, sleep, breathing and journaling in one calm daily rhythm. Private by design: on your iPhone, or in your own iCloud if you choose.
 
 ### Description
 
@@ -56,12 +58,14 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > MOVE
 > • Guided sessions — yoga, strength, HIIT, mobility and running — with timers that count down each exercise
 > • An animated demonstration of every exercise, so you can see how it's done
+> • Build your own workout from the exercise library: choose the exercises, then the time or reps for each
 > • Log any activity with type, duration, energy and distance
 >
 > EAT WELL
 > • Search hundreds of thousands of foods with real portions, or scan a barcode to log packaged food
 > • Find meals from popular restaurant chains and log them by the item
 > • Log breakfast, lunch, dinner and snacks, with custom and recent foods that work offline
+> • Star the foods you eat most, save a whole meal to log again in one tap, or repeat yesterday's
 > • See calories, protein, carbs and fat against a target suggested from your profile
 > • Track fiber, sugar, saturated and unsaturated fat and sodium, and tap any food or meal for its full nutrition
 >
@@ -70,10 +74,12 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > • Spa sound, crystal singing bowls, ocean waves and optional binaural tones, generated live on your iPhone
 > • Peaceful animated scenes — ocean at dusk, rain on water, starry night, misty mountains, aurora
 > • Gentle haptics you can feel building as you breathe in and easing as you breathe out
+> • Lock your iPhone and the sound carries on until the session ends
 >
 > REFLECT
 > • Keep a private mood journal: pick how you feel, write whatever's on your mind
 > • Journal right after a breathing session, or any time; look back day by day
+> • See your mood over the week and the month, and which moods come up most
 >
 > SLEEP
 > • Log bedtime, wake time and how it felt, or let nights from Apple Watch and the iPhone sleep schedule fill in automatically
@@ -86,8 +92,11 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > WORKS WITH APPLE HEALTH
 > Connect Apple Health to see steps, heart rate, sleep and food from your other apps in Vitala, and to save the water, sleep, mindful sessions and workouts you log back to Health. Health is optional — Vitala works fully without it.
 >
+> ON ALL YOUR IPHONES, IF YOU WANT
+> Turn on iCloud sync and your logs, journal, favourite foods, saved meals and workouts match on every iPhone you sign in to. It is off until you choose it, and uses your own private iCloud.
+>
 > PRIVATE BY DESIGN
-> No account. No servers. No ads or tracking. Everything stays on your iPhone, and you can export or erase it any time.
+> No account. No servers of ours. No ads or tracking. Everything stays on your iPhone, or in your own iCloud if you turn sync on, and you can export or erase it any time.
 >
 > ACCESSIBLE
 > Dynamic Type, VoiceOver with spoken chart summaries, Reduce Motion and high-contrast colours throughout.
@@ -106,6 +115,10 @@ Recommended answer: **"No, we do not collect data from this app."**
 
 Why: "collect" means data transmitted off the device in a way that you or third-party partners can access beyond serving the request in real time. Vitala has no servers, analytics, ads or third-party SDKs; logs stay on the device and in the user's own Apple Health. The privacy manifest (`Vitala/Resources/PrivacyInfo.xcprivacy`) declares no tracking and no collected data types, and the one required-reason API (UserDefaults, reason CA92.1).
 
+**iCloud sync does not change this answer.** With sync on, a copy of the user's logs goes to the private database of *their own* iCloud account through CloudKit. Neither you nor any third party can read a private CloudKit database, so by Apple's definition the data is not "collected". The privacy policy discloses it, and sync is off until the user turns it on.
+
+**Read guideline 5.1.3 before submitting.** It restricts keeping personal health information in iCloud. Vitala's position: sync is opt-in; it covers only what the user typed into Vitala; nothing read from HealthKit is ever stored or synced (steps, heart rate and imported sleep and food are read live and never saved); and the profile with height and weight is not synced at all. The review notes below say so. If App Review objects, the fallback is to keep favourite foods, saved meals and built workouts in sync and take the logs and journal out of it, which is a contained change in `SyncMerge`.
+
 **Food search and barcode lookups are the one judgement call.** The typed search words (e.g. "banana") or a scanned barcode number go to USDA FoodData Central (and, for barcodes not found there, Open Food Facts), with no identifiers, only to answer that lookup. That fits "processed in real time to serve the request", so "Data Not Collected" stays defensible. If you'd rather be maximally cautious, declare **Search History → App Functionality → Not linked to the user → Not used for tracking** instead. Either way the privacy policy already discloses it, and users can switch it off in Settings › Food search.
 
 ## 5. Notes for App Review
@@ -117,6 +130,10 @@ Paste into **App Review Information › Notes**:
 > HealthKit: Vitala reads steps, active energy, exercise minutes, walking/running distance, heart rate, sleep analysis, mindful minutes, and dietary energy, protein, carbohydrates and fat recorded by other apps to show daily progress and history, and writes dietary water, sleep analysis, mindful sessions and workouts that the user logs in the app. HealthKit is optional; the Connect button is on the Today screen and in Profile › Apple Health. HealthKit data is never shared, sold or used for advertising, and never leaves the device through Vitala.
 >
 > Mindfulness sessions play ambient sound and animated scenes generated on the device, with optional haptic guidance; no audio, video or third-party content is included. Journal entries (a mood and free text) are stored only on the device and are not written to HealthKit.
+>
+> Background audio: a breathing session's ambient sound is generated on the device and keeps playing when the user locks the screen, until the session ends or is paused. This is the only use of the audio background mode; a paused or silent session releases the audio session.
+>
+> iCloud sync (optional, off by default; Settings › iCloud sync): when the user turns it on, the entries they logged in Vitala are stored in the private CloudKit database of their own iCloud account so their other devices can show them. No data read from HealthKit is stored or synced, and the developer has no access to the private database. The user can delete the iCloud copy from the same screen.
 >
 > Notifications are optional daily reminders the user configures in Settings › Reminders.
 >
@@ -166,6 +183,13 @@ Set a clean status bar first with `xcrun simctl status_bar booted override --tim
 - [ ] Workouts: each exercise shows a demonstration in the list and the player; it pauses with the workout; with music playing from another app, starting a workout does not stop it
 - [ ] Breathing session: opens on the scene matching its kind; haptics build on the in-breath, ease on the out-breath, stop on pause and can be switched off; cues change every 20 seconds and differ between sessions
 - [ ] Nutrition: a scanned product shows its full name and brand; tapping a food shows its nutrition; tapping Breakfast/Lunch/Dinner/Snack shows that meal's totals
+- [ ] Breathing session with the screen locked: start a session with sound, lock the iPhone; the sound carries on, and on unlocking the timer has kept pace. Let one finish while locked: the sound fades and the session is saved. Pause, then lock: nothing plays and the timer has not moved on return. Take a phone call mid-session with the screen locked and check what the timer shows afterwards
+- [ ] Favourites and saved meals: star a food and it leads the list next time; save a meal, log it again in one tap; "Same as yesterday" appears on an empty meal and adds yesterday's foods
+- [ ] Build a workout: add exercises (one of them twice), set time on one and reps on another, reorder, save; it runs in the player, and Edit and Delete work
+- [ ] Mood: the Journal's week strip shows the right mood under each day; Progress › Mood matches the entries at 7 and 30 days
+- [ ] iCloud sync, two iPhones on one Apple Account: turn it on on both; an entry logged on one appears on the other after opening it; an edit and a delete travel too; log on both while one is in Airplane Mode, reconnect, and both end up with everything
+- [ ] iCloud sync: signed out of iCloud, the screen says so and nothing is lost; Erase all data with sync on clears the other iPhone's logs after it next opens; Delete the iCloud copy turns sync off and leaves the iPhone's data
+- [ ] Damaged data: not testable by hand without tampering with the app's files; covered by unit tests
 - [ ] Profile photo: add, change and remove
 - [ ] Export my data produces a readable JSON file; Erase all data returns to onboarding
 - [ ] VoiceOver walkthrough of every tab; Larger Text at the largest size; Dark Mode; Reduce Motion
