@@ -81,3 +81,47 @@ struct LoggedMindfulness: Codable, Identifiable, Hashable {
     var minutes: Int
     var completedAt: Date
 }
+
+/// A stopwatch for a session. It counts wall-clock time rather than ticks,
+/// so it stays right while the screen is locked and the app only wakes now
+/// and then.
+struct SessionClock: Equatable {
+    private var accumulated: TimeInterval = 0
+    private var runningSince: Date?
+
+    /// Starts running straight away.
+    init(startingAt start: Date = .now) {
+        runningSince = start
+    }
+
+    var isRunning: Bool { runningSince != nil }
+
+    func elapsed(at now: Date) -> TimeInterval {
+        accumulated + (runningSince.map { max(0, now.timeIntervalSince($0)) } ?? 0)
+    }
+
+    mutating func pause(at now: Date) {
+        guard let since = runningSince else { return }
+        accumulated += max(0, now.timeIntervalSince(since))
+        runningSince = nil
+    }
+
+    mutating func resume(at now: Date) {
+        guard runningSince == nil else { return }
+        runningSince = now
+    }
+
+    /// The longest two readings can be apart while the app is running; a
+    /// player reads the clock several times a second.
+    static let longestTick: TimeInterval = 3
+
+    /// Leaves out the time between two readings when they are so far apart
+    /// that the app must have been suspended in between: nothing was playing
+    /// then, so it doesn't count.
+    mutating func leaveOutGap(since last: Date, until now: Date) {
+        let gap = now.timeIntervalSince(last)
+        guard gap > Self.longestTick, let since = runningSince else { return }
+        // Never push the start past now, however odd the two readings are.
+        runningSince = min(now, since.addingTimeInterval(gap))
+    }
+}

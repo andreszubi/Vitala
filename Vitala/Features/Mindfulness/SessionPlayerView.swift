@@ -17,9 +17,8 @@ struct SessionPlayerView: View {
     @AppStorage(BreathHaptics.storageKey) private var hapticsOn = true
 
     @State private var startedAt: Date = .now
-    /// Wall-clock bookkeeping so timing stays right if the app is backgrounded.
-    @State private var accumulated: TimeInterval = 0
-    @State private var runningSince: Date? = .now
+    /// Runs on wall-clock time, so it stays right with the screen locked.
+    @State private var clock = SessionClock()
     @State private var now: Date = .now
     @State private var lastStepIndex: Int = -1
     @State private var confirmingEnd = false
@@ -44,11 +43,9 @@ struct SessionPlayerView: View {
     private var pattern: [MindfulnessSession.BreathStep] { session.category.pattern }
     private var cycleLength: Int { pattern.reduce(0) { $0 + $1.seconds } }
     private var totalSeconds: Int { session.minutes * 60 }
-    private var isPlaying: Bool { runningSince != nil }
+    private var isPlaying: Bool { clock.isRunning }
 
-    private var elapsedPrecise: TimeInterval {
-        accumulated + (runningSince.map { now.timeIntervalSince($0) } ?? 0)
-    }
+    private var elapsedPrecise: TimeInterval { clock.elapsed(at: now) }
     private var elapsed: Int { Int(elapsedPrecise) }
     private var progress: Double { min(1, elapsedPrecise / Double(max(totalSeconds, 1))) }
 
@@ -130,19 +127,27 @@ struct SessionPlayerView: View {
             guard !finished else { return }
             switch phase {
             case .background:
-                // Sound and haptics stop in the background, so the clock
-                // does too: time away isn't counted as breathing.
+                // Haptics can't play with the screen off.
+                haptics.stop()
+                // A sound that is playing carries on with the screen locked,
+                // and the clock with it.
+                if isPlaying && sound != .silent { break }
+                // Otherwise nothing would be heard, so the clock stops too:
+                // time away isn't counted as breathing.
                 if isPlaying {
                     togglePlay()
                     pausedForBackground = true
                 }
+                // An app making no sound lets go of the audio hardware.
+                ambient.suspend()
             case .active:
                 if pausedForBackground {
                     pausedForBackground = false
                     if !isPlaying { togglePlay() }
                 } else if isPlaying {
-                    // Back from a brief interruption: restart anything the
-                    // system stopped, the haptics partway through the breath.
+                    // Back from the lock screen or a brief interruption:
+                    // restart anything the system stopped, and rejoin the
+                    // haptics partway through the breath.
                     ambient.play(sound, for: session.category)
                     lastStepIndex = -1
                 }
@@ -356,7 +361,11 @@ struct SessionPlayerView: View {
 
     private func tick() {
         guard !finished else { return }
-        now = .now
+        let t = Date.now
+        // If the app was suspended (a call cut the sound off while the
+        // screen was locked, say), that stretch wasn't spent breathing.
+        clock.leaveOutGap(since: now, until: t)
+        now = t
         let index = position.index
         if isPlaying && index != lastStepIndex {
             let rejoining = lastStepIndex == -1
@@ -376,13 +385,12 @@ struct SessionPlayerView: View {
 
     private func togglePlay() {
         let t = Date.now
-        if let since = runningSince {
-            accumulated += t.timeIntervalSince(since)
-            runningSince = nil
+        if clock.isRunning {
+            clock.pause(at: t)
             ambient.pause()
             haptics.stop()
         } else {
-            runningSince = t
+            clock.resume(at: t)
             ambient.resume()
             pausedForBackground = false
             // Rejoin the breath where it was paused.
@@ -392,8 +400,7 @@ struct SessionPlayerView: View {
     }
 
     private func restart() {
-        accumulated = 0
-        runningSince = .now
+        clock = SessionClock()
         startedAt = .now
         lastStepIndex = -1
         now = .now
