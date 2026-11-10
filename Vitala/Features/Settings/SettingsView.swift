@@ -10,6 +10,10 @@ struct SettingsView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
+    @ObservedObject private var sync = CloudSync.shared
+    /// Data files that were damaged and set aside, if any.
+    @State private var damagedFiles: [URL] = []
+    @State private var confirmingDeleteDamaged = false
     @AppStorage("vitala.onlineFoodSearch") private var onlineFoodSearch = true
 
     var body: some View {
@@ -58,6 +62,11 @@ struct SettingsView: View {
             }
 
             Section {
+                NavigationLink {
+                    CloudSyncView()
+                } label: {
+                    LabeledContent("iCloud sync", value: sync.isOn ? "On" : "Off")
+                }
                 ShareLink(item: ExportFile(profile: profileStore.profile),
                           preview: SharePreview("Vitala data export")) {
                     Label("Export my data", systemImage: "square.and.arrow.up")
@@ -71,8 +80,29 @@ struct SettingsView: View {
             } header: {
                 Text("Your data")
             } footer: {
-                Text("Vitala keeps everything on this iPhone. Export creates a JSON file you can save anywhere.")
+                Text(sync.isOn
+                     ? "Vitala keeps everything on this iPhone and, with iCloud sync on, in your private iCloud. Export creates a JSON file you can save anywhere."
+                     : "Vitala keeps everything on this iPhone. Export creates a JSON file you can save anywhere.")
                     .foregroundStyle(VitalaColor.textSecondary)
+            }
+
+            if !damagedFiles.isEmpty {
+                Section {
+                    ShareLink(items: damagedFiles) {
+                        Label("Send damaged \(damagedFiles.count == 1 ? "file" : "files")", systemImage: "square.and.arrow.up")
+                    }
+                    Button(role: .destructive) {
+                        confirmingDeleteDamaged = true
+                    } label: {
+                        Label("Delete damaged \(damagedFiles.count == 1 ? "file" : "files")", systemImage: "trash")
+                            .foregroundStyle(VitalaColor.danger)
+                    }
+                } header: {
+                    Text("Recovered data")
+                } footer: {
+                    Text("Vitala found a data file it couldn't read and set it aside instead of deleting it. It may contain your logs or journal, so send it only to someone you trust, such as Vitala support.")
+                        .foregroundStyle(VitalaColor.textSecondary)
+                }
             }
 
             Section("About") {
@@ -88,11 +118,24 @@ struct SettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar(.visible, for: .navigationBar)
         .task { await notifications.refreshStatus() }
+        .onAppear { damagedFiles = SecureFileStore().damagedFiles }
+        .confirmationDialog("Delete the damaged \(damagedFiles.count == 1 ? "file" : "files")?",
+                            isPresented: $confirmingDeleteDamaged, titleVisibility: .visible) {
+            Button("Delete", role: .destructive) {
+                SecureFileStore().deleteDamagedFiles()
+                damagedFiles = []
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Anything in it that Vitala couldn't recover will be gone for good.")
+        }
         .confirmationDialog("Erase all data?", isPresented: $confirmingErase, titleVisibility: .visible) {
             Button("Erase everything", role: .destructive, action: eraseEverything)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
+            Text(sync.isOn
+                 ? "This permanently deletes your profile, goals and every log from this iPhone, and every log from iCloud and your other devices that sync with it. Anything already saved to Apple Health stays there."
+                 : "This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
         }
     }
 
@@ -103,7 +146,9 @@ struct SettingsView: View {
     }
 
     private func eraseEverything() {
-        DataStore.shared.eraseAll()
+        // With sync on, the erase is passed on to iCloud and other devices.
+        DataStore.shared.eraseAll(everywhere: sync.isOn)
+        if sync.isOn { Task { await sync.syncNow() } }
         notifications.reset()
         profileStore.erase()
         unitsService.system = .metric

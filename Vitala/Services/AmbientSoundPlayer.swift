@@ -4,6 +4,10 @@ import Foundation
 /// Calm background sound for mindfulness sessions, synthesised on device —
 /// no audio files and nothing to license. A soft spa pad, gentle "ocean"
 /// noise that swells with each breath, and optional binaural tones.
+///
+/// The app declares the audio background mode, so a sound that is playing
+/// carries on when the screen locks. A paused or silent session must not
+/// hold the hardware in the background: see `suspend`.
 @MainActor
 final class AmbientSoundPlayer {
     enum Sound: String, CaseIterable, Identifiable {
@@ -67,13 +71,35 @@ final class AmbientSoundPlayer {
 
     func pause() { synth.targetGain = 0 }
 
-    /// Fades back in, restarting the engine if the system stopped it while
-    /// the session was paused (in the background, say).
+    /// Fades back in, restarting the engine if it was stopped while the
+    /// session was paused (see `suspend`) or by the system.
     func resume() {
         guard wantsSound else { return }
+        stopTask?.cancel()
         synth.targetGain = 1
         start()
     }
+
+    /// For a paused session leaving the screen: fades out, then lets go of
+    /// the audio hardware, so an app making no sound isn't kept running in
+    /// the background. `resume()` brings the sound back.
+    func suspend() {
+        synth.targetGain = 0
+        guard wantsSound else { return }
+        stopTask?.cancel()
+        stopTask = Task { [engine, lease] in
+            try? await Task.sleep(for: .milliseconds(Self.fadeOutMilliseconds))
+            guard !Task.isCancelled else { return }
+            Self.audioQueue.async {
+                engine.stop()
+                Self.releaseSession(lease)
+            }
+        }
+    }
+
+    /// Long enough for the fade to reach silence; cutting the engine off
+    /// sooner is heard as a tick.
+    private static let fadeOutMilliseconds = 2800
 
     /// Makes sure the session is active and the engine is running. Safe to
     /// call when they already are.
@@ -129,9 +155,7 @@ final class AmbientSoundPlayer {
         observers.forEach(NotificationCenter.default.removeObserver)
         observers = []
         stopTask = Task { [engine, lease] in
-            // Long enough for the fade to reach silence; cutting the engine
-            // off sooner is heard as a tick.
-            try? await Task.sleep(for: .milliseconds(2800))
+            try? await Task.sleep(for: .milliseconds(Self.fadeOutMilliseconds))
             guard !Task.isCancelled else { return }
             Self.audioQueue.async {
                 engine.stop()

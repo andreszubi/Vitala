@@ -4,15 +4,24 @@ title: Vitala Privacy Policy
 
 # Vitala Privacy Policy
 
-_Last updated: October 28, 2026_
+_Last updated: November 10, 2026_
 
 Vitala is built so your wellness data stays yours.
 
 ## What Vitala stores
 
-Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep, mindful sessions and journal entries you log — is stored **only on your iPhone**, in Vitala's private app storage, protected by iOS Data Protection.
+Everything you enter — your name, an optional profile photo, birthday, height, weight and goals, and the water, meals, workouts, sleep, mindful sessions and journal entries you log — is stored **on your iPhone**, in Vitala's private app storage, protected by iOS Data Protection. Unless you turn on iCloud sync, it stays only there.
 
 Vitala has no account system and no servers of its own. We never receive, sell or share your data.
+
+## iCloud sync (optional, off by default)
+
+If you turn on **Settings › iCloud sync**, Vitala keeps a copy of your logs, journal entries, favourite foods, saved meals and the workouts you build in **your own private iCloud storage**, so your other devices signed in to the same Apple Account show the same data.
+
+- Apple stores it under your account and encrypts it in transit and on its servers. Vitala's developer cannot read it.
+- Your profile, goals and photo are not synced.
+- Nothing Vitala reads from Apple Health is ever included.
+- You can turn sync off at any time. **Settings › iCloud sync › Delete the iCloud copy** removes the copy from iCloud.
 
 ## Apple Health
 
@@ -50,7 +59,7 @@ Vitala contains no analytics, advertising or tracking code, and does not track y
 ## Your choices
 
 - **Export:** Settings › Export my data creates a JSON file of everything Vitala stores, which you can save or share.
-- **Erase:** Settings › Erase all data permanently removes everything Vitala stored on your device. Data already saved to Apple Health stays in Health, where you can delete it.
+- **Erase:** Settings › Erase all data permanently removes everything Vitala stored on your device. With iCloud sync on, it also removes your logs from iCloud and from your other devices that sync. Data already saved to Apple Health stays in Health, where you can delete it.
 - **Delete the app:** removes all of Vitala's data from your device.
 
 ## Children

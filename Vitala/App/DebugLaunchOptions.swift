@@ -28,7 +28,10 @@ enum DebugLaunchOptions {
     private static func reset() {
         let files = SecureFileStore()
         files.delete(DataStore.fileName)
+        files.delete(DataStore.backupFileName)
         files.delete(ProfileStore.fileName)
+        files.delete(ProfileStore.backupFileName)
+        files.deleteDamagedFiles()
         files.delete(ProfileStore.avatarFileName)
         if let domain = Bundle.main.bundleIdentifier {
             UserDefaults.standard.removePersistentDomain(forName: domain)

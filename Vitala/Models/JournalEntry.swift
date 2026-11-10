@@ -15,6 +15,19 @@ struct JournalEntry: Codable, Identifiable, Hashable {
         case great, good, calm, okay, tired, anxious, stressed, sad, frustrated
         var id: String { rawValue }
         var label: String { rawValue.capitalized }
+        /// How light or heavy the mood is, from 1 (low) to 5 (great), so
+        /// days can be averaged and compared. Several moods share a score:
+        /// it places a mood on a scale, it doesn't rank one person's feelings.
+        var score: Int {
+            switch self {
+            case .great: 5
+            case .good, .calm: 4
+            case .okay: 3
+            case .tired, .anxious, .stressed: 2
+            case .sad, .frustrated: 1
+            }
+        }
+
         var icon: String {
             switch self {
             case .great: "sun.max.fill"

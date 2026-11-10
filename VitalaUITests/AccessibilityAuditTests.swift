@@ -197,4 +197,42 @@ final class AccessibilityAuditTests: XCTestCase {
         audit(app, "Edit profile", isSheet: true)
         app.navigationBars["Edit profile"].buttons["Cancel"].tap()
     }
+
+    @MainActor
+    func testWorkoutBuilderAndSyncScreensAreAccessible() throws {
+        let app = launch(["-seedSampleData"])
+        XCTAssertTrue(app.tabBars.firstMatch.waitForExistence(timeout: 10))
+
+        openTab(app, "Activity")
+        let build = app.buttons["activity.buildWorkout"]
+        XCTAssertTrue(build.waitForExistence(timeout: 5))
+        build.tap()
+        XCTAssertTrue(app.navigationBars["Build a workout"].waitForExistence(timeout: 5))
+        audit(app, "Workout builder", isSheet: true)
+
+        app.buttons["builder.addExercises"].tap()
+        XCTAssertTrue(app.navigationBars["Add exercises"].waitForExistence(timeout: 5))
+        audit(app, "Exercise picker", isSheet: true)
+        // Adding one makes Save possible once the workout has a name.
+        app.buttons["Push-up, 3 × 10 reps"].firstMatch.tap()
+        app.navigationBars["Add exercises"].buttons.element(boundBy: 0).tap()
+        XCTAssertTrue(app.navigationBars["Build a workout"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.navigationBars["Build a workout"].buttons["Save"].isEnabled, "a workout needs a name")
+        let name = app.textFields["Name"]
+        name.tap()
+        name.typeText("Test circuit")
+        XCTAssertTrue(app.navigationBars["Build a workout"].buttons["Save"].isEnabled)
+        audit(app, "Workout builder with an exercise", isSheet: true)
+        app.navigationBars["Build a workout"].buttons["Save"].tap()
+        XCTAssertTrue(app.staticTexts["Test circuit"].waitForExistence(timeout: 5), "the built workout is listed")
+
+        openTab(app, "Today")
+        app.buttons["profile.button"].firstMatch.tap()
+        app.buttons["profile.settings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 5))
+        app.staticTexts["iCloud sync"].firstMatch.tap()
+        XCTAssertTrue(app.navigationBars["iCloud sync"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.switches["sync.toggle"].exists)
+        audit(app, "iCloud sync")
+    }
 }

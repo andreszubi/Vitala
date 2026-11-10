@@ -163,6 +163,10 @@ struct MindfulnessView: View {
             SectionHeader(title: "Journal",
                           trailing: journalOnSelectedDay.isEmpty ? nil : "\(journalOnSelectedDay.count) \(journalOnSelectedDay.count == 1 ? "entry" : "entries")")
 
+            if !store.journal.isEmpty {
+                MoodWeekStrip(entries: store.journal, selected: $journalDate)
+            }
+
             DateNavigator(date: $journalDate)
 
             if journalOnSelectedDay.isEmpty {
@@ -260,5 +264,56 @@ private struct SessionRow: View {
         .padding(12)
         .surfaceCard()
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The last seven days at a glance: each day's most recent mood. Tapping a
+/// day shows its entries.
+private struct MoodWeekStrip: View {
+    let entries: [JournalEntry]
+    @Binding var selected: Date
+
+    private var days: [Date] { Insights.lastDays(7) }
+
+    var body: some View {
+        let moods = Dictionary(uniqueKeysWithValues: MoodTrends.days(entries, in: days).map { ($0.date, $0) })
+        HStack(spacing: 4) {
+            ForEach(days, id: \.self) { day in
+                let mood = moods[day]
+                let isSelected = Calendar.current.isDate(day, inSameDayAs: selected)
+                Button {
+                    selected = day
+                } label: {
+                    VStack(spacing: 6) {
+                        Text(day.formatted(.dateTime.weekday(.narrow)))
+                            .font(VitalaFont.caption(12))
+                            .foregroundStyle(VitalaColor.textSecondary)
+                        Image(systemName: mood?.latest.icon ?? "circle.dotted")
+                            .font(.body)
+                            .foregroundStyle(mood == nil ? VitalaColor.muted.opacity(0.6) : VitalaColor.mindful)
+                            .frame(height: 22)
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(isSelected ? VitalaColor.mindful.opacity(0.16) : .clear))
+                    .overlay {
+                        if isSelected {
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .stroke(VitalaColor.mindful, lineWidth: 1.5)
+                        }
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(day.formatted(.dateTime.weekday(.wide).month().day()))
+                .accessibilityValue(mood.map { "\($0.latest.label), \($0.entries) \($0.entries == 1 ? "entry" : "entries")" } ?? "No entry")
+                .accessibilityHint("Shows that day's entries")
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+        .padding(6)
+        .surfaceCard()
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Mood this week")
     }
 }

@@ -17,6 +17,7 @@ struct StorageTests {
         let store = DataStore(files: files, defaults: defaults)
         try await store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
         try await store.logMeal(Meal(date: .now, type: .lunch, items: [FoodLibrary.common[0]]))
+        store.flush()
 
         let relaunched = DataStore(files: files, defaults: defaults)
         #expect(relaunched.water.map(\.amountMl) == [250])
@@ -28,6 +29,7 @@ struct StorageTests {
         let store = DataStore(files: files, defaults: defaults)
         try await store.saveJournal(JournalEntry(date: .now, mood: .calm, text: "Felt lighter.\nSecond line",
                                                  sessionId: "s1", sessionTitle: "Box breathing"))
+        store.flush()
         let relaunched = DataStore(files: files, defaults: defaults)
         #expect(relaunched.journal.first?.mood == .calm)
         #expect(relaunched.journal.first?.preview == "Felt lighter.")
@@ -54,24 +56,140 @@ struct StorageTests {
         #expect(FileManager.default.fileExists(atPath: files.url(for: DataStore.fileName).path))
     }
 
-    @Test func unreadableFileIsNeverOverwritten() async throws {
+    @Test func aDamagedFileIsSetAsideNotOverwritten() async throws {
         let (files, defaults) = makeSandbox()
         try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
         let garbage = Data("not json".utf8)
         try garbage.write(to: files.url(for: DataStore.fileName))
 
         let store = DataStore(files: files, defaults: defaults)
+        #expect(store.notice == .startedFresh)
+        // The damaged bytes are still there, under another name…
+        let kept = try #require(files.damagedFiles.first)
+        #expect(try Data(contentsOf: kept) == garbage)
+        // …and logging works again.
         try await store.logWater(WaterEntry(amountMl: 100, loggedAt: .now))
-        #expect(try Data(contentsOf: files.url(for: DataStore.fileName)) == garbage)
+        store.flush()
+        let relaunched = DataStore(files: files, defaults: defaults)
+        #expect(relaunched.water.map(\.amountMl) == [100])
+        #expect(relaunched.notice == nil)
+    }
+
+    @Test func aDamagedFileFallsBackToTheLastGoodCopy() async throws {
+        let (files, defaults) = makeSandbox()
+        let store = DataStore(files: files, defaults: defaults)
+        try await store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
+        store.flush()
+        // A clean launch saves a copy of the file.
+        let second = DataStore(files: files, defaults: defaults)
+        second.flush()
+        #expect(files.exists(DataStore.backupFileName))
+        // The file is cut short, as if a write had been interrupted.
+        let whole = try Data(contentsOf: files.url(for: DataStore.fileName))
+        try whole.prefix(whole.count / 2).write(to: files.url(for: DataStore.fileName))
+
+        let recovered = DataStore(files: files, defaults: defaults)
+        #expect(recovered.water.map(\.amountMl) == [250])
+        guard case .restoredBackup(let savedOn) = recovered.notice else {
+            Issue.record("expected a restore notice, got \(String(describing: recovered.notice))")
+            return
+        }
+        #expect(savedOn != nil, "the notice can say when the copy was saved")
+        #expect(files.damagedFiles.count == 1)
+        recovered.flush()
+        #expect(DataStore(files: files, defaults: defaults).water.count == 1)
+    }
+
+    @Test func oneBadEntryCostsOnlyItself() throws {
+        let (files, defaults) = makeSandbox()
+        try FileManager.default.createDirectory(at: files.directory, withIntermediateDirectories: true)
+        let json = """
+        {"summaries": {}, "workouts": "oops", "meals": [],
+         "water": [{"id": "a", "amountMl": 250, "loggedAt": 700000000, "icon": "drop.fill"},
+                   {"id": "b", "amountMl": "lots", "loggedAt": 700000100},
+                   42,
+                   {"id": "c", "amountMl": 500, "loggedAt": 700000200, "icon": "drop.fill"}],
+         "sleep": [], "mindfulness": [],
+         "journal": [{"id": "j", "date": 700000000, "mood": "elated", "text": "?"},
+                     {"id": "k", "date": 700000000, "mood": "calm", "text": "Fine"}]}
+        """
+        try Data(json.utf8).write(to: files.url(for: DataStore.fileName))
+
+        let store = DataStore(files: files, defaults: defaults)
+        #expect(store.water.map(\.id) == ["a", "c"])
+        #expect(store.journal.map(\.id) == ["k"])
+        // Two water entries, one journal entry and the workouts list.
+        #expect(store.notice == .skippedEntries(4))
+        // The original is kept before the file is rewritten without them.
+        #expect(try Data(contentsOf: try #require(files.damagedFiles.first)) == Data(json.utf8))
+        store.flush()
+        let relaunched = DataStore(files: files, defaults: defaults)
+        #expect(relaunched.water.count == 2)
+        #expect(relaunched.notice == nil)
+    }
+
+    @Test func quickChangesBecomeOneWriteAndFlushWaitsForIt() throws {
+        let lock = NSLock()
+        var written: [Int] = []
+        let saver = BackgroundSaver<Int>(delay: 0.05) { value in
+            lock.lock(); written.append(value); lock.unlock()
+        }
+        for value in 1...50 { saver.save(value) }
+        saver.flush()
+        lock.lock(); let afterFlush = written; lock.unlock()
+        #expect(afterFlush.last == 50, "the newest value is on disk when flush returns")
+        #expect(afterFlush.count <= 2, "fifty changes don't mean fifty writes")
+
+        saver.save(51)
+        saver.cancel()
+        saver.flush()
+        lock.lock(); let afterCancel = written; lock.unlock()
+        #expect(afterCancel.last == 50, "a cancelled change is never written")
+    }
+
+    @Test func savingHappensOffTheMainThread() async throws {
+        let (files, defaults) = makeSandbox()
+        let store = DataStore(files: files, defaults: defaults)
+        try await store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
+        // Nothing is on disk the instant the log returns; it arrives shortly after.
+        var saved = false
+        for _ in 0..<100 where !saved {
+            try await Task.sleep(for: .milliseconds(20))
+            saved = files.exists(DataStore.fileName)
+        }
+        #expect(saved)
+    }
+
+    @Test func aDamagedProfileGoesBackToItsSavedCopy() async throws {
+        let (files, defaults) = makeSandbox()
+        let store = ProfileStore(files: files, defaults: defaults)
+        store.createProfile(displayName: "Sam Rivera")
+        // A clean launch saves a copy.
+        #expect(ProfileStore(files: files, defaults: defaults).notice == nil)
+        try Data("{".utf8).write(to: files.url(for: ProfileStore.fileName))
+
+        let recovered = ProfileStore(files: files, defaults: defaults)
+        #expect(recovered.profile?.displayName == "Sam Rivera")
+        #expect(recovered.notice == .profileRestored)
+        #expect(files.damagedFiles.count == 1)
+
+        // With no copy to go back to, setup starts again and says why.
+        files.delete(ProfileStore.backupFileName)
+        try Data("{".utf8).write(to: files.url(for: ProfileStore.fileName))
+        let lost = ProfileStore(files: files, defaults: defaults)
+        #expect(lost.profile == nil)
+        #expect(lost.notice == .profileLost)
     }
 
     @Test func eraseRemovesEverything() async throws {
         let (files, defaults) = makeSandbox()
         let store = DataStore(files: files, defaults: defaults)
         try await store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
+        store.flush()
         store.eraseAll()
         #expect(store.water.isEmpty)
         #expect(DataStore(files: files, defaults: defaults).water.isEmpty)
+        #expect(!files.exists(DataStore.fileName) && !files.exists(DataStore.backupFileName))
     }
 
     @Test func profileMigratesAndErases() throws {
@@ -156,6 +274,7 @@ struct RecentFoodTests {
         }
         #expect(store.recentFoods.count == DataStore.recentFoodsLimit)
         #expect(store.recentFoods.first?.name == "Food 39")
+        store.flush()
         #expect(DataStore(files: SecureFileStore(directory: dir), defaults: defaults).recentFoods.count == DataStore.recentFoodsLimit)
     }
 }

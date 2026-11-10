@@ -19,6 +19,9 @@ struct AddMealView: View {
     @State private var showCustomSheet = false
     @State private var didLoad = false
     @State private var showDeleteConfirm = false
+    /// Asking for a name to save the foods in this meal under.
+    @State private var namingSavedMeal = false
+    @State private var savedMealName = ""
 
     // Online search (USDA FoodData Central)
     @AppStorage("vitala.onlineFoodSearch") private var onlineSearchEnabled = true
@@ -41,13 +44,28 @@ struct AddMealView: View {
     private var trimmedQuery: String { query.trimmingCharacters(in: .whitespaces) }
     private var customFoods: [FoodItem] { store.customFoods }
     private var recentFoods: [FoodItem] { store.recentFoods }
+    private var favouriteFoods: [FoodItem] { store.favouriteFoods }
 
     private var results: [FoodItem] {
         let library = FoodLibrary.common
         guard !trimmedQuery.isEmpty else { return library }
-        return (customFoods + recentFoods + library).filter {
-            $0.name.localizedCaseInsensitiveContains(trimmedQuery) || ($0.brand?.localizedCaseInsensitiveContains(trimmedQuery) ?? false)
+        // A favourite is usually also a recent or common food: list it once.
+        var seen = Set<String>()
+        return (favouriteFoods + customFoods + recentFoods + library).filter {
+            ($0.name.localizedCaseInsensitiveContains(trimmedQuery)
+                || ($0.brand?.localizedCaseInsensitiveContains(trimmedQuery) ?? false))
+                && seen.insert(FoodGroup.key($0)).inserted
         }
+    }
+
+    /// The day this meal is being logged for.
+    private var targetDay: Date { editing?.date ?? forDate ?? .now }
+
+    /// What was eaten for this meal the day before, offered while the meal
+    /// is still empty.
+    private var yesterdaysFoods: [FoodItem] {
+        guard editing == nil, selected.isEmpty, query.isEmpty else { return [] }
+        return Meal.eaten(mealType, theDayBefore: targetDay, in: store.meals)
     }
 
     private var showsOnlineSection: Bool {
@@ -74,8 +92,33 @@ struct AddMealView: View {
                     SectionHeader(title: "In this meal", trailing: "\(selectedCalories) kcal")
                     ForEach(FoodGroup.grouping(selected)) { group in
                         SelectedFoodRow(group: group,
+                                        isFavourite: store.isFavourite(group.item),
                                         onAdd: { selected.append(group.item.newInstance()) },
-                                        onRemove: { removeOne(of: group) })
+                                        onRemove: { removeOne(of: group) },
+                                        onToggleFavourite: { toggleFavourite(group.item) })
+                    }
+                    Button {
+                        savedMealName = "My usual \(mealType.label.lowercased())"
+                        namingSavedMeal = true
+                    } label: {
+                        Label("Save as a usual meal", systemImage: "bookmark")
+                            .font(VitalaFont.bodyMedium(15))
+                            .foregroundStyle(VitalaColor.primary)
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Keeps these foods together to log again in one tap")
+                }
+
+                if !yesterdaysFoods.isEmpty {
+                    let foods = yesterdaysFoods
+                    actionRow(icon: "arrow.uturn.backward.circle.fill",
+                              title: "Same as yesterday",
+                              subtitle: "\(SavedMeal(name: "", items: foods).summary) · \(foods.reduce(0) { $0 + $1.calories }) kcal") {
+                        selected.append(contentsOf: foods)
+                        Haptics.selection()
+                        AccessibilityNotification.Announcement("Added yesterday's \(mealType.label.lowercased())").post()
                     }
                 }
 
@@ -94,6 +137,20 @@ struct AddMealView: View {
 
                 if onlineSearchEnabled && foodDatabase.isConfigured && query.isEmpty {
                     restaurantsRow
+                }
+
+                if !store.savedMeals.isEmpty && query.isEmpty {
+                    SectionHeader(title: "Your meals")
+                    ForEach(store.savedMeals) { meal in
+                        savedMealButton(meal)
+                    }
+                }
+
+                if !favouriteFoods.isEmpty && query.isEmpty {
+                    SectionHeader(title: "Favourites")
+                    ForEach(favouriteFoods) { item in
+                        foodButton(item, isCustom: false)
+                    }
                 }
 
                 if !customFoods.isEmpty && query.isEmpty {
@@ -206,6 +263,13 @@ struct AddMealView: View {
                 }
             }
         }
+        .alert("Save as a usual meal", isPresented: $namingSavedMeal) {
+            TextField("Name", text: $savedMealName)
+            Button("Save") { saveUsualMeal() }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("It will be listed under Your meals whenever you log food.")
+        }
         .confirmationDialog("Delete this meal?",
                             isPresented: $showDeleteConfirm,
                             titleVisibility: .visible) {
@@ -227,38 +291,96 @@ struct AddMealView: View {
     }
 
     private func foodButton(_ item: FoodItem, isCustom: Bool) -> some View {
-        Button {
-            selected.append(item.newInstance())
-            Haptics.selection()
-            AccessibilityNotification.Announcement("Added \(item.name)").post()
-        } label: {
-            FoodRow(item: item)
-                .overlay(alignment: .topTrailing) {
-                    if isCustom {
-                        Text("Custom")
-                            .font(VitalaFont.caption(10))
-                            .padding(.horizontal, 6).padding(.vertical, 2)
-                            .background(Capsule().fill(VitalaColor.primary.opacity(0.14)))
-                            .foregroundStyle(VitalaColor.primary)
-                            .padding(6)
+        let starred = store.isFavourite(item)
+        return HStack(spacing: 2) {
+            Button {
+                selected.append(item.newInstance())
+                Haptics.selection()
+                AccessibilityNotification.Announcement("Added \(item.name)").post()
+            } label: {
+                FoodRow(item: item)
+                    .overlay(alignment: .topTrailing) {
+                        if isCustom {
+                            Text("Custom")
+                                .font(VitalaFont.caption(10))
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(VitalaColor.primary.opacity(0.14)))
+                                .foregroundStyle(VitalaColor.primary)
+                                .padding(6)
+                        }
+                    }
+            }
+            .buttonStyle(PressableButtonStyle())
+            .accessibilityLabel("\(item.fullName), \(item.servingSize), \(item.calories) kilocalories")
+            .accessibilityHint("Adds one serving")
+            .contextMenu {
+                if isCustom {
+                    Button(role: .destructive) { deleteCustom(item) } label: {
+                        Label("Delete custom food", systemImage: "trash")
                     }
                 }
+            }
+            .accessibilityActions {
+                if isCustom {
+                    Button("Delete custom food") { deleteCustom(item) }
+                }
+            }
+            FavouriteButton(isOn: starred, name: item.name) { toggleFavourite(item) }
+        }
+    }
+
+    private func savedMealButton(_ meal: SavedMeal) -> some View {
+        Button {
+            selected.append(contentsOf: meal.items.map { $0.newInstance() })
+            Haptics.selection()
+            AccessibilityNotification.Announcement("Added \(meal.name)").post()
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: "bookmark.fill")
+                    .foregroundStyle(VitalaColor.primary)
+                    .frame(width: 40, height: 40)
+                    .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.10)))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(meal.name).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(meal.summary).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 8)
+                Text("\(meal.totalCalories) kcal").font(VitalaFont.bodyMedium(14))
+                    .foregroundStyle(VitalaColor.textPrimary)
+            }
+            .padding(.vertical, 8).padding(.horizontal, 12)
+            .frame(minHeight: 44)
+            .surfaceCard()
+            .accessibilityElement(children: .combine)
         }
         .buttonStyle(PressableButtonStyle())
-        .accessibilityLabel("\(item.fullName), \(item.servingSize), \(item.calories) kilocalories")
-        .accessibilityHint("Adds one serving")
+        .accessibilityHint("Adds every food in it")
         .contextMenu {
-            if isCustom {
-                Button(role: .destructive) { deleteCustom(item) } label: {
-                    Label("Delete custom food", systemImage: "trash")
-                }
+            Button(role: .destructive) { store.deleteSavedMeal(meal) } label: {
+                Label("Delete saved meal", systemImage: "trash")
             }
         }
         .accessibilityActions {
-            if isCustom {
-                Button("Delete custom food") { deleteCustom(item) }
-            }
+            Button("Delete saved meal") { store.deleteSavedMeal(meal) }
         }
+    }
+
+    private func toggleFavourite(_ item: FoodItem) {
+        let starred = store.toggleFavourite(item)
+        Haptics.selection()
+        AccessibilityNotification.Announcement(starred ? "Added to favourites" : "Removed from favourites").post()
+    }
+
+    private func saveUsualMeal() {
+        let name = savedMealName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !selected.isEmpty else { return }
+        store.saveMeal(SavedMeal(name: name.isEmpty ? "My usual \(mealType.label.lowercased())" : name,
+                                 items: selected.map { $0.newInstance() }))
+        Haptics.success()
+        AccessibilityNotification.Announcement("Saved to your meals").post()
     }
 
     private func actionRow(icon: String, title: String, subtitle: String,
@@ -447,10 +569,32 @@ struct AddMealView: View {
     }
 }
 
+/// A star that adds a food to favourites or takes it out again.
+struct FavouriteButton: View {
+    let isOn: Bool
+    let name: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: isOn ? "star.fill" : "star")
+                .font(.body)
+                .foregroundStyle(isOn ? VitalaColor.primary : VitalaColor.muted)
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isOn ? "Remove \(name) from favourites" : "Add \(name) to favourites")
+        .accessibilityAddTraits(isOn ? .isSelected : [])
+    }
+}
+
 private struct SelectedFoodRow: View {
     let group: FoodGroup
+    let isFavourite: Bool
     let onAdd: () -> Void
     let onRemove: () -> Void
+    let onToggleFavourite: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -494,6 +638,14 @@ private struct SelectedFoodRow: View {
         .padding(.vertical, 4)
         .background(RoundedRectangle(cornerRadius: VitalaRadius.md, style: .continuous)
             .fill(VitalaColor.primary.opacity(0.06)))
+        .contextMenu {
+            Button(action: onToggleFavourite) {
+                Label(isFavourite ? "Remove from favourites" : "Add to favourites",
+                      systemImage: isFavourite ? "star.slash" : "star")
+            }
+        }
+        .accessibilityAction(named: isFavourite ? "Remove from favourites" : "Add to favourites",
+                             onToggleFavourite)
     }
 }
 

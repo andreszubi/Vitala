@@ -290,6 +290,50 @@ Findings that were not fixed are in the backlog below, marked *audit*.
 
 ---
 
+### Sprint 8 — Safer data, your own meals and workouts, and sync ✅
+
+**Sprint goal:** make saved data hard to lose, then deliver the five items picked from the backlog: safer saving, journal mood trends with iCloud sync, favourite foods and saved meals, build-your-own workouts, and session sound with the screen locked.
+
+| ID | Story | Acceptance criteria | Pts |
+|----|-------|---------------------|-----|
+| E9-1 | As a user, I never want a damaged file to cost me my logs. | A file that won't decode is moved aside, never deleted or left blocking saves; the app carries on from the copy saved at the last clean launch, or from nothing, and says which; lists decode entry by entry so one bad entry costs only itself; the set-aside file can be shared or deleted from Settings; a file that can't be read before first unlock is left alone and read again later; the profile has the same protection. | 8 |
+| E9-2 | As a user, I want logging to stay instant however much I've logged. | Saving runs on a background writer; changes in quick succession become one write; nothing is left unsaved when the app leaves the screen; erase cancels anything waiting. | 5 |
+| E9-3 | As a user, I want a breathing session to carry on when I lock my iPhone. | A playing sound continues with the screen locked and the clock keeps time; the session saves when it ends; a paused or silent session stops its clock and releases the audio hardware; time the app spent suspended is never counted. | 5 |
+| E9-4 | As a user, I want to log what I usually eat quickly. | Any food can be starred from the meal logger or its nutrition sheet, and favourites list first; the foods in a meal can be saved under a name and logged again in one tap; an empty meal offers yesterday's; all of it is in the export. | 5 |
+| E9-5 | As a user, I want to build my own workout. | Pick exercises from the library, any of them more than once; set time, or reps and sets, for each; reorder and remove; choose type and level; length and energy are worked out; the workout runs in the same player and can be edited or deleted; every library exercise has a demonstration. | 8 |
+| E9-6 | As a user, I want to see how my mood moves over time. | Progress shows each day's mood on a low-to-great scale over 7 or 30 days, the moods chosen most often, and how the period compares with the one before; the Journal shows the last seven days at a glance; charts have spoken summaries and an Audio Graph. | 5 |
+| E9-7 | As a user, I want my data on all my iPhones. | Off until turned on; logs, journal, favourites, saved meals and built workouts match across devices on one Apple Account; edits and deletions travel; two devices changing things at once lose nothing; "Erase all data" reaches the other devices; the iCloud copy can be deleted; no account, restricted accounts, lost connections and a copy from a newer version are each handled and explained; nothing read from Apple Health is synced. | 13 |
+
+**How the sprint ran**
+
+1. *Refinement.* Order was set by dependency: every feature saves through the same store, so E9-1 and E9-2 went first and the data model for the others (favourites, saved meals, built workouts, the change log) was designed with them.
+2. *Decisions made up front.*
+   - **Sync keeps one copy, not one record per entry.** A device fetches the copy, merges, and saves it back only if nothing changed in between. That needs one record type, no zones, subscriptions or push, and puts every rule in one pure function that can be tested with two simulated devices. The cost is that a change uploads the whole copy (compressed), and other devices see it when they are next opened rather than at once.
+   - **The profile is not synced.** A second iPhone creates a fresh profile during setup, which would look newer than the real one and overwrite it. Syncing it safely needs a "restore from iCloud" step in onboarding: backlog.
+   - **Mood has a scale.** To chart and compare days, each mood is placed from 1 (low) to 5 (great); several share a place. The card says where the numbers come from.
+   - **Built workouts use the exercises that have demonstrations.** Three staples were added by reusing existing movements (Squat, Plank, Jog on the spot) rather than shipping exercises with no figure.
+3. *Build.* One story at a time, each tested and pushed: storage, lock-screen sound, favourites and saved meals, workout builder, mood trends, sync.
+4. *Review.* 160 unit tests and 7 UI tests, including the accessibility audits (now covering the workout builder, exercise picker and iCloud sync screen); a simulator walkthrough of each feature.
+
+**Also fixed on the way:** workout cards in a row now line up at the top when one needs two lines for its level; the Library count includes workouts you built.
+
+**Checked on the simulator:** a session's clock ran through 40 seconds of locked screen; favourites, "Same as yesterday" and saving a meal; building, saving and opening a workout; the Mood card and week strip; and the iCloud screen in a signed build, which reached CloudKit and reported "Not signed in to iCloud" as it should on a simulator with no account.
+
+**Not verified, and why**
+
+- **A real sync through iCloud.** The simulator has no iCloud account, so nothing was uploaded or downloaded for real. The merge rules and the fetch–merge–save loop are tested against a stand-in; the thin layer that talks to CloudKit is not. It needs two iPhones on one Apple Account (QA checklist in `docs/APP_STORE.md`).
+- **Sound with the screen locked, by ear,** and what happens to a locked session when a call comes in.
+- **Device signing with the iCloud capability.** The container has to be created once in Xcode (`docs/APP_STORE.md`, step 3a), and the schema deployed to Production before release (step 3b).
+
+**Risks to decide before release**
+
+- **App Review guideline 5.1.3** restricts keeping personal health information in iCloud. Sync is opt-in, covers only what the user typed in, and never includes anything read from HealthKit; the review notes say so. Whether that satisfies review is Apple's call; the fallback is described in `docs/APP_STORE.md`, section 4.
+- **The audio background mode** is reviewed for apps that declare it; it is used only while a session's sound is audible.
+
+**Retro:** putting the rules for sync in a pure function, and giving tests a stand-in for iCloud that refuses a stale save the way CloudKit does, meant the hard cases (a deletion that must not come back, two devices saving at once, an erase that has to reach a device that was offline) were settled before any CloudKit code existed. Splitting "can't read the bytes" from "can't decode them" mattered more than it looked: treating a locked phone's unreadable file as damaged would have replaced good data with an empty file.
+
+---
+
 ## 7. Next backlog (1.1+)
 
 Ordered within each group. *audit* marks findings from Sprint 7's code audit that were scheduled rather than fixed.
@@ -298,8 +342,8 @@ Ordered within each group. *audit* marks findings from Sprint 7's code audit tha
 
 | Priority | Item |
 |---|---|
-| High | *audit* — A data file that can't be read makes the app quietly read-only: new logs vanish on relaunch, or onboarding repeats. Move the bad file aside, carry on, and tell the user. Decode list by list so one bad entry can't hide the rest. |
-| High | *audit* — Every change rewrites the whole history on the main thread. Move saving to a background writer that batches quick changes and flushes when the app leaves the screen. |
+| High | Tell the user when a save fails (storage full) instead of only logging it, and keep more than one saved copy to fall back on. |
+| Medium | Entries that arrive, change or are deleted through iCloud sync are not mirrored to Apple Health on the receiving iPhone, on the assumption that Health's own iCloud sync carries them. Confirm on two devices that this leaves no duplicates and no leftovers after a delete. |
 | Medium | *audit* — Writes to Apple Health are unordered, so add-then-delete can leave a sample behind. Send them through one queue. |
 | Medium | *audit* — The same night can be logged twice, which doubles that day in Progress. Offer to replace an overlapping night; total sleep per day. |
 | Medium | *audit* — Each screen re-filters the whole history many times per redraw. Compute each day's slice once and cache merged sleep and meals. |
@@ -314,11 +358,13 @@ Ordered within each group. *audit* marks findings from Sprint 7's code audit tha
 |---|---|
 | High | **Filmed exercise clips.** License or film a short loop per exercise and add it to the app; the player already shows a clip named after the exercise in place of the drawn figure. Decide the source first (stock library licence, a trainer, or filming). |
 | High | **Fuller restaurant coverage.** USDA has no Starbucks, Chipotle, Dunkin', Panera, Five Guys or Panda Express, and its restaurant figures are years old. A commercial menu database (Nutritionix, FatSecret) covers them, with a monthly cost, a key to protect, and a privacy-label update. |
-| High | Journal insights — mood over time in Progress, and an optional journal reminder |
-| High | iCloud / CloudKit sync across devices |
-| Medium | Favourite foods and saved meals ("my usual breakfast"), and "copy yesterday" for a meal |
-| Medium | Build your own workout from the exercise library; more library workouts; a spoken or haptic cue when the exercise changes |
-| Medium | Keep session sound playing with the screen locked (background audio), with the clock running to match |
+| High | **Sync the profile and restore on a new iPhone.** Offer "Restore from iCloud" during setup so a new device takes the existing profile, goals and photo instead of creating a fresh one; then sync later changes. |
+| High | **Sync as it happens.** A CloudKit subscription and silent push, so a change shows on other devices within seconds rather than when they are next opened. Needs the push entitlement and remote-notification background mode. |
+| Medium | Sync per entry rather than one copy, once histories grow large enough for the whole-copy upload to matter (measure first). |
+| Medium | An optional journal reminder; show a day's mood on Today |
+| Medium | Rename and reorder saved meals and favourites; save a meal straight from a logged meal's menu |
+| Medium | More exercises with demonstrations for the workout builder; rest between sets in the player; a spoken or haptic cue when the exercise changes; duplicate a library workout to edit it |
+| Medium | Lock-screen controls for a session (pause and resume, title, time left) |
 | Medium | A Live Activity for a running workout or breathing session |
 | Medium | Save journal moods to Apple Health as State of Mind (iOS 18+), with the user's permission |
 | Medium | Home Screen widgets and App Intents ("Log 250 ml of water") |

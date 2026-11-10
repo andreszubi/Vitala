@@ -10,7 +10,12 @@ final class ProfileStore: ObservableObject {
     /// Optional profile photo, stored only on this device.
     @Published private(set) var avatar: UIImage?
 
+    /// The profile file was damaged and had to be repaired; shown once.
+    @Published private(set) var notice: StorageNotice?
+
     nonisolated static let fileName = "profile.json"
+    /// The profile as it was the last time it loaded cleanly.
+    nonisolated static let backupFileName = "profile.backup.json"
     nonisolated static let avatarFileName = "avatar.jpg"
     /// Where the profile lived before 1.0. Read once, migrated, then removed.
     nonisolated static let legacyDefaultsKey = "vitala.demo.profile"
@@ -79,9 +84,16 @@ final class ProfileStore: ObservableObject {
         files.delete(Self.avatarFileName)
         avatar = nil
         files.delete(Self.fileName)
+        files.delete(Self.backupFileName)
+        files.deleteDamagedFiles()
         defaults.removeObject(forKey: Self.legacyDefaultsKey)
         profile = nil
+        notice = nil
         isReadOnly = false
+    }
+
+    func acknowledgeNotice() {
+        notice = nil
     }
 
     // MARK: Persistence
@@ -93,7 +105,25 @@ final class ProfileStore: ObservableObject {
         switch files.load(UserProfile.self, from: Self.fileName) {
         case .loaded(let p):
             profile = p
+            // A copy to fall back on if the file is ever damaged.
+            files.copy(Self.fileName, to: Self.backupFileName)
+        case .damaged:
+            // Move it aside and carry on from the last good copy, or from
+            // setup if there isn't one.
+            guard files.setAside(Self.fileName) != nil else {
+                isReadOnly = true
+                return
+            }
+            if case .loaded(let backup) = files.load(UserProfile.self, from: Self.backupFileName) {
+                profile = backup
+                notice = .profileRestored
+                persist(backup)
+            } else {
+                notice = .profileLost
+            }
         case .unreadable:
+            // Its bytes can't be read yet (before the first unlock after a
+            // restart); leave it alone.
             isReadOnly = true
         case .missing:
             guard let data = defaults.data(forKey: Self.legacyDefaultsKey),
