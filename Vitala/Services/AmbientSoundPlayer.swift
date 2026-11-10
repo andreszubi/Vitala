@@ -165,9 +165,18 @@ final class AmbientSynth: @unchecked Sendable {
     /// Four chord tones. A tuple, not an array, so reassigning it from the
     /// main thread never reallocates storage the render thread is reading.
     private var padFreqs: (Double, Double, Double, Double) = (146.83, 220.0, 293.66, 369.99)
+    // Each layer's level glides to its target, so switching sounds
+    // crossfades instead of jumping (a jump is heard as a click or skip).
+    private var targetPadLevel: Float = 0.05
+    private var targetOceanLevel: Float = 0.06
+    private var targetBinauralLevel: Float = 0
+    private var targetBowlLevel: Float = 0
     private var padLevel: Float = 0.05
     private var oceanLevel: Float = 0.06
     private var binauralLevel: Float = 0
+    /// False until the first buffer is rendered; until then a configure
+    /// sets levels outright, as there is nothing to crossfade from.
+    private var hasRendered = false
     private var carrier: Double = 200
     private var beat: Double = 6
 
@@ -193,6 +202,8 @@ final class AmbientSynth: @unchecked Sendable {
     private var bowlPhases = [Double](repeating: 0, count: 14)
     private var samplesSinceStrike = 0
     private var strikeCount = 0
+    /// Whether the bowls are sounding; owned by the render thread.
+    private var bowlsActive = false
 
     func configure(sound: AmbientSoundPlayer.Sound, category: MindfulnessSession.Category) {
         // A different open, consonant chord per category.
@@ -212,20 +223,21 @@ final class AmbientSynth: @unchecked Sendable {
         case .focus: carrier = 392.0; beat = 10       // G over C
         case .gratitude: carrier = 440.0; beat = 8    // A over D
         }
+        // (pad, ocean, binaural, bowls)
+        let levels: (Float, Float, Float, Float)
         switch sound {
-        case .spaBinaural: padLevel = 0.04;  oceanLevel = 0.04; binauralLevel = 0.09
-        case .spa:         padLevel = 0.05;  oceanLevel = 0.06; binauralLevel = 0
+        case .spaBinaural: levels = (0.04, 0.04, 0.09, 0)
+        case .spa:         levels = (0.05, 0.06, 0, 0)
         // A quiet pad underneath so the bowls ring out over warmth, not silence.
-        case .crystalBowls: padLevel = 0.018; oceanLevel = 0;   binauralLevel = 0
+        case .crystalBowls: levels = (0.018, 0, 0, 0.11)
         // Everything together, each layer pulled back so the mix stays calm.
-        case .spaBinauralBowls: padLevel = 0.032; oceanLevel = 0.032; binauralLevel = 0.07
-        case .ocean:       padLevel = 0;     oceanLevel = 0.11; binauralLevel = 0
-        case .silent:      padLevel = 0;     oceanLevel = 0;    binauralLevel = 0
+        case .spaBinauralBowls: levels = (0.032, 0.032, 0.07, 0.085)
+        case .ocean:       levels = (0, 0.11, 0, 0)
+        case .silent:      levels = (0, 0, 0, 0)
         }
-        switch sound {
-        case .crystalBowls: bowlLevel = 0.11
-        case .spaBinauralBowls: bowlLevel = 0.085
-        default: bowlLevel = 0
+        (targetPadLevel, targetOceanLevel, targetBinauralLevel, targetBowlLevel) = levels
+        if !hasRendered {
+            (padLevel, oceanLevel, binauralLevel, bowlLevel) = levels
         }
         // The bowls sit an octave above the pad's chord tones.
         switch category {
@@ -237,7 +249,10 @@ final class AmbientSynth: @unchecked Sendable {
     }
 
     func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
+        hasRendered = true
         let sr = sampleRate
+        // About a third of a second to cross from one sound to another.
+        let glide = Float(1 / (sr * 0.1))
         let twoPi = 2 * Double.pi
         let freqs = padFreqs
         let bowls = bowlFreqs
@@ -248,6 +263,10 @@ final class AmbientSynth: @unchecked Sendable {
             // Smooth parameter changes (≈1.5 s fades, ≈1 s swells).
             gain += (targetGain - gain) * Float(1 / (sr * 0.5))
             swell += (targetSwell - swell) * Float(1 / (sr * 0.35))
+            padLevel += (targetPadLevel - padLevel) * glide
+            oceanLevel += (targetOceanLevel - oceanLevel) * glide
+            binauralLevel += (targetBinauralLevel - binauralLevel) * glide
+            bowlLevel += (targetBowlLevel - bowlLevel) * glide
 
             // Slow LFO for a breathing shimmer in the pad.
             lfoPhase += 0.07 / sr
@@ -301,7 +320,19 @@ final class AmbientSynth: @unchecked Sendable {
 
             // Crystal bowls.
             var bowlL: Float = 0, bowlR: Float = 0
-            if bowlLevel > 0 {
+            if targetBowlLevel > 0, !bowlsActive {
+                // Just switched on: strike the first bowl about half a second in.
+                bowlsActive = true
+                strikeCount = 0
+                samplesSinceStrike = Int(sr * 0.5)
+            } else if bowlsActive, targetBowlLevel == 0, bowlLevel < 0.0002 {
+                // Faded out: fall silent and forget the ringing.
+                bowlsActive = false
+                bowlLevel = 0
+                bowlStrike = (0, 0, 0)
+                bowlEnv = (0, 0, 0)
+            }
+            if bowlsActive {
                 samplesSinceStrike += 1
                 // Strikes 6.5–8 s apart, never quite regular; the first comes after a second.
                 let gap = strikeCount == 0 ? 1.0 : 6.5 + 0.75 * Double((strikeCount * 2) % 3)
