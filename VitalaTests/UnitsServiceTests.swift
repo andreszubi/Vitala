@@ -48,3 +48,30 @@ struct DistanceParsingTests {
         units.system = .metric
     }
 }
+
+@MainActor
+struct HeightRoundingTests {
+    @Test func heightsJustUnderAWholeFootKeepTheirFoot() {
+        let units = UnitsService()
+        units.system = .imperial
+        // 182 cm is 71.65 in: six feet, not "5' 0"".
+        #expect(units.cmToFeetInches(182) == (6, 0))
+        #expect(units.formatHeight(cm: 182) == "6' 0\"")
+        #expect(units.cmToFeetInches(152) == (5, 0))
+        #expect(units.cmToFeetInches(172.72) == (5, 8))
+        units.system = .metric
+    }
+
+    @Test func feetAndInchesSurviveARoundTrip() throws {
+        let units = UnitsService()
+        units.system = .imperial
+        // What Edit profile does on every save: show, then read back.
+        for cm in stride(from: 120.0, through: 220.0, by: 1) {
+            let shown = units.cmToFeetInches(cm)
+            #expect((0..<12).contains(shown.inches))
+            let back = try #require(units.parseHeightToCm(metric: "", feet: "\(shown.feet)", inches: "\(shown.inches)"))
+            #expect(abs(back - cm) <= 1.27 + 0.001, "\(cm) cm came back as \(back)")
+        }
+        units.system = .metric
+    }
+}

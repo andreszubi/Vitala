@@ -55,10 +55,12 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 >
 > MOVE
 > • Guided sessions — yoga, strength, HIIT, mobility and running — with timers that count down each exercise
+> • An animated demonstration of every exercise, so you can see how it's done
 > • Log any activity with type, duration, energy and distance
 >
 > EAT WELL
 > • Search hundreds of thousands of foods with real portions, or scan a barcode to log packaged food
+> • Find meals from popular restaurant chains and log them by the item
 > • Log breakfast, lunch, dinner and snacks, with custom and recent foods that work offline
 > • See calories, protein, carbs and fat against a target suggested from your profile
 > • Track fiber, sugar, saturated and unsaturated fat and sodium, and tap any food or meal for its full nutrition
@@ -120,6 +122,8 @@ Paste into **App Review Information › Notes**:
 >
 > Food search and barcodes: when the user searches for a food, the typed words are sent to USDA FoodData Central (api.nal.usda.gov), a public U.S. government nutrition database. When the user scans or types a barcode, the number is sent to USDA FoodData Central and, if not found, to Open Food Facts (openfoodfacts.org). No user identifiers are sent; online lookups can be turned off in Settings › Food search.
 >
+> Restaurant foods: nutrition for restaurant items comes from the same USDA database, which publishes it as public data. Chain names appear only as labels saying where a food is from; Vitala has no affiliation with them and the listing does not name them.
+>
 > Camera: used only in Log a meal › Scan barcode to read product barcodes with VisionKit. Nothing is recorded. On the simulator or without camera access, the scanner offers manual number entry. Test barcode: 016459200441.
 
 No demo account is needed.
@@ -156,7 +160,10 @@ Set a clean status bar first with `xcrun simctl status_bar booted override --tim
 - [ ] Apple Health import: Apple Watch or sleep-schedule nights appear in Sleep, and food from another app appears in Nutrition, marked "Apple Health" and not editable; a night logged in Vitala replaces the overlapping Health night
 - [ ] Journal: write an entry from the Mindfulness header, choose a mood, save, edit and delete it; finish a session and use Write in journal from the completion screen
 - [ ] Reminders: allow notifications, set a time a minute ahead, receive it; turn it off and confirm nothing arrives
-- [ ] Breathing session: sound starts on Spa, binaural & bowls, follows the breath, pauses with the session, works with AirPods; switching sounds takes one tap; Silent stops it
+- [ ] Breathing session: sound starts on Spa, binaural & bowls, follows the breath, pauses with the session, works with AirPods; switching sounds takes one tap and crossfades with no click or skip; Silent stops it
+- [ ] Breathing session: plug in or remove headphones mid-session and the sound carries on; leave the app for a minute and the timer has not moved on return; Pause then Restart brings the sound back
+- [ ] Restaurants: in Log a meal, tap a chain under the search field; its menu lists; open an item and the portion reads as one item, not 100 g
+- [ ] Workouts: each exercise shows a demonstration in the list and the player; it pauses with the workout; with music playing from another app, starting a workout does not stop it
 - [ ] Breathing session: opens on the scene matching its kind; haptics build on the in-breath, ease on the out-breath, stop on pause and can be switched off; cues change every 20 seconds and differ between sessions
 - [ ] Nutrition: a scanned product shows its full name and brand; tapping a food shows its nutrition; tapping Breakfast/Lunch/Dinner/Snack shows that meal's totals
 - [ ] Profile photo: add, change and remove

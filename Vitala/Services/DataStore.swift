@@ -40,8 +40,14 @@ final class DataStore: ObservableObject {
         self.defaults = defaults
         self.health = health
         load()
-        // Re-render screens when nights or meals arrive from Apple Health.
-        healthUpdates = health?.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
+        // Re-render screens when nights or meals arrive from Apple Health,
+        // and only then: today's step count changing is not this store's news.
+        if let health {
+            healthUpdates = health.$importedSleep.map { _ in () }
+                .merge(with: health.$importedMeals.map { _ in () })
+                .dropFirst(2)
+                .sink { [weak self] in self?.objectWillChange.send() }
+        }
     }
 
     // MARK: Logs plus Apple Health
@@ -63,28 +69,12 @@ final class DataStore: ObservableObject {
         }
     }
 
-    // MARK: Daily summary
-
-    func saveDailySummary(_ summary: DailySummary) async throws {
-        let key = Self.dayKey(summary.date)
-        summaries[key] = summary
-        persist()
-    }
-
-    func loadDailySummary(for date: Date) async throws -> DailySummary? {
-        summaries[Self.dayKey(date)]
-    }
-
     // MARK: Workouts
 
     func logWorkout(_ session: WorkoutSession) async throws {
         upsert(session, into: &workouts)
         persist()
         if let health { Task { await health.save(workout: session) } }
-    }
-
-    func recentWorkouts(limit: Int = 20) async throws -> [WorkoutSession] {
-        Array(workouts.sorted { $0.startedAt > $1.startedAt }.prefix(limit))
     }
 
     func deleteWorkout(_ session: WorkoutSession) async throws {
@@ -100,10 +90,6 @@ final class DataStore: ObservableObject {
         persist()
     }
 
-    func meals(on date: Date) async throws -> [Meal] {
-        meals.filter { Calendar.current.isDate($0.date, inSameDayAs: date) }
-    }
-
     func deleteMeal(_ meal: Meal) async throws {
         meals.removeAll { $0.id == meal.id }
         persist()
@@ -115,10 +101,6 @@ final class DataStore: ObservableObject {
         upsert(entry, into: &water)
         persist()
         if let health { Task { await health.save(water: entry) } }
-    }
-
-    func water(on date: Date) async throws -> [WaterEntry] {
-        water.filter { Calendar.current.isDate($0.loggedAt, inSameDayAs: date) }
     }
 
     func deleteWater(_ entry: WaterEntry) async throws {
@@ -133,10 +115,6 @@ final class DataStore: ObservableObject {
         upsert(entry, into: &sleep)
         persist()
         if let health { Task { await health.save(sleep: entry) } }
-    }
-
-    func recentSleep(limit: Int = 14) async throws -> [SleepEntry] {
-        Array(sleep.sorted { $0.wakeTime > $1.wakeTime }.prefix(limit))
     }
 
     func deleteSleep(_ entry: SleepEntry) async throws {
@@ -283,13 +261,5 @@ final class DataStore: ObservableObject {
         customFoods = snap.customFoods ?? []
         recentFoods = snap.recentFoods ?? []
         journal = snap.journal ?? []
-    }
-
-    static func dayKey(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.calendar = Calendar(identifier: .gregorian)
-        f.locale = Locale(identifier: "en_US_POSIX")
-        f.dateFormat = "yyyy-MM-dd"
-        return f.string(from: date)
     }
 }

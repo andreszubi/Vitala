@@ -116,10 +116,16 @@ struct CustomFoodSheet: View {
         FormTextField(label: label, text: text, prompt: "0", unit: suffix, keyboard: keyboard)
     }
 
+    /// More than any one serving holds of anything, in kcal, g or mg.
+    static let largestAmount = 20_000.0
+
     private static func number(_ text: String) -> Double? {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
         if trimmed.isEmpty { return 0 }
-        guard let v = Double(trimmed.replacingOccurrences(of: ",", with: ".")), v >= 0 else { return nil }
+        // A real, plausible amount: "inf" or a run of twenty digits would
+        // otherwise crash when turned into a whole number.
+        guard let v = Double(trimmed.replacingOccurrences(of: ",", with: ".")),
+              v.isFinite, (0...Self.largestAmount).contains(v) else { return nil }
         return v
     }
 

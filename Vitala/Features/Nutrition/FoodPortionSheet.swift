@@ -9,15 +9,32 @@ struct FoodPortionSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var portion: FoodSearchResult.Portion
     @State private var quantity: Double = 1
+    /// The result's servings, plus any USDA only lists on the food's own record.
+    @State private var portions: [FoodSearchResult.Portion]
+    @State private var loadingPortions = false
 
     init(result: FoodSearchResult, onAdd: @escaping (FoodItem) -> Void) {
         self.result = result
         self.onAdd = onAdd
         _portion = State(initialValue: result.defaultPortion)
+        _portions = State(initialValue: result.portions)
     }
 
     private var nutrients: FoodSearchResult.Nutrients {
         result.nutrients(for: portion, quantity: quantity)
+    }
+
+    /// Restaurant and other lab-analysed foods arrive per 100 g; fetch their
+    /// real servings ("1 item") and select the first.
+    private func loadPortions() async {
+        guard result.needsPortionLookup else { return }
+        loadingPortions = true
+        defer { loadingPortions = false }
+        guard let found = try? await FoodDatabaseClient().portions(forFoodID: result.id),
+              !found.isEmpty else { return }
+        let untouched = portion == result.defaultPortion && quantity == 1
+        portions = found + portions.filter { p in !found.contains { $0.label == p.label } }
+        if untouched { portion = found[0] }
     }
 
     var body: some View {
@@ -38,9 +55,18 @@ struct FoodPortionSheet: View {
 
             Section("How much?") {
                 Picker("Portion", selection: $portion) {
-                    ForEach(result.portions) { p in
+                    ForEach(portions) { p in
                         Text(p.label).tag(p)
                     }
+                }
+                if loadingPortions {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text("Looking up serving sizes…")
+                            .font(VitalaFont.caption(13))
+                            .foregroundStyle(VitalaColor.textSecondary)
+                    }
+                    .accessibilityElement(children: .combine)
                 }
                 Stepper(value: $quantity, in: 0.5...20, step: 0.5) {
                     LabeledContent("Amount", value: "\(quantity.formatted()) × \(portion.label)")
@@ -69,6 +95,7 @@ struct FoodPortionSheet: View {
         }
         .scrollContentBackground(.hidden)
         .background(VitalaColor.background.ignoresSafeArea())
+        .task { await loadPortions() }
         .navigationTitle("Add food")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

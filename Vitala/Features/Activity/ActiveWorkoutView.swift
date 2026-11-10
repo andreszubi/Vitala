@@ -123,12 +123,11 @@ struct ActiveWorkoutView: View {
                     .rotationEffect(.degrees(-90))
                     .padding(5)
                     .animation(reduceMotion ? nil : .linear(duration: 0.5), value: exerciseElapsed)
-                VStack(spacing: 4) {
-                    Image(systemName: current.icon)
-                        .font(.system(size: 64, weight: .bold))
-                        .foregroundStyle(VitalaColor.primary)
+                VStack(spacing: 2) {
+                    ExerciseDemoView(exercise: current, playing: isRunning)
+                        .frame(width: 150, height: 124)
                     Text(timeText(max(0, duration - exerciseElapsed)))
-                        .numeralFont(32)
+                        .numeralFont(30)
                         .foregroundStyle(VitalaColor.textPrimary)
                 }
                 .accessibilityElement(children: .ignore)
@@ -136,10 +135,8 @@ struct ActiveWorkoutView: View {
                 .accessibilityValue(spokenTime(max(0, duration - exerciseElapsed)))
                 .accessibilityAddTraits(.updatesFrequently)
             } else {
-                Image(systemName: current.icon)
-                    .font(.system(size: 96, weight: .bold))
-                    .foregroundStyle(VitalaColor.primary)
-                    .accessibilityHidden(true)
+                ExerciseDemoView(exercise: current, playing: isRunning)
+                    .frame(width: 168, height: 168)
             }
         }
         .frame(width: 240, height: 240)
@@ -170,7 +167,8 @@ struct ActiveWorkoutView: View {
                             size: 84, prominent: true, tint: VitalaColor.primaryFill) { togglePause() }
             GlassIconButton(systemName: isLast ? "checkmark" : "forward.fill",
                             label: isLast ? "Finish workout" : "Next exercise", size: 60) {
-                isLast ? save() : move(by: 1)
+                // Too short to save: say so rather than closing without a word.
+                if !isLast { move(by: 1) } else if elapsed >= 60 { save() } else { confirmingEnd = true }
             }
         }
         .glassGroup(spacing: 20)
@@ -178,21 +176,13 @@ struct ActiveWorkoutView: View {
 
     // MARK: Logic
 
-    private var prescription: String {
-        if current.seconds > 0 {
-            let time = current.seconds >= 60 ? "\(current.seconds / 60) min" : "\(current.seconds) sec"
-            if let sets = current.sets, sets > 1 { return "\(sets) × \(time)" }
-            return time
-        }
-        if let sets = current.sets, let reps = current.reps { return "\(sets) × \(reps) reps" }
-        if let reps = current.reps { return "\(reps) reps" }
-        return "At your own pace"
-    }
+    private var prescription: String { current.prescription ?? "At your own pace" }
 
     private func tick() {
         guard !finished else { return }
         now = .now
-        if let duration = exerciseDuration, isRunning, exerciseElapsed >= duration {
+        // Not behind the "End workout?" question: Discard must stay possible.
+        if let duration = exerciseDuration, isRunning, !confirmingEnd, exerciseElapsed >= duration {
             Haptics.success()
             if isLast { save() } else { move(by: 1) }
         }

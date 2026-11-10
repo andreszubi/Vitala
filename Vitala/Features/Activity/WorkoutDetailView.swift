@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkoutDetailView: View {
     let workout: Workout
     @State private var startSession = false
+    @State private var showing: Exercise?
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -27,6 +28,10 @@ struct WorkoutDetailView: View {
         }
         .fullScreenCover(isPresented: $startSession) {
             ActiveWorkoutView(workout: workout)
+        }
+        .sheet(item: $showing) { exercise in
+            NavigationStack { ExerciseDemoSheet(exercise: exercise) }
+                .presentationDetents([.fraction(0.62), .large])
         }
     }
 
@@ -77,8 +82,10 @@ struct WorkoutDetailView: View {
         HStack(spacing: 6) {
             Image(systemName: icon).foregroundStyle(VitalaColor.primary).accessibilityHidden(true)
             Text(value).font(VitalaFont.bodyMedium(14)).foregroundStyle(VitalaColor.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
-        .padding(.horizontal, 12).padding(.vertical, 10)
+        .padding(.horizontal, 8).padding(.vertical, 10)
         .frame(maxWidth: .infinity, minHeight: 44)
         .surfaceCard()
         .accessibilityElement(children: .ignore)
@@ -99,7 +106,13 @@ struct WorkoutDetailView: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionHeader(title: "Exercises", trailing: "\(workout.exercises.count)")
             ForEach(Array(workout.exercises.enumerated()), id: \.element.id) { idx, ex in
-                ExerciseRow(index: idx + 1, exercise: ex)
+                Button {
+                    showing = ex
+                } label: {
+                    ExerciseRow(index: idx + 1, exercise: ex)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Shows how to do it")
             }
         }
     }
@@ -116,10 +129,10 @@ private struct ExerciseRow: View {
                 .frame(width: 30, height: 30)
                 .background(Circle().fill(VitalaColor.primary.opacity(0.1)))
                 .foregroundStyle(VitalaColor.primary)
-            Image(systemName: exercise.icon)
-                .foregroundStyle(VitalaColor.primary)
-                .frame(width: 44, height: 44)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.1)))
+            ExerciseDemoView(exercise: exercise, still: true)
+                .padding(5)
+                .frame(width: 56, height: 56)
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(VitalaColor.primary.opacity(0.1)))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(exercise.name).font(VitalaFont.bodyMedium(15))
@@ -127,19 +140,16 @@ private struct ExerciseRow: View {
                 Text(detailText).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
             }
             Spacer(minLength: 0)
+            Image(systemName: "play.circle.fill")
+                .font(.system(size: 22))
+                .foregroundStyle(VitalaColor.primary)
+                .accessibilityHidden(true)
         }
         .padding(10)
         .surfaceCard()
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
     }
 
-    private var detailText: String {
-        if exercise.seconds > 0 {
-            let time = exercise.seconds >= 60 ? "\(exercise.seconds / 60) min" : "\(exercise.seconds) sec"
-            if let sets = exercise.sets, sets > 1 { return "\(sets) × \(time)" }
-            return time
-        }
-        if let sets = exercise.sets, let reps = exercise.reps { return "\(sets) × \(reps) reps" }
-        return exercise.instructions
-    }
+    private var detailText: String { exercise.prescription ?? exercise.instructions }
 }

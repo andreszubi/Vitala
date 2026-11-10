@@ -78,7 +78,7 @@ struct NutritionView: View {
             }
             .presentationDetents([.medium, .large])
         }
-        .refreshable { await HealthKitService.shared.refreshHistory() }
+        .refreshable { await HealthKitService.shared.refreshHistory(force: true) }
         .task { await HealthKitService.shared.refreshHistory() }
     }
 
@@ -99,7 +99,7 @@ struct NutritionView: View {
                     .foregroundStyle(VitalaColor.textPrimary)
                 Text(statusText(remaining: remaining))
                     .font(VitalaFont.caption(13))
-                    .foregroundStyle(meals.isEmpty ? VitalaColor.textSecondary : VitalaColor.success)
+                    .foregroundStyle(meals.isEmpty || remaining < 0 ? VitalaColor.textSecondary : VitalaColor.success)
             }
             Spacer(minLength: 0)
         }
@@ -108,7 +108,10 @@ struct NutritionView: View {
 
     private func statusText(remaining: Int) -> String {
         if meals.isEmpty { return "Nothing logged yet" }
-        if remaining >= 0 { return "\(remaining.formatted()) kcal left today" }
+        if remaining >= 0 {
+            let left = "\(remaining.formatted()) kcal left"
+            return Calendar.current.isDateInToday(date) ? left + " today" : left
+        }
         return "\((-remaining).formatted()) kcal over your target"
     }
 

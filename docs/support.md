@@ -34,6 +34,14 @@ Yes. The picture button beside the speaker chooses the scene; each session opens
 
 Food search uses USDA FoodData Central, a free public nutrition database from the U.S. Department of Agriculture. Only the words you type are sent. Foods you add are saved on your iPhone so they're searchable offline. To keep search fully offline, turn off **Settings › Food search**.
 
+## Can I log food from restaurants?
+
+Yes. In **Log a meal**, type a chain's name or tap it in the row under the search field to see its menu, then choose an item. Vitala lists the chains USDA FoodData Central has analysed, including McDonald's, Wendy's, Burger King, Taco Bell, KFC, Subway and Pizza Hut. USDA doesn't cover every chain, and menus change, so check the restaurant's own figures when they matter. If something is missing, add it as a custom food.
+
+## How do I see how an exercise is done?
+
+Open a workout and tap any exercise for a looping demonstration with instructions. The same demonstration plays during the workout and pauses when you do. With **Reduce Motion** on in iOS Settings, it shows the key position without moving.
+
 ## How do I scan a barcode?
 
 In **Log a meal**, tap **Scan barcode** and point the camera at the barcode on the package. You can also type the number printed under the barcode. Vitala looks it up in USDA FoodData Central and Open Food Facts; if a product isn't found, you can add it as a custom food.

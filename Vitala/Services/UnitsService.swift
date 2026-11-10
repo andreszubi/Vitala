@@ -65,14 +65,10 @@ final class UnitsService: ObservableObject {
         case .metric:
             return String(format: "%.0f cm", cm)
         case .imperial:
-            let totalInches = cm / 2.54
-            let feet = Int(totalInches) / 12
-            let inches = Int(totalInches.rounded()) % 12
-            return "\(feet)' \(inches)\""
+            let height = cmToFeetInches(cm)
+            return "\(height.feet)' \(height.inches)\""
         }
     }
-
-    func heightUnitLabel() -> String { system == .metric ? "cm" : "ft / in" }
 
     func parseHeightToCm(metric metricText: String, feet: String, inches: String) -> Double? {
         switch system {
@@ -86,11 +82,11 @@ final class UnitsService: ObservableObject {
         }
     }
 
+    /// Rounds to the nearest inch first, so 182 cm (71.65 in) is 6' 0",
+    /// not 5' 0".
     func cmToFeetInches(_ cm: Double) -> (feet: Int, inches: Int) {
-        let total = cm / 2.54
-        let feet = Int(total) / 12
-        let inches = Int(total.rounded()) % 12
-        return (feet, inches)
+        let total = Int((max(0, cm) / 2.54).rounded())
+        return (total / 12, total % 12)
     }
 
     // MARK: Volume (water)

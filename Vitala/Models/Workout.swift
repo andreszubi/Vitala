@@ -10,7 +10,6 @@ struct Workout: Codable, Identifiable, Hashable {
     var imageSystemName: String   // SF Symbol used as artwork placeholder
     var coverTint: String         // hex string
     var exercises: [Exercise]
-    var createdAt: Date = .now
 
     enum Category: String, Codable, CaseIterable, Identifiable {
         case yoga, strength, cardio, hiit, pilates, mobility, walking, running
@@ -50,6 +49,18 @@ struct Exercise: Codable, Identifiable, Hashable {
     var sets: Int?
     var instructions: String
     var icon: String
+
+    /// "3 × 12 reps", "4 × 40 sec" or "1 min"; nil when nothing is prescribed.
+    var prescription: String? {
+        if seconds > 0 {
+            let time = seconds >= 60 ? "\(seconds / 60) min" : "\(seconds) sec"
+            if let sets, sets > 1 { return "\(sets) × \(time)" }
+            return time
+        }
+        if let sets, let reps { return "\(sets) × \(reps) reps" }
+        if let reps { return "\(reps) reps" }
+        return nil
+    }
 }
 
 /// A logged workout session.
@@ -173,5 +184,20 @@ enum WorkoutLibrary {
                       instructions: "Walk, then gentle stretch.", icon: "figure.cooldown")
             ]
         )
-    ]
+    ].map(\.withFixedIDs)
+}
+
+private extension Workout {
+    /// The same ids on every launch, so a logged session can always be
+    /// matched back to the workout it came from.
+    var withFixedIDs: Workout {
+        var workout = self
+        workout.id = "library." + ExerciseVideo.fileName(for: name)
+        workout.exercises = exercises.map {
+            var exercise = $0
+            exercise.id = workout.id + "." + ExerciseVideo.fileName(for: exercise.name)
+            return exercise
+        }
+        return workout
+    }
 }

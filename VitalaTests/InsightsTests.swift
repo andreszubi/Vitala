@@ -69,4 +69,52 @@ struct InsightsTests {
         #expect(goals.dailyActiveKcal == WellnessGoals().dailyActiveKcal)
         #expect(goals.dailyExerciseMinutes == 30)
     }
+
+    @Test func streaksSurviveClocksChangingAtMidnight() {
+        // In Chile clocks go forward at midnight, so that day starts at 01:00.
+        for zone in ["America/Santiago", "Africa/Cairo", "Asia/Beirut", "America/Havana", "Europe/Madrid"] {
+            var calendar = Calendar(identifier: .gregorian)
+            calendar.timeZone = TimeZone(identifier: zone)!
+            // Ten days in a row in every month of the year, so each zone's change is covered.
+            for month in 1...12 {
+                let end = calendar.date(from: DateComponents(year: 2026, month: month, day: 14, hour: 12))!
+                let active = Set((0..<10).map {
+                    calendar.startOfDay(for: calendar.date(byAdding: .day, value: -$0, to: end)!)
+                })
+                #expect(Insights.currentStreak(activeDays: active, today: end, calendar: calendar) == 10,
+                        "\(zone), month \(month)")
+                let days = Insights.lastDays(10, endingOn: end, calendar: calendar)
+                #expect(Set(days) == active, "\(zone), month \(month)")
+            }
+        }
+    }
+
+    @Test func hoursNeverShowSixtyMinutes() {
+        #expect(DashboardView.hoursText(7.996) == "8h")
+        #expect(DashboardView.hoursText(7.5) == "7h 30m")
+        #expect(DashboardView.hoursText(7.99) == "7h 59m")
+        #expect(DashboardView.hoursText(0) == "0h")
+    }
+
+    @Test func aDayPickerOnTodayFollowsMidnight() {
+        let yesterdayNoon = day(27)
+        let lastToday = cal.startOfDay(for: yesterdayNoon)
+        let now = day(28, hour: 7)
+        // Left on "today" overnight: moves on.
+        #expect(DayFollowing.selection(yesterdayNoon, lastToday: lastToday, now: now, calendar: cal) == now)
+        // A day chosen on purpose stays.
+        #expect(DayFollowing.selection(day(20), lastToday: lastToday, now: now, calendar: cal) == day(20))
+        // Same day: nothing moves, even hours later.
+        #expect(DayFollowing.selection(yesterdayNoon, lastToday: lastToday, now: day(27, hour: 23), calendar: cal) == yesterdayNoon)
+    }
+
+    @Test func calorieTargetCountsDaysWithinIt() {
+        let points = [(day(20), 0.0), (day(21), 1900.0), (day(22), 2200.0), (day(23), 2600.0)]
+        // A limit: days with food logged that stayed at or under it.
+        #expect(DailyChartDescriptor.daysOnGoal(points, goal: 2200, isLimit: true) == 2)
+        // A target to reach: days at or over it.
+        #expect(DailyChartDescriptor.daysOnGoal(points, goal: 2200, isLimit: false) == 2)
+        #expect(DailyChartDescriptor.daysOnGoal(points, goal: 2000, isLimit: false) == 2)
+        #expect(DailyChartDescriptor.daysOnGoal(points, goal: 2000, isLimit: true) == 1)
+    }
 }

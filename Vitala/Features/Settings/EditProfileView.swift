@@ -14,6 +14,11 @@ struct EditProfileView: View {
     @State private var heightInches = ""
     @State private var weightText = ""
     @State private var didLoad = false
+    /// The height and weight fields as first shown, to tell an edit from a
+    /// field that was only displayed (rounded) and saved back.
+    @State private var shownHeight = ""
+    @State private var shownWeight = ""
+    @State private var confirmingPhotoRemoval = false
 
     private var trimmedName: String { draft.displayName.trimmingCharacters(in: .whitespaces) }
 
@@ -22,13 +27,20 @@ struct EditProfileView: View {
             Section {
                 HStack(spacing: VitalaSpacing.md) {
                     AvatarView(size: 64)
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ProfilePhotoPicker { hasPhoto in
                             Text(hasPhoto ? "Change photo" : "Add photo")
+                                .frame(minHeight: 44)
                         }
                         if profileStore.avatar != nil {
                             Button("Remove photo", role: .destructive) {
-                                profileStore.removeAvatar()
+                                confirmingPhotoRemoval = true
+                            }
+                            .frame(minHeight: 44)
+                            .confirmationDialog("Remove your profile photo?", isPresented: $confirmingPhotoRemoval,
+                                                titleVisibility: .visible) {
+                                Button("Remove photo", role: .destructive) { profileStore.removeAvatar() }
+                                Button("Keep photo", role: .cancel) {}
                             }
                         }
                     }
@@ -130,15 +142,22 @@ struct EditProfileView: View {
         if let kg = p.weightKg {
             weightText = String(format: "%.0f", units.displayWeight(kg: kg))
         }
+        shownHeight = heightFields
+        shownWeight = weightText
     }
+
+    private var heightFields: String { [heightCm, heightFeet, heightInches].joined(separator: "|") }
 
     private func save() {
         draft.displayName = trimmedName
         draft.dateOfBirth = hasBirthday ? birthday : nil
-        if let cm = units.parseHeightToCm(metric: heightCm, feet: heightFeet, inches: heightInches), cm > 0 {
+        // Only what was actually edited: re-saving a rounded display value
+        // would turn 72.5 kg into 72 just for renaming the profile.
+        if heightFields != shownHeight,
+           let cm = units.parseHeightToCm(metric: heightCm, feet: heightFeet, inches: heightInches), cm > 0 {
             draft.heightCm = cm
         }
-        if let kg = units.parseWeightToKg(weightText), kg > 0 {
+        if weightText != shownWeight, let kg = units.parseWeightToKg(weightText), kg > 0 {
             draft.weightKg = kg
         }
         Task {

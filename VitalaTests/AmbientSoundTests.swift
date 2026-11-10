@@ -84,6 +84,73 @@ struct AmbientSoundTests {
         }
     }
 
+    /// Renders `seconds` more of whatever `synth` is set to.
+    private func more(_ synth: AmbientSynth, seconds: Double) -> [Float] {
+        let total = Int(seconds * synth.sampleRate)
+        var left = [Float](repeating: 0, count: total), right = left
+        left.withUnsafeMutableBufferPointer { l in
+            right.withUnsafeMutableBufferPointer { r in
+                synth.render(frames: total, left: l.baseAddress!, right: r.baseAddress!)
+            }
+        }
+        return left
+    }
+
+    /// The biggest jump between neighbouring samples: a click shows up as a
+    /// step far larger than the music's own movement.
+    private func largestStep(_ x: [Float]) -> Float {
+        zip(x, x.dropFirst()).map { abs($1 - $0) }.max() ?? 0
+    }
+
+    @Test func switchingSoundsCrossfadesWithoutAClick() {
+        typealias Sound = AmbientSoundPlayer.Sound
+        let switches: [(Sound, Sound)] = [
+            (.spaBinauralBowls, .spa), (.spaBinauralBowls, .ocean), (.spaBinaural, .crystalBowls),
+            (.crystalBowls, .ocean), (.ocean, .spaBinauralBowls), (.spa, .spaBinaural),
+        ]
+        for (from, to) in switches {
+            let synth = AmbientSynth()
+            synth.configure(sound: from, category: .breathing)
+            synth.targetGain = 1
+            let before = more(synth, seconds: 4)
+            let usual = largestStep(Array(before.suffix(48_000)))
+
+            synth.configure(sound: to, category: .breathing)
+            let after = more(synth, seconds: 3)
+            // Across the switch, including the very first sample after it.
+            let seam = largestStep([before.last!] + Array(after.prefix(24_000)))
+            #expect(seam <= usual * 1.5 + 0.004, "\(from) → \(to): step \(seam) vs usual \(usual)")
+            // And the new sound has fully arrived.
+            let fresh = AmbientSynth()
+            fresh.configure(sound: to, category: .breathing)
+            fresh.targetGain = 1
+            let reference = more(fresh, seconds: 7)
+            let ratio = rms(after.suffix(48_000)) / rms(reference.suffix(48_000))
+            #expect(ratio > 0.5 && ratio < 2, "\(from) → \(to): settled level ratio \(ratio)")
+        }
+    }
+
+    @Test func bowlsStrikeSoonAfterBeingSwitchedOn() {
+        let synth = AmbientSynth()
+        synth.configure(sound: .ocean, category: .breathing)
+        synth.targetGain = 1
+        _ = more(synth, seconds: 3)
+        synth.configure(sound: .crystalBowls, category: .breathing)
+        let after = more(synth, seconds: 2.5)
+        #expect(rms(after.suffix(48_000)) > 0.01, "a bowl rings within a couple of seconds")
+    }
+
+    @Test func rendersFarFasterThanRealTime() {
+        let synth = AmbientSynth()
+        synth.configure(sound: .spaBinauralBowls, category: .breathing)
+        synth.targetGain = 1
+        let start = ContinuousClock.now
+        _ = more(synth, seconds: 10)
+        let took = ContinuousClock.now - start
+        print("AMBIENT_RENDER 10 s of audio in \(took)")
+        #expect(took < .seconds(2.5), "10 s of the heaviest mix took \(took)")
+    }
+
     @Test func fadesInGently() {
         let (l, _) = render(.spa, .sleep, seconds: 3)
         #expect(rms(l[0..<480]) < rms(l[(l.count - 4800)...]) * 0.2, "first 10 ms is near-silent")

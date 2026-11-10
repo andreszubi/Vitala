@@ -19,16 +19,23 @@ enum Insights {
     static func currentStreak(activeDays: Set<Date>, today: Date = .now, calendar: Calendar = .current) -> Int {
         var day = calendar.startOfDay(for: today)
         if !activeDays.contains(day) {
-            guard let yesterday = calendar.date(byAdding: .day, value: -1, to: day) else { return 0 }
+            guard let yesterday = dayBefore(day, calendar) else { return 0 }
             day = yesterday
         }
         var streak = 0
         while activeDays.contains(day) {
             streak += 1
-            guard let prev = calendar.date(byAdding: .day, value: -1, to: day) else { break }
+            guard let prev = dayBefore(day, calendar) else { break }
             day = prev
         }
         return streak
+    }
+
+    /// The start of the day before `day`. Where clocks change at midnight
+    /// (Chile, Egypt, Lebanon, Cuba) a day can start at 01:00, so stepping
+    /// back 24 hours isn't enough: it has to land on that day's own start.
+    private static func dayBefore(_ day: Date, _ calendar: Calendar) -> Date? {
+        calendar.date(byAdding: .day, value: -1, to: day).map { calendar.startOfDay(for: $0) }
     }
 
     /// Workouts started in the current calendar week.
@@ -40,7 +47,9 @@ enum Insights {
     /// The last `count` days, oldest first, each as a start-of-day date.
     static func lastDays(_ count: Int, endingOn end: Date = .now, calendar: Calendar = .current) -> [Date] {
         let today = calendar.startOfDay(for: end)
-        return (0..<count).reversed().compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
+        return (0..<count).reversed().compactMap {
+            calendar.date(byAdding: .day, value: -$0, to: today).map { calendar.startOfDay(for: $0) }
+        }
     }
 
     /// Sums a value per day for items that fall on each of `days`.

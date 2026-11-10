@@ -55,7 +55,7 @@ struct ProgressDashboardView: View {
 
                 TrendCard(title: "Food energy", unit: "kcal", color: VitalaColor.primary,
                           points: series(store.allMeals, date: \.date) { Double($0.totalCalories) },
-                          goal: Double(goals.dailyCalories),
+                          goal: Double(goals.dailyCalories), goalIsLimit: true,
                           emptyMessage: "Log meals to see your intake over time.",
                           format: { "\(Int($0).formatted()) kcal" })
 
@@ -135,6 +135,9 @@ private struct TrendCard: View {
     let color: Color
     let points: [(Date, Double)]
     var goal: Double? = nil
+    /// True when the goal is a ceiling to stay under (food energy) rather
+    /// than a target to reach.
+    var goalIsLimit = false
     let emptyMessage: String
     let format: (Double) -> String
 
@@ -146,7 +149,7 @@ private struct TrendCard: View {
     }
     private var daysOnGoal: Int {
         guard let goal else { return 0 }
-        return points.filter { $0.1 >= goal }.count
+        return DailyChartDescriptor.daysOnGoal(points, goal: goal, isLimit: goalIsLimit)
     }
 
     var body: some View {
@@ -182,10 +185,12 @@ private struct TrendCard: View {
                     }
                 }
                 .frame(height: 160)
-                .dailyChartAccessibility(DailyChartDescriptor(title: title, unit: unit, points: points, goal: goal))
+                .dailyChartAccessibility(DailyChartDescriptor(title: title, unit: unit, points: points, goal: goal,
+                                                              goalIsLimit: goalIsLimit))
 
                 if goal != nil {
-                    Text("Goal met on \(daysOnGoal) of \(points.count) days")
+                    Text(goalIsLimit ? "Within target on \(daysOnGoal) of \(points.count) days"
+                                     : "Goal met on \(daysOnGoal) of \(points.count) days")
                         .font(VitalaFont.caption(12))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }

@@ -77,7 +77,7 @@ struct SleepView: View {
         .sheet(item: $editingEntry) { entry in
             NavigationStack { SleepTrackerView(editing: entry) }
         }
-        .refreshable { await HealthKitService.shared.refreshHistory() }
+        .refreshable { await HealthKitService.shared.refreshHistory(force: true) }
         .task { await HealthKitService.shared.refreshHistory() }
     }
 

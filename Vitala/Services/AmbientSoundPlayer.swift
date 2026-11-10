@@ -42,33 +42,80 @@ final class AmbientSoundPlayer {
         }
     }
 
-    private let engine = AVAudioEngine()
+    /// Created with the first sound, so a player that never plays costs nothing.
+    private lazy var engine = AVAudioEngine()
     private let synth = AmbientSynth()
     private var stopTask: Task<Void, Never>?
     /// Whether this player is currently counted as using the audio session.
     private let lease = AudioSessionLease()
+    /// True from the first sound until `stop()`: the engine should be running.
+    private var wantsSound = false
+    private var observers: [NSObjectProtocol] = []
 
-    /// Starts (or switches to) a sound with a gentle fade-in.
-    func play(_ sound: Sound, for category: MindfulnessSession.Category) {
+    /// Starts (or switches to) a sound with a gentle fade-in. `paused`
+    /// switches the sound without letting it be heard yet.
+    func play(_ sound: Sound, for category: MindfulnessSession.Category, paused: Bool = false) {
         stopTask?.cancel()
         guard sound != .silent else { stop(); return }
         synth.configure(sound: sound, category: category)
         // The synth fades in from silence, so it can start ramping now.
+        synth.targetGain = paused ? 0 : 1
+        wantsSound = true
+        observeHardware()
+        start()
+    }
+
+    func pause() { synth.targetGain = 0 }
+
+    /// Fades back in, restarting the engine if the system stopped it while
+    /// the session was paused (in the background, say).
+    func resume() {
+        guard wantsSound else { return }
         synth.targetGain = 1
+        start()
+    }
+
+    /// Makes sure the session is active and the engine is running. Safe to
+    /// call when they already are.
+    private func start(reactivating: Bool = false) {
         Self.audioQueue.async { [engine, synth, lease] in
             do {
-                try Self.acquireSession(lease)
+                try Self.acquireSession(lease, reactivating: reactivating)
                 Self.attachSourceIfNeeded(to: engine, synth: synth)
-                if !engine.isRunning { try engine.start() }
+                if !engine.isRunning {
+                    // Nothing is rendering, so the level can be reset: the
+                    // sound fades in again rather than cutting in.
+                    synth.startFromSilence()
+                    try engine.start()
+                }
             } catch {
                 // Sound is a nice-to-have; the session works silently.
             }
         }
     }
 
-    func pause() { synth.targetGain = 0 }
+    /// The engine stops itself when the output changes (headphones plugged
+    /// in or out) and the session is suspended by a call or an alarm. Either
+    /// way, carry on once the hardware is ready again.
+    private func observeHardware() {
+        guard observers.isEmpty else { return }
+        let center = NotificationCenter.default
+        observers.append(center.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
+                                            queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.hardwareChanged(reactivating: false) }
+        })
+        observers.append(center.addObserver(forName: AVAudioSession.interruptionNotification,
+                                            object: AVAudioSession.sharedInstance(), queue: .main) { [weak self] note in
+            let type = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            guard type == AVAudioSession.InterruptionType.ended.rawValue else { return }
+            MainActor.assumeIsolated { self?.hardwareChanged(reactivating: true) }
+        })
+    }
 
-    func resume() { synth.targetGain = 1 }
+    private func hardwareChanged(reactivating: Bool) {
+        guard wantsSound else { return }
+        start(reactivating: reactivating)
+    }
 
     /// Follows the breathing guide: the pad and waves swell on the in-breath.
     func setBreath(expanded: Bool) { synth.targetSwell = expanded ? 1 : 0.55 }
@@ -77,8 +124,14 @@ final class AmbientSoundPlayer {
     func stop() {
         synth.targetGain = 0
         stopTask?.cancel()
+        guard wantsSound else { return }
+        wantsSound = false
+        observers.forEach(NotificationCenter.default.removeObserver)
+        observers = []
         stopTask = Task { [engine, lease] in
-            try? await Task.sleep(for: .milliseconds(1600))
+            // Long enough for the fade to reach silence; cutting the engine
+            // off sooner is heard as a tick.
+            try? await Task.sleep(for: .milliseconds(2800))
             guard !Task.isCancelled else { return }
             Self.audioQueue.async {
                 engine.stop()
@@ -100,12 +153,16 @@ final class AmbientSoundPlayer {
     /// Runs on `audioQueue`. Configures and activates the session only when
     /// it isn't already set up, so starting a sound never re-routes audio
     /// that is already playing.
-    private nonisolated static func acquireSession(_ lease: AudioSessionLease) throws {
+    private nonisolated static func acquireSession(_ lease: AudioSessionLease, reactivating: Bool = false) throws {
         let session = AVAudioSession.sharedInstance()
         if session.category != .playback || !session.categoryOptions.contains(.mixWithOthers) {
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
         }
-        guard !lease.held else { return }
+        guard !lease.held else {
+            // After an interruption the system has deactivated the session.
+            if reactivating { try session.setActive(true) }
+            return
+        }
         if activePlayers == 0 { try session.setActive(true) }
         activePlayers += 1
         lease.held = true
@@ -161,13 +218,25 @@ final class AmbientSynth: @unchecked Sendable {
     private var gain: Float = 0
     private var swell: Float = 0.75
 
+    /// Only while nothing is rendering (the engine is stopped).
+    func startFromSilence() { gain = 0 }
+
     // Configuration
     /// Four chord tones. A tuple, not an array, so reassigning it from the
     /// main thread never reallocates storage the render thread is reading.
     private var padFreqs: (Double, Double, Double, Double) = (146.83, 220.0, 293.66, 369.99)
+    // Each layer's level glides to its target, so switching sounds
+    // crossfades instead of jumping (a jump is heard as a click or skip).
+    private var targetPadLevel: Float = 0.05
+    private var targetOceanLevel: Float = 0.06
+    private var targetBinauralLevel: Float = 0
+    private var targetBowlLevel: Float = 0
     private var padLevel: Float = 0.05
     private var oceanLevel: Float = 0.06
     private var binauralLevel: Float = 0
+    /// False until the first buffer is rendered; until then a configure
+    /// sets levels outright, as there is nothing to crossfade from.
+    private var hasRendered = false
     private var carrier: Double = 200
     private var beat: Double = 6
 
@@ -193,6 +262,8 @@ final class AmbientSynth: @unchecked Sendable {
     private var bowlPhases = [Double](repeating: 0, count: 14)
     private var samplesSinceStrike = 0
     private var strikeCount = 0
+    /// Whether the bowls are sounding; owned by the render thread.
+    private var bowlsActive = false
 
     func configure(sound: AmbientSoundPlayer.Sound, category: MindfulnessSession.Category) {
         // A different open, consonant chord per category.
@@ -212,20 +283,21 @@ final class AmbientSynth: @unchecked Sendable {
         case .focus: carrier = 392.0; beat = 10       // G over C
         case .gratitude: carrier = 440.0; beat = 8    // A over D
         }
+        // (pad, ocean, binaural, bowls)
+        let levels: (Float, Float, Float, Float)
         switch sound {
-        case .spaBinaural: padLevel = 0.04;  oceanLevel = 0.04; binauralLevel = 0.09
-        case .spa:         padLevel = 0.05;  oceanLevel = 0.06; binauralLevel = 0
+        case .spaBinaural: levels = (0.04, 0.04, 0.09, 0)
+        case .spa:         levels = (0.05, 0.06, 0, 0)
         // A quiet pad underneath so the bowls ring out over warmth, not silence.
-        case .crystalBowls: padLevel = 0.018; oceanLevel = 0;   binauralLevel = 0
+        case .crystalBowls: levels = (0.018, 0, 0, 0.11)
         // Everything together, each layer pulled back so the mix stays calm.
-        case .spaBinauralBowls: padLevel = 0.032; oceanLevel = 0.032; binauralLevel = 0.07
-        case .ocean:       padLevel = 0;     oceanLevel = 0.11; binauralLevel = 0
-        case .silent:      padLevel = 0;     oceanLevel = 0;    binauralLevel = 0
+        case .spaBinauralBowls: levels = (0.032, 0.032, 0.07, 0.085)
+        case .ocean:       levels = (0, 0.11, 0, 0)
+        case .silent:      levels = (0, 0, 0, 0)
         }
-        switch sound {
-        case .crystalBowls: bowlLevel = 0.11
-        case .spaBinauralBowls: bowlLevel = 0.085
-        default: bowlLevel = 0
+        (targetPadLevel, targetOceanLevel, targetBinauralLevel, targetBowlLevel) = levels
+        if !hasRendered {
+            (padLevel, oceanLevel, binauralLevel, bowlLevel) = levels
         }
         // The bowls sit an octave above the pad's chord tones.
         switch category {
@@ -237,7 +309,10 @@ final class AmbientSynth: @unchecked Sendable {
     }
 
     func render(frames: Int, left: UnsafeMutablePointer<Float>, right: UnsafeMutablePointer<Float>) {
+        hasRendered = true
         let sr = sampleRate
+        // About a third of a second to cross from one sound to another.
+        let glide = Float(1 / (sr * 0.1))
         let twoPi = 2 * Double.pi
         let freqs = padFreqs
         let bowls = bowlFreqs
@@ -248,6 +323,10 @@ final class AmbientSynth: @unchecked Sendable {
             // Smooth parameter changes (≈1.5 s fades, ≈1 s swells).
             gain += (targetGain - gain) * Float(1 / (sr * 0.5))
             swell += (targetSwell - swell) * Float(1 / (sr * 0.35))
+            padLevel += (targetPadLevel - padLevel) * glide
+            oceanLevel += (targetOceanLevel - oceanLevel) * glide
+            binauralLevel += (targetBinauralLevel - binauralLevel) * glide
+            bowlLevel += (targetBowlLevel - bowlLevel) * glide
 
             // Slow LFO for a breathing shimmer in the pad.
             lfoPhase += 0.07 / sr
@@ -301,7 +380,19 @@ final class AmbientSynth: @unchecked Sendable {
 
             // Crystal bowls.
             var bowlL: Float = 0, bowlR: Float = 0
-            if bowlLevel > 0 {
+            if targetBowlLevel > 0, !bowlsActive {
+                // Just switched on: strike the first bowl about half a second in.
+                bowlsActive = true
+                strikeCount = 0
+                samplesSinceStrike = Int(sr * 0.5)
+            } else if bowlsActive, targetBowlLevel == 0, bowlLevel < 0.0002 {
+                // Faded out: fall silent and forget the ringing.
+                bowlsActive = false
+                bowlLevel = 0
+                bowlStrike = (0, 0, 0)
+                bowlEnv = (0, 0, 0)
+            }
+            if bowlsActive {
                 samplesSinceStrike += 1
                 // Strikes 6.5–8 s apart, never quite regular; the first comes after a second.
                 let gap = strikeCount == 0 ? 1.0 : 6.5 + 0.75 * Double((strikeCount * 2) % 3)

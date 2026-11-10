@@ -128,7 +128,10 @@ struct LogActivityView: View {
             if let km = s.distanceKm {
                 distance = String(format: "%.2f", units.displayDistance(km: km))
             }
-        } else if let d = forDate, !Calendar.current.isDateInToday(d) {
+        } else if forDate.map(Calendar.current.isDateInToday) ?? true {
+            // Logging something just finished: it started a while ago, not now.
+            startedAt = Date.now.addingTimeInterval(-Double(durationMinutes) * 60)
+        } else if let d = forDate {
             // Anchor a backdated log to the selected day, but keep the
             // current time so the time-of-day picker isn't midnight.
             let cal = Calendar.current
@@ -137,16 +140,22 @@ struct LogActivityView: View {
         }
     }
 
+    /// A tracked workout keeps its exact length unless the minutes were changed.
+    private var durationSeconds: Int {
+        if let tracked = editing?.durationSeconds, max(1, tracked / 60) == durationMinutes { return tracked }
+        return durationMinutes * 60
+    }
+
     private func save() async {
         saving = true
-        let endedAt = startedAt.addingTimeInterval(Double(durationMinutes) * 60)
+        let endedAt = startedAt.addingTimeInterval(Double(durationSeconds))
         let session = WorkoutSession(
             id: editing?.id ?? UUID().uuidString,
             workoutId: editing?.workoutId ?? "custom-\(UUID().uuidString.prefix(8))",
             workoutName: trimmedName,
             startedAt: startedAt,
             endedAt: endedAt,
-            durationSeconds: durationMinutes * 60,
+            durationSeconds: durationSeconds,
             caloriesBurned: calories,
             notes: notes.isEmpty ? nil : notes,
             category: category,

@@ -253,14 +253,86 @@ Requests raised after the 1.0 build, plus issues found testing on a real iPhone.
 
 ---
 
+### Sprint 7 — Dependable, with restaurants and exercise demonstrations ✅
+
+**Sprint goal:** fix what a full code audit and device use turned up, and deliver the two features asked for: restaurant meals in food search and a demonstration for every exercise.
+
+| ID | Story | Acceptance criteria | Pts |
+|----|-------|---------------------|-----|
+| E8-1 | As a user, I want changing the sound to be seamless. | Each layer of the sound glides to its new level over about a tenth of a second instead of jumping; a ringing bowl fades rather than being cut; a test switches sounds six times and fails if any step is large enough to hear as a click; rendering stays far faster than real time. | 3 |
+| E8-2 | As a user, I want to log meals from restaurants. | Typing a chain's name lists its menu (20 chains USDA covers); restaurant items in any search are labelled with their chain and a takeaway icon; lab-analysed items load their real serving ("1 item 7.6 oz") when opened; shouted USDA names are tidied ("BIG MAC" reads "Big Mac"); chains can be browsed from chips under the search field; a note says figures are USDA's and menus change. | 8 |
+| E8-3 | As a user, I want to see how each exercise is done. | All 19 library exercises have a looping demonstration; it plays in the workout player and pauses with it; each exercise in a workout's list shows a still and opens a closer look with instructions and play/pause; holds still under Reduce Motion; a filmed clip named after the exercise plays instead when one is bundled, silently and without interrupting the user's music. | 8 |
+| E8-4 | As a user, I want the app to be dependable. | Two independent reviews of every source file (screens, then services and models); every high and medium finding fixed or scheduled; pure logic covered by tests; unit tests and accessibility audits green. | 8 |
+
+**How the sprint ran**
+
+1. *Refinement.* The four requests became the stories above. Two decisions were made up front:
+   - **Restaurants** use USDA FoodData Central, which the app already talks to, so no new service, key or privacy disclosure is needed. Its limits are known and listed in the backlog.
+   - **Exercise "videos"** ship as demonstrations drawn in the app, because there is no footage Vitala has the right to bundle. The player already prefers a filmed clip when one is present, so adding footage later needs no code.
+2. *Build.* Each story was built, tested and pushed on its own: sound (E8-1), restaurants (E8-2), demonstrations (E8-3), audit fixes (E8-4).
+3. *Review.* 110 unit tests, the accessibility audits, and a simulator walkthrough of restaurant search, the exercise list, the closer look, the workout player and a stand-in filmed clip.
+
+**Audit (E8-4): what was found and fixed**
+
+| Area | Fixed this sprint |
+|---|---|
+| Wrong data | Tabs left open overnight kept logging to yesterday. Heights just under a whole foot lost a foot (182 cm read 5' 0") and were saved back that way. Edit profile rewrote height and weight from rounded values. Progress counted going *over* the calorie target as meeting the goal. Logged distance ignored the app's units. A new activity ended in the future; editing a tracked workout dropped its seconds. Streaks and day charts broke where clocks change at midnight. Sleep could read "7h 60m". |
+| Breathing sessions | Restart while paused stayed silent. Time in the background counted as breathing and could save a session nobody did. A session or workout could save itself behind the "End?" question. Sound did not come back after headphones were plugged in or a call ended, and ticked when it stopped. Scene motion jumped once a day. |
+| Crashes | Very large or non-numeric amounts in custom food and water. |
+| Speed | Settings re-encoded the whole export on every redraw. Every Health refresh redrew every screen whether anything changed, and history was re-read on each tab visit. Cue decks were dealt and audio engines created for views never shown. Scene colours were parsed from text many times a frame. |
+| Cleanup | Library workouts and sessions keep the same ids between launches. Unused store methods, model fields and a model type removed. Exercise prescription text has one home. Reminder changes can no longer overtake one another. |
+
+Findings that were not fixed are in the backlog below, marked *audit*.
+
+**Not verified on a device:** the sound crossfade by ear, sound recovering after a headphone or call interruption, and haptics. These need a real iPhone; the simulator cannot show them.
+
+**Retro:** rendering each demonstration to a contact sheet before putting it in the app caught unreadable poses (a forward fold with the head hidden behind an arm) in seconds rather than after a build. Giving the figure joint angles instead of positions means limbs cannot stretch, which a test now guarantees. The audit's most valuable finds were silent ones (logging to yesterday, a height saved a foot short): nothing crashes, the numbers are simply wrong, so both now have tests.
+
+---
+
 ## 7. Next backlog (1.1+)
+
+Ordered within each group. *audit* marks findings from Sprint 7's code audit that were scheduled rather than fixed.
+
+### Dependability (do first)
 
 | Priority | Item |
 |---|---|
+| High | *audit* — A data file that can't be read makes the app quietly read-only: new logs vanish on relaunch, or onboarding repeats. Move the bad file aside, carry on, and tell the user. Decode list by list so one bad entry can't hide the rest. |
+| High | *audit* — Every change rewrites the whole history on the main thread. Move saving to a background writer that batches quick changes and flushes when the app leaves the screen. |
+| Medium | *audit* — Writes to Apple Health are unordered, so add-then-delete can leave a sample behind. Send them through one queue. |
+| Medium | *audit* — The same night can be logged twice, which doubles that day in Progress. Offer to replace an overlapping night; total sleep per day. |
+| Medium | *audit* — Each screen re-filters the whole history many times per redraw. Compute each day's slice once and cache merged sleep and meals. |
+| Low | *audit* — Today shows two different water and mindful figures when another app logged some (one tile counts Health, one doesn't). |
+| Low | *audit* — Setup keeps typed numbers when units are switched (70 kg becomes 70 lb) and stores a made-up birthday on an optional screen. |
+| Low | *audit* — Food imported from Health is grouped by exact time, so two foods logged in the same second merge. |
+| Low | *audit* — Barcode lookup waits for USDA before trying Open Food Facts; ask both at once. |
+
+### Features
+
+| Priority | Item |
+|---|---|
+| High | **Filmed exercise clips.** License or film a short loop per exercise and add it to the app; the player already shows a clip named after the exercise in place of the drawn figure. Decide the source first (stock library licence, a trainer, or filming). |
+| High | **Fuller restaurant coverage.** USDA has no Starbucks, Chipotle, Dunkin', Panera, Five Guys or Panda Express, and its restaurant figures are years old. A commercial menu database (Nutritionix, FatSecret) covers them, with a monthly cost, a key to protect, and a privacy-label update. |
 | High | Journal insights — mood over time in Progress, and an optional journal reminder |
-| Medium | Save journal moods to Apple Health as State of Mind (iOS 18+), with the user's permission |
 | High | iCloud / CloudKit sync across devices |
+| Medium | Favourite foods and saved meals ("my usual breakfast"), and "copy yesterday" for a meal |
+| Medium | Build your own workout from the exercise library; more library workouts; a spoken or haptic cue when the exercise changes |
+| Medium | Keep session sound playing with the screen locked (background audio), with the clock running to match |
+| Medium | A Live Activity for a running workout or breathing session |
+| Medium | Save journal moods to Apple Health as State of Mind (iOS 18+), with the user's permission |
 | Medium | Home Screen widgets and App Intents ("Log 250 ml of water") |
+| Medium | A weekly summary: what went well, in plain words |
 | Medium | iPad layout |
 | Medium | Localization (String Catalog) |
 | Low | Apple Watch companion for workouts and breathing |
+
+### Experience and accessibility
+
+| Priority | Item |
+|---|---|
+| Medium | *audit* — Selected chips (focus, sleep quality, theme, filters) differ mainly by colour; add a checkmark or weight change. |
+| Medium | *audit* — The breathing player can't grow with the largest text sizes on small phones; let its middle scroll. |
+| Low | *audit* — "Type the number instead" on the barcode scanner is under 44 pt tall on iOS 17–25. |
+| Low | *audit* — Food details and Edit profile show Done/Cancel beside a Back button when pushed rather than presented. |
+| Low | *audit* — Tidy-up: unused design-system pieces, three copies of the progress bar, four of the Today/Yesterday label, three chip types. |
