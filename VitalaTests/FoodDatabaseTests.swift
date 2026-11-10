@@ -140,6 +140,65 @@ struct BarcodeTests {
         #expect(item.displayIcon != "barcode")
     }
 
+    // MARK: Restaurants
+
+    @Test func recognisesRestaurantItemsInEverySpellingUSDAUses() {
+        func parsed(_ text: String) -> String? {
+            RestaurantChain.parse(text).map { "\($0.chain.name) | \($0.item)" }
+        }
+        #expect(parsed("McDONALD'S, BIG MAC") == "McDonald's | Big Mac")
+        #expect(parsed("Big Mac (McDonalds)") == "McDonald's | Big Mac")
+        #expect(parsed("McDONALD'S, Chicken McNUGGETS") == "McDonald's | Chicken McNuggets")
+        #expect(parsed("WENDY'S, CLASSIC DOUBLE, with cheese") == "Wendy's | Classic Double, with cheese")
+        #expect(parsed("WENDY'S, french fries") == "Wendy's | French fries")
+        #expect(parsed("Beverages, WENDY'S, tea, ready-to-drink, unsweetened") == "Wendy's | Tea, ready-to-drink, unsweetened")
+        #expect(parsed("DOMINO'S 14\" Cheese Pizza, Crunchy Thin Crust") == "Domino's | 14\" Cheese Pizza, Crunchy Thin Crust")
+        #expect(parsed("T.G.I. FRIDAY'S, FRIDAY'S Shrimp, breaded") == "T.G.I. Friday's | Friday's Shrimp, breaded")
+        #expect(parsed("CARRABBA'S ITALIAN GRILL, lasagne") == "Carrabba's | Lasagne")
+        #expect(parsed("KFC, Fried Chicken, ORIGINAL RECIPE, Breast") == "KFC | Fried Chicken, Original Recipe, Breast")
+        // Ordinary foods are left alone.
+        #expect(parsed("Bananas, raw") == nil)
+        #expect(parsed("Cheese, cheddar (Includes foods for USDA's Food Distribution Program)") == nil)
+        #expect(parsed("Subways of flavour bar") == nil)
+    }
+
+    @Test func aChainNameAsTheWholeQueryMeansItsMenu() {
+        #expect(RestaurantChain.matching("McDonald’s")?.name == "McDonald's")
+        #expect(RestaurantChain.matching(" mcdonalds ")?.name == "McDonald's")
+        #expect(RestaurantChain.matching("TGI Fridays")?.name == "T.G.I. Friday's")
+        #expect(RestaurantChain.matching("mcdonalds fries") == nil)
+        #expect(RestaurantChain.matching("") == nil)
+        #expect(Set(RestaurantChain.all.map(\.name)).count == RestaurantChain.all.count)
+    }
+
+    @Test func restaurantResultsCarryTheChainAndBuildAMenu() throws {
+        let json = #"{"foods":[{"fdcId":170720,"description":"McDONALD'S, BIG MAC","dataType":"SR Legacy","foodCategory":"Fast Foods","foodNutrients":[{"nutrientId":1008,"value":257},{"nutrientId":1003,"value":11.8}]},{"fdcId":2706900,"description":"Big Mac (McDonalds)","dataType":"Survey (FNDDS)","foodCategory":"Burgers","foodNutrients":[{"nutrientId":1008,"value":261}],"foodMeasures":[{"disseminationText":"Quantity not specified","gramWeight":205},{"disseminationText":"1 McDonald's Big Mac","gramWeight":205}]},{"fdcId":3,"description":"McDONALD'S, french fries","dataType":"SR Legacy","foodCategory":"Fast Foods","foodNutrients":[{"nutrientId":1008,"value":323}]},{"fdcId":4,"description":"WENDY'S, french fries","dataType":"SR Legacy","foodCategory":"Fast Foods","foodNutrients":[{"nutrientId":1008,"value":304}]},{"fdcId":5,"description":"Thousand Island dressing","dataType":"Survey (FNDDS)","foodNutrients":[{"nutrientId":1008,"value":379}]}]}"#
+        let results = try FoodDatabaseClient.parse(Data(json.utf8))
+        let bigMac = try #require(results.first { $0.id == 170720 })
+        #expect(bigMac.isRestaurant && bigMac.brand == "McDonald's" && bigMac.name == "Big Mac")
+        #expect(bigMac.needsPortionLookup, "lab-analysed items come back per 100 g only")
+        #expect(results.first { $0.id == 5 }?.isRestaurant == false)
+
+        let menu = FoodDatabaseClient.menu(results, of: try #require(RestaurantChain.matching("mcdonalds")))
+        #expect(menu.map(\.name) == ["Big Mac", "French fries"])
+        #expect(menu[0].id == 2706900, "of two Big Macs, the one with a real serving wins")
+        #expect(menu[0].defaultPortion.label == "1 McDonald's Big Mac")
+
+        let item = menu[0].foodItem(portion: menu[0].defaultPortion, quantity: 1)
+        #expect(item.fullName == "McDonald's Big Mac")
+        #expect(item.calories == 535)                       // 261 kcal/100 g × 205 g
+        #expect(item.icon == "takeoutbag.and.cup.and.straw.fill")
+    }
+
+    @Test func detailRecordSuppliesRealServings() {
+        let lab = #"{"description":"McDONALD'S, BIG MAC","foodPortions":[{"amount":1.0,"modifier":"item 7.6 oz","gramWeight":219.0,"measureUnit":{"name":"undetermined"}}]}"#
+        #expect(FoodDatabaseClient.parsePortions(Data(lab.utf8)) == [.init(label: "1 item 7.6 oz", grams: 219)])
+        let survey = #"{"foodPortions":[{"portionDescription":"Quantity not specified","gramWeight":126},{"portionDescription":"1 banana","gramWeight":126},{"portionDescription":"1 banana","gramWeight":126},{"amount":0.5,"measureUnit":{"name":"cup"},"gramWeight":75},{"modifier":"slice","gramWeight":0}]}"#
+        #expect(FoodDatabaseClient.parsePortions(Data(survey.utf8)).map(\.label) == ["1 banana", "0.5 cup"])
+        #expect(FoodDatabaseClient.parsePortions(Data("{}".utf8)).isEmpty)
+        #expect(FoodDatabaseClient.parsePortions(Data("nope".utf8)).isEmpty)
+    }
+
     @Test func unknownProductReturnsNil() {
         let json = #"{"code":"0000","status":0,"status_verbose":"product not found"}"#
         #expect(OpenFoodFactsClient.parse(Data(json.utf8), barcode: "0000") == nil)

@@ -41,8 +41,15 @@ struct FoodSearchResult: Identifiable, Hashable {
     let brand: String?
     let isBranded: Bool
     let per100g: Nutrients
-    let portions: [Portion]
+    var portions: [Portion]
     var source: Source = .usda
+    /// A restaurant menu item; `brand` then names the chain.
+    var isRestaurant = false
+
+    /// USDA lists some foods (laboratory-analysed ones, including most
+    /// restaurant items) per 100 g only in search results; their real
+    /// servings come from a second request.
+    var needsPortionLookup: Bool { source == .usda && !isBranded && portions.count <= 1 }
 
     var defaultPortion: Portion { portions.first ?? Portion(label: "100 g", grams: 100) }
 
@@ -72,7 +79,7 @@ struct FoodSearchResult: Identifiable, Hashable {
                         carbsG: (n.carbs * 10).rounded() / 10,
                         fatG: (n.fat * 10).rounded() / 10,
                         fiberG: (n.fiber * 10).rounded() / 10,
-                        icon: isBranded ? "basket.fill" : "leaf.fill",
+                        icon: isRestaurant ? "takeoutbag.and.cup.and.straw.fill" : isBranded ? "basket.fill" : "leaf.fill",
                         sugarG: n.sugar.map { ($0 * 10).rounded() / 10 },
                         saturatedFatG: n.saturatedFat.map { ($0 * 10).rounded() / 10 },
                         sodiumMg: n.sodiumMg.map { $0.rounded() },
@@ -117,55 +124,81 @@ struct FoodDatabaseClient {
     var isConfigured: Bool { apiKey != nil }
 
     func search(_ query: String, pageSize: Int = 25) async throws -> [FoodSearchResult] {
+        // Phones type a curly apostrophe; USDA matches the straight one.
+        let query = query.replacingOccurrences(of: "’", with: "'")
+        if let chain = RestaurantChain.matching(query) {
+            return try await menu(of: chain)
+        }
+        // POST so the "Survey (FNDDS)" data type (household portions) can be
+        // requested; its parentheses are rejected in a query string.
+        let data = try await post([
+            "query": query,
+            "dataType": ["Survey (FNDDS)", "Foundation", "SR Legacy", "Branded"],
+            "pageSize": pageSize,
+            "requireAllWords": true
+        ])
+        return try Self.parse(data)
+    }
+
+    /// Everything USDA lists for one restaurant chain, A to Z.
+    func menu(of chain: RestaurantChain) async throws -> [FoodSearchResult] {
+        let data = try await post([
+            "query": chain.searchTerm,
+            "dataType": ["Survey (FNDDS)", "SR Legacy"],
+            "pageSize": 200,
+            "requireAllWords": true
+        ])
+        return Self.menu(try Self.parse(data), of: chain)
+    }
+
+    /// The real servings of a food ("1 item", "1 medium"), for results that
+    /// came back per 100 g only. Empty if USDA lists none.
+    func portions(forFoodID id: Int) async throws -> [FoodSearchResult.Portion] {
+        guard let apiKey else { throw SearchError.notConfigured }
+        var components = URLComponents(string: "https://api.nal.usda.gov/fdc/v1/food/\(id)")!
+        components.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
+        let data = try await send(URLRequest(url: components.url!, timeoutInterval: 15))
+        return Self.parsePortions(data)
+    }
+
+    private func post(_ body: [String: Any]) async throws -> Data {
         guard let apiKey else { throw SearchError.notConfigured }
         var components = URLComponents(string: "https://api.nal.usda.gov/fdc/v1/foods/search")!
         components.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
         var request = URLRequest(url: components.url!, timeoutInterval: 15)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        // POST so the "Survey (FNDDS)" data type (household portions) can be
-        // requested; its parentheses are rejected in a query string.
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
-            "query": query,
-            "dataType": ["Survey (FNDDS)", "Foundation", "SR Legacy", "Branded"],
-            "pageSize": pageSize,
-            "requireAllWords": true
-        ])
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return try await send(request)
+    }
 
+    private func send(_ request: URLRequest) async throws -> Data {
         let data: Data
         let response: URLResponse
         do {
             (data, response) = try await session.data(for: request)
         } catch let error as URLError where error.code == .notConnectedToInternet || error.code == .networkConnectionLost {
             throw SearchError.offline
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
         } catch {
             throw SearchError.unavailable
         }
         switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
-        case 200: break
+        case 200: return data
         case 429: throw SearchError.rateLimited
         default: throw SearchError.unavailable
         }
-        return try Self.parse(data)
     }
 
     /// Looks up a packaged food by its UPC / EAN among USDA branded foods.
     func food(barcode: String) async throws -> FoodSearchResult? {
-        guard let apiKey else { throw SearchError.notConfigured }
-        var components = URLComponents(string: "https://api.nal.usda.gov/fdc/v1/foods/search")!
-        components.queryItems = [URLQueryItem(name: "api_key", value: apiKey)]
-        var request = URLRequest(url: components.url!, timeoutInterval: 15)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONSerialization.data(withJSONObject: [
+        let data = try await post([
             "query": Barcode.digits(barcode), "dataType": ["Branded"], "pageSize": 10
         ])
-        let (data, response) = try await session.data(for: request)
-        switch (response as? HTTPURLResponse)?.statusCode ?? 0 {
-        case 200: return try Self.parseBarcodeMatch(data, barcode: barcode)
-        case 429: throw SearchError.rateLimited
-        default: throw SearchError.unavailable
-        }
+        return try Self.parseBarcodeMatch(data, barcode: barcode)
     }
 
     // MARK: Parsing
@@ -184,6 +217,7 @@ struct FoodDatabaseClient {
         let servingSizeUnit: String?
         let householdServingFullText: String?
         let gtinUpc: String?
+        let foodCategory: String?
         let foodNutrients: [Nutrient]?
         let foodMeasures: [Measure]?
     }
@@ -253,9 +287,66 @@ struct FoodDatabaseClient {
         }
         portions.append(.init(label: "100 g", grams: 100))
 
+        // Restaurant items: "McDONALD'S, BIG MAC" (lab-analysed) or
+        // "Big Mac (McDonalds)" (survey). Packaged foods keep their own brand.
+        if !isBranded, let restaurant = RestaurantChain.parse(food.description) {
+            return FoodSearchResult(id: food.fdcId, name: restaurant.item, brand: restaurant.chain.name,
+                                    isBranded: false, per100g: per100g, portions: portions,
+                                    isRestaurant: true)
+        }
         let brand = [food.brandName, food.brandOwner].compactMap { $0 }.first.map(tidy)
         return FoodSearchResult(id: food.fdcId, name: tidy(food.description), brand: brand,
-                                isBranded: isBranded, per100g: per100g, portions: portions)
+                                isBranded: isBranded, per100g: per100g, portions: portions,
+                                isRestaurant: ["Fast Foods", "Restaurant Foods"].contains(food.foodCategory ?? ""))
+    }
+
+    /// One chain's items from a set of results: only that chain, one entry
+    /// per item (the one with real servings wins), A to Z.
+    static func menu(_ results: [FoodSearchResult], of chain: RestaurantChain) -> [FoodSearchResult] {
+        var byName: [String: FoodSearchResult] = [:]
+        for result in results where result.isRestaurant && result.brand == chain.name {
+            let key = RestaurantChain.key(result.name)
+            if let existing = byName[key], existing.portions.count >= result.portions.count { continue }
+            byName[key] = result
+        }
+        return byName.values.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+    }
+
+    private struct FoodDetail: Decodable {
+        struct Portion: Decodable {
+            struct Unit: Decodable { let name: String? }
+            let amount: Double?
+            let modifier: String?
+            let gramWeight: Double?
+            let portionDescription: String?
+            let measureUnit: Unit?
+        }
+        let foodPortions: [Portion]?
+    }
+
+    /// Servings from a food's detail record. Survey foods describe them in
+    /// words ("1 banana"); lab-analysed ones as an amount and a unit
+    /// ("1" + "item 7.6 oz").
+    static func parsePortions(_ data: Data) -> [FoodSearchResult.Portion] {
+        guard let detail = try? JSONDecoder().decode(FoodDetail.self, from: data) else { return [] }
+        var portions: [FoodSearchResult.Portion] = []
+        for p in detail.foodPortions ?? [] {
+            guard let grams = p.gramWeight, grams > 0 else { continue }
+            let label: String
+            if let text = p.portionDescription, !text.isEmpty, text != "Quantity not specified" {
+                label = text
+            } else {
+                let unit = [p.modifier, p.measureUnit?.name]
+                    .compactMap { $0 }
+                    .first { !$0.isEmpty && $0 != "undetermined" }
+                guard let unit else { continue }
+                let amount = (p.amount ?? 1).formatted(.number.precision(.fractionLength(0...2)))
+                label = "\(amount) \(unit)"
+            }
+            guard !portions.contains(where: { $0.label == label }) else { continue }
+            portions.append(.init(label: label, grams: grams))
+        }
+        return portions
     }
 
     /// Branded names arrive in capitals ("PEANUT BUTTER"); make them readable.

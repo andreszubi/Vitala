@@ -54,6 +54,9 @@ struct AddMealView: View {
         onlineSearchEnabled && foodDatabase.isConfigured && trimmedQuery.count >= 2
     }
 
+    /// The chain whose whole menu is being browsed, when the search is its name.
+    private var browsingChain: RestaurantChain? { RestaurantChain.matching(trimmedQuery) }
+
     private var selectedCalories: Int { selected.reduce(0) { $0 + $1.calories } }
 
     var body: some View {
@@ -88,6 +91,10 @@ struct AddMealView: View {
                     showCustomSheet = true
                 }
                 .accessibilityIdentifier("meal.customFood")
+
+                if onlineSearchEnabled && foodDatabase.isConfigured && query.isEmpty {
+                    restaurantsRow
+                }
 
                 if !customFoods.isEmpty && query.isEmpty {
                     SectionHeader(title: "Your foods")
@@ -305,9 +312,31 @@ struct AddMealView: View {
 
     // MARK: Online search
 
+    /// Chains whose menu items USDA lists. Tapping one searches for its name,
+    /// which lists its whole menu; adding a word ("fries") narrows it.
+    private var restaurantsRow: some View {
+        VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+            SectionHeader(title: "Restaurants")
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(RestaurantChain.all) { chain in
+                        FilterChip(label: chain.name, isOn: false) { query = chain.name }
+                            .accessibilityHint("Shows menu items")
+                    }
+                }
+                .glassGroup()
+                .padding(.vertical, 2)
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Restaurants")
+        }
+    }
+
     private var onlineSection: some View {
         VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-            SectionHeader(title: "Food database", trailing: "USDA")
+            SectionHeader(title: browsingChain.map { "\($0.name) menu" } ?? "Food database",
+                          trailing: browsingChain != nil && onlineState == .done && !online.isEmpty
+                            ? "\(online.count) \(online.count == 1 ? "item" : "items")" : "USDA")
             switch onlineState {
             case .idle, .searching:
                 HStack(spacing: 10) {
@@ -323,7 +352,8 @@ struct AddMealView: View {
             case .done where online.isEmpty:
                 EmptyStateRow(text: "No foods found for \"\(trimmedQuery)\".", icon: "magnifyingglass")
             case .done:
-                ForEach(online.prefix(15)) { result in
+                // A chain's menu is listed in full; a general search shows the best matches.
+                ForEach(online.prefix(browsingChain == nil ? 15 : 200)) { result in
                     Button {
                         portionFor = result
                     } label: {
@@ -332,7 +362,9 @@ struct AddMealView: View {
                     .buttonStyle(PressableButtonStyle())
                     .accessibilityHint("Choose an amount to add")
                 }
-                Text("Nutrition data from USDA FoodData Central.")
+                Text(online.contains(where: \.isRestaurant)
+                     ? "Nutrition data from USDA FoodData Central. Restaurant items were analysed by USDA and may differ from today's menus."
+                     : "Nutrition data from USDA FoodData Central.")
                     .font(VitalaFont.caption(12))
                     .foregroundStyle(VitalaColor.textSecondary)
             }
@@ -474,13 +506,15 @@ private struct OnlineFoodRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: result.isBranded ? "barcode" : "leaf.fill")
+            Image(systemName: result.isRestaurant ? "takeoutbag.and.cup.and.straw.fill"
+                              : result.isBranded ? "basket.fill" : "leaf.fill")
                 .foregroundStyle(VitalaColor.primary)
                 .frame(width: 40, height: 40)
                 .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(VitalaColor.primary.opacity(0.10)))
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.name).font(VitalaFont.bodyMedium(15)).foregroundStyle(VitalaColor.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle).font(VitalaFont.caption(13)).foregroundStyle(VitalaColor.textSecondary)
             }
             Spacer(minLength: 8)
