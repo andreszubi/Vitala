@@ -64,6 +64,11 @@ struct WellnessGoals: Codable, Hashable {
     /// Exercise ring.
     var dailyExerciseMinutes: Int = 30
     var dailyMindfulMinutes: Int = 10
+    var dailyProteinG: Int = 60
+    /// True when the targets are worked out from the profile and focus (see
+    /// `GoalPlan`) and follow them as they change; false once the user sets
+    /// their own.
+    var followsPlan: Bool = true
 
     init() {}
 
@@ -82,6 +87,9 @@ struct WellnessGoals: Codable, Hashable {
         dailyActiveKcal = try c.decodeIfPresent(Int.self, forKey: .dailyActiveKcal) ?? d.dailyActiveKcal
         dailyExerciseMinutes = try c.decodeIfPresent(Int.self, forKey: .dailyExerciseMinutes) ?? d.dailyExerciseMinutes
         dailyMindfulMinutes = try c.decodeIfPresent(Int.self, forKey: .dailyMindfulMinutes) ?? d.dailyMindfulMinutes
+        dailyProteinG = try c.decodeIfPresent(Int.self, forKey: .dailyProteinG) ?? d.dailyProteinG
+        // Goals saved before plans existed were chosen by hand: leave them be.
+        followsPlan = try c.decodeIfPresent(Bool.self, forKey: .followsPlan) ?? false
     }
 
     enum Focus: String, Codable, CaseIterable, Identifiable {

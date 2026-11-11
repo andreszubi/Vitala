@@ -9,4 +9,11 @@
 // Left empty here; Debug builds fall back to USDA's rate-limited DEMO_KEY.
 USDA_API_KEY =
 
+// Accounts (Firebase Authentication). Both values are in the
+// GoogleService-Info.plist that Firebase gives you for the iOS app:
+// API_KEY and CLIENT_ID. Left empty here; Debug builds then keep accounts
+// on the device only, and Release builds can't sign anyone in.
+FIREBASE_API_KEY =
+GOOGLE_CLIENT_ID =
+
 #include? "Secrets.xcconfig"

@@ -16,6 +16,7 @@ struct DashboardView: View {
     @State private var showingMeal = false
     @State private var showingSleep = false
     @State private var editingWorkout: WorkoutSession? = nil
+    @State private var showingWeight = false
 
     private var goals: WellnessGoals { profileStore.profile?.goals ?? WellnessGoals() }
 
@@ -26,6 +27,9 @@ struct DashboardView: View {
     }
     private var todayMealKcal: Int {
         store.allMeals.filter { isToday($0.date) }.reduce(0) { $0 + $1.totalCalories }
+    }
+    private var todayProteinG: Double {
+        store.allMeals.filter { isToday($0.date) }.reduce(0) { $0 + $1.totalProtein }
     }
     private var todayMindfulMin: Int {
         store.mindfulness.filter { isToday($0.completedAt) }.reduce(0) { $0 + $1.minutes }
@@ -83,6 +87,7 @@ struct DashboardView: View {
                         connectHealthCard
                     }
                     ringsCard
+                    PlanCard(profile: profileStore.profile, metrics: planMetrics) { showingWeight = true }
                     quickLog
                     if !todayWorkouts.isEmpty {
                         todayActivityCard
@@ -111,6 +116,56 @@ struct DashboardView: View {
             }
             .sheet(item: $editingWorkout) { session in
                 NavigationStack { LogActivityView(editing: session) }
+            }
+            .sheet(isPresented: $showingWeight) {
+                NavigationStack { WeightSheet() }
+                    .presentationDetents([.medium, .large])
+            }
+        }
+    }
+
+    // MARK: Plan
+
+    /// Today's figures for the focus, each against its target.
+    private var planMetrics: [PlanMetric] {
+        PlanMetric.kinds(for: goals.primaryFocus).map { kind in
+            switch kind {
+            case .food:
+                PlanMetric(kind: kind, label: "Food energy", icon: "fork.knife",
+                           value: Double(todayMealKcal), target: Double(goals.dailyCalories),
+                           text: "\(todayMealKcal.formatted()) of \(goals.dailyCalories.formatted()) kcal", isLimit: true)
+            case .protein:
+                PlanMetric(kind: kind, label: "Protein", icon: "fish.fill",
+                           value: todayProteinG, target: Double(goals.dailyProteinG),
+                           text: "\(Int(todayProteinG.rounded())) of \(goals.dailyProteinG) g")
+            case .move:
+                PlanMetric(kind: kind, label: "Move", icon: "flame.fill",
+                           value: Double(moveKcal), target: Double(goals.dailyActiveKcal),
+                           text: "\(moveKcal) of \(goals.dailyActiveKcal) kcal")
+            case .steps:
+                PlanMetric(kind: kind, label: "Steps", icon: "figure.walk",
+                           value: Double(steps), target: Double(goals.dailySteps),
+                           text: "\(steps.formatted()) of \(goals.dailySteps.formatted())")
+            case .exercise:
+                PlanMetric(kind: kind, label: "Exercise", icon: "figure.run",
+                           value: Double(exerciseMin), target: Double(goals.dailyExerciseMinutes),
+                           text: "\(exerciseMin) of \(goals.dailyExerciseMinutes) min")
+            case .workouts:
+                PlanMetric(kind: kind, label: "Workouts this week", icon: "dumbbell.fill",
+                           value: Double(workoutsThisWeek), target: Double(goals.weeklyWorkouts),
+                           text: "\(workoutsThisWeek) of \(goals.weeklyWorkouts)")
+            case .water:
+                PlanMetric(kind: kind, label: "Water", icon: "drop.fill",
+                           value: Double(waterMl), target: Double(goals.dailyWaterMl),
+                           text: "\(units.compactVolume(ml: waterMl)) of \(units.compactVolume(ml: goals.dailyWaterMl))")
+            case .sleep:
+                PlanMetric(kind: kind, label: "Sleep", icon: "moon.stars.fill",
+                           value: sleepHours, target: goals.sleepHours,
+                           text: "\(Self.hoursText(sleepHours)) of \(Self.hoursText(goals.sleepHours))")
+            case .mindful:
+                PlanMetric(kind: kind, label: "Mindful", icon: "leaf.fill",
+                           value: Double(mindfulMin), target: Double(goals.dailyMindfulMinutes),
+                           text: "\(mindfulMin) of \(goals.dailyMindfulMinutes) min")
             }
         }
     }

@@ -8,6 +8,7 @@ struct ChangeLog: Codable, Equatable {
     enum Kind: String, CaseIterable {
         case workout, meal, water, sleep, mindfulness, journal
         case customFood, favouriteFood, savedMeal, customWorkout
+        case glp1Dose, sideEffect, weight
     }
 
     /// Entry key ("journal/1234") to the time it was added or last edited.

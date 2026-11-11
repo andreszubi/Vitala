@@ -197,7 +197,7 @@ struct CloudSyncTests {
         let cloud: DeviceCloud
     }
 
-    private func device(_ server: CloudServer, on: Bool = true) -> Device {
+    private func device(_ server: CloudServer, on: Bool = true, retryDelays: [Duration] = []) -> Device {
         let files = SecureFileStore(directory: FileManager.default.temporaryDirectory
             .appendingPathComponent("VitalaSync-\(UUID().uuidString)", isDirectory: true))
         let defaults = UserDefaults(suiteName: "VitalaSync-\(UUID().uuidString)")!
@@ -205,7 +205,8 @@ struct CloudSyncTests {
         let store = DataStore(files: files, defaults: defaults)
         let cloud = DeviceCloud(server)
         return Device(store: store, sync: CloudSync(store: store, cloud: cloud, defaults: defaults,
-                                                    quietTime: .milliseconds(20)), cloud: cloud)
+                                                    quietTime: .milliseconds(20), retryDelays: retryDelays),
+                      cloud: cloud)
     }
 
     private func pause() async throws { try await Task.sleep(for: .milliseconds(15)) }
@@ -346,6 +347,60 @@ struct CloudSyncTests {
         #expect(phone.sync.status == .noAccount)
         #expect(await server.saves == 0)
         #expect(phone.store.water.count == 1)
+    }
+
+    @Test func anAccountICloudCannotConfirmIsReportedAsThat() async throws {
+        let server = CloudServer()
+        await server.set(availability: .needsAttention)
+        let phone = device(server)
+        try await phone.store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
+        await phone.sync.syncNow()
+        #expect(phone.sync.status == .accountNeedsAttention)
+        #expect(await server.saves == 0)
+        #expect(phone.store.water.count == 1, "nothing on the device is touched")
+
+        // Once iCloud is ready again the same sync goes through.
+        await server.set(availability: .available)
+        await phone.sync.syncNow()
+        #expect(await server.saves == 1)
+    }
+
+    @Test func afterAFailureItTriesAgainByItself() async throws {
+        let server = CloudServer()
+        await server.set(failure: URLError(.notConnectedToInternet))
+        let phone = device(server, retryDelays: [.milliseconds(30), .milliseconds(60)])
+        try await phone.store.logWater(WaterEntry(amountMl: 250, loggedAt: .now))
+        await phone.sync.syncNow()
+        guard case .failed = phone.sync.status else {
+            Issue.record("expected a failure, got \(phone.sync.status)")
+            return
+        }
+        #expect(phone.sync.lastErrorDetail?.contains("NSURLErrorDomain") == true)
+
+        // Nobody asks again; the connection simply comes back.
+        await server.set(failure: nil)
+        for _ in 0..<100 {
+            if await server.saves > 0 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(await server.saves == 1)
+        #expect(phone.sync.lastErrorDetail == nil)
+    }
+
+    @Test func anErrorDescribesEverythingUnderneathIt() {
+        let root = NSError(domain: "AKAuthenticationError", code: -7120,
+                           userInfo: [NSLocalizedDescriptionKey: "This action cannot be completed at this time."])
+        let middle = NSError(domain: "CKInternalErrorDomain", code: 1029,
+                             userInfo: [NSLocalizedDescriptionKey: "Account temporarily unavailable",
+                                        NSUnderlyingErrorKey: root])
+        let top = NSError(domain: "CKErrorDomain", code: 9,
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to renew account credential",
+                                     NSUnderlyingErrorKey: middle, "ServerErrorDescription": "try later"])
+        let detail = CloudSync.detail(of: top)
+        #expect(detail.contains("CKErrorDomain 9: Failed to renew account credential"))
+        #expect(detail.contains("server: try later"))
+        #expect(detail.contains("CKInternalErrorDomain 1029"))
+        #expect(detail.contains("AKAuthenticationError -7120"))
     }
 
     @Test func switchedOffNothingLeavesTheDevice() async throws {

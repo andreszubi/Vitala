@@ -4,6 +4,7 @@ import SwiftUI
 struct VitalaApp: App {
     @StateObject private var profileStore = ProfileStore()
     @StateObject private var appState = AppState()
+    @StateObject private var auth = AuthService.shared
     @StateObject private var health = HealthKitService.shared
     @StateObject private var notifications = NotificationService.shared
     @StateObject private var units = UnitsService()
@@ -15,6 +16,9 @@ struct VitalaApp: App {
         #endif
         // Starts following changes if the user has iCloud sync on.
         _ = CloudSync.shared
+        // A session the app was closed in the middle of may have left its
+        // Live Activity on the Lock Screen.
+        SessionLiveActivityController.endLeftovers()
     }
 
     var body: some Scene {
@@ -22,6 +26,7 @@ struct VitalaApp: App {
             RootView()
                 .environmentObject(profileStore)
                 .environmentObject(appState)
+                .environmentObject(auth)
                 .environmentObject(health)
                 .environmentObject(notifications)
                 .environmentObject(units)

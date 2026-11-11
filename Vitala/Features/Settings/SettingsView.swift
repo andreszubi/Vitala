@@ -7,6 +7,7 @@ struct SettingsView: View {
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var unitsService: UnitsService
     @EnvironmentObject var themeService: ThemeService
+    @EnvironmentObject var auth: AuthService
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
@@ -21,6 +22,12 @@ struct SettingsView: View {
             Section("You") {
                 NavigationLink("Edit profile") { EditProfileView() }
                 NavigationLink("Goals") { GoalsSettingsView() }
+                NavigationLink {
+                    AccountView()
+                } label: {
+                    LabeledContent("Account", value: auth.account?.email ?? auth.account?.provider.label ?? "")
+                }
+                .accessibilityIdentifier("settings.account")
             }
 
             Section("Preferences") {
@@ -133,9 +140,10 @@ struct SettingsView: View {
             Button("Erase everything", role: .destructive, action: eraseEverything)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(sync.isOn
+            Text((sync.isOn
                  ? "This permanently deletes your profile, goals and every log from this iPhone, and every log from iCloud and your other devices that sync with it. Anything already saved to Apple Health stays there."
                  : "This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
+                 + " You stay signed in; to delete your account too, use Account.")
         }
     }
 
@@ -153,7 +161,7 @@ struct SettingsView: View {
         profileStore.erase()
         unitsService.system = .metric
         themeService.theme = .system
-        appState.resetAfterErase()
+        appState.resetAfterErase(isSignedIn: auth.isSignedIn)
     }
 }
 
@@ -235,7 +243,7 @@ private struct ReminderRow: View {
 struct GoalsSettingsView: View {
     @EnvironmentObject var profileStore: ProfileStore
     @Environment(\.dismiss) private var dismiss
-    @State private var draft: WellnessGoals = .init()
+    @State private var draft = UserProfile(id: "", displayName: "")
     @State private var didLoad = false
 
     var body: some View {
@@ -243,7 +251,7 @@ struct GoalsSettingsView: View {
             VStack(alignment: .leading, spacing: VitalaSpacing.lg) {
                 VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
                     SectionHeader(title: "Focus")
-                    Picker("Primary focus", selection: $draft.primaryFocus) {
+                    Picker("Primary focus", selection: $draft.goals.primaryFocus) {
                         ForEach(WellnessGoals.Focus.allCases) { f in
                             Label(f.label, systemImage: f.icon).tag(f)
                         }
@@ -253,18 +261,19 @@ struct GoalsSettingsView: View {
                 }
                 .vitalaCard()
 
-                VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
-                    SectionHeader(title: "Daily targets")
-                    GoalTargetsEditor(goals: $draft,
-                                      suggestedCalories: profileStore.profile.map {
-                                          var p = $0; p.goals = draft; return p
-                                      }?.suggestedDailyCalories())
+                if didLoad {
+                    VStack(alignment: .leading, spacing: VitalaSpacing.sm) {
+                        SectionHeader(title: "Daily targets")
+                        GoalsEditor(profile: $draft)
+                    }
+                    .vitalaCard()
                 }
-                .vitalaCard()
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.vertical, VitalaSpacing.md)
         }
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDoneButton()
         .background(VitalaColor.background.ignoresSafeArea())
         .navigationTitle("Goals")
         .navigationBarTitleDisplayMode(.inline)
@@ -272,19 +281,19 @@ struct GoalsSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") { save() }
-                    .disabled(draft == profileStore.profile?.goals)
+                    .disabled(draft.goals == profileStore.profile?.goals)
             }
         }
         .onAppear {
             guard !didLoad else { return }
+            if let profile = profileStore.profile { draft = profile }
             didLoad = true
-            if let g = profileStore.profile?.goals { draft = g }
         }
     }
 
     private func save() {
         guard var profile = profileStore.profile else { return }
-        profile.goals = draft
+        profile.goals = draft.goals
         Task {
             try? await profileStore.saveProfile(profile)
             Haptics.success()

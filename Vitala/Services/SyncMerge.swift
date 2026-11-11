@@ -79,6 +79,9 @@ enum SyncMerge {
         merged.favouriteFoods = list(.favouriteFood, local.favouriteFoods, remote.favouriteFoods)
         merged.savedMeals = list(.savedMeal, local.savedMeals, remote.savedMeals)
         merged.customWorkouts = list(.customWorkout, local.customWorkouts, remote.customWorkouts)
+        merged.glp1Doses = list(.glp1Dose, local.glp1Doses, remote.glp1Doses)
+        merged.sideEffects = list(.sideEffect, local.sideEffects, remote.sideEffects)
+        merged.weights = list(.weight, local.weights, remote.weights)
         merged.changes = log.isEmpty ? nil : log
         merged.skipped = 0
         return merged
@@ -111,6 +114,9 @@ enum SyncMerge {
         var favouriteFoods: [String: FoodItem]
         var savedMeals: [String: SavedMeal]
         var customWorkouts: [String: Workout]
+        var glp1Doses: [String: GLP1Dose]
+        var sideEffects: [String: SideEffectEntry]
+        var weights: [String: WeightEntry]
         var changes: ChangeLog
 
         init(_ snapshot: Snapshot) {
@@ -129,6 +135,9 @@ enum SyncMerge {
             favouriteFoods = byID(snapshot.favouriteFoods)
             savedMeals = byID(snapshot.savedMeals)
             customWorkouts = byID(snapshot.customWorkouts)
+            glp1Doses = byID(snapshot.glp1Doses)
+            sideEffects = byID(snapshot.sideEffects)
+            weights = byID(snapshot.weights)
             changes = snapshot.changes ?? ChangeLog()
         }
     }

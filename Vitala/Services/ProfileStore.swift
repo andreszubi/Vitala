@@ -3,7 +3,8 @@ import SwiftUI
 import UIKit
 
 /// Owns the user's profile. Vitala is local-first: the profile lives only on
-/// this device and is created during onboarding — there is no account.
+/// this device and is created during onboarding. The account (see
+/// `AuthService`) holds the sign-in and nothing else.
 @MainActor
 final class ProfileStore: ObservableObject {
     @Published private(set) var profile: UserProfile?
@@ -40,7 +41,9 @@ final class ProfileStore: ObservableObject {
     }
 
     func saveProfile(_ profile: UserProfile) async throws {
-        var updated = profile
+        // Targets left to Vitala follow the profile: a new weight, focus or
+        // birthday changes them here.
+        var updated = profile.followingPlan()
         updated.updatedAt = .now
         self.profile = updated
         persist(updated)
@@ -104,7 +107,10 @@ final class ProfileStore: ObservableObject {
         }
         switch files.load(UserProfile.self, from: Self.fileName) {
         case .loaded(let p):
-            profile = p
+            // A birthday may have passed, or the plan's rules changed in an update.
+            let current = p.followingPlan()
+            profile = current
+            if current != p { persist(current) }
             // A copy to fall back on if the file is ever damaged.
             files.copy(Self.fileName, to: Self.backupFileName)
         case .damaged:

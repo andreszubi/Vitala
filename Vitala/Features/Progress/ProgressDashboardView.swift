@@ -78,6 +78,9 @@ struct ProgressDashboardView: View {
                           format: { "\(Int($0)) min" })
 
                 MoodCard(entries: store.journal, days: days)
+
+                WeightCard(entries: store.weights, days: days,
+                           target: profileStore.profile?.goals.weightTargetKg)
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.bottom, VitalaSpacing.xl)
@@ -349,5 +352,68 @@ private struct MoodChartDescriptor: AXChartDescriptorRepresentable {
                                             dataPoints: zip(labels, days).map { AXDataPoint(x: $0, y: $1.score) })
         return AXChartDescriptor(title: "Mood", summary: summary, xAxis: xAxis, yAxis: yAxis,
                                  additionalAxes: [], series: [series])
+    }
+}
+
+/// Recorded weights over the period, with the target when there is one.
+private struct WeightCard: View {
+    let entries: [WeightEntry]
+    let days: [Date]
+    let target: Double?
+
+    @EnvironmentObject var units: UnitsService
+
+    /// The entries in the period, oldest first.
+    private var shown: [WeightEntry] {
+        guard let first = days.first else { return [] }
+        return entries.filter { $0.date >= first }.sorted { $0.date < $1.date }
+    }
+
+    private func display(_ kg: Double) -> Double { units.displayWeight(kg: kg) }
+
+    private var summary: String {
+        guard let first = shown.first, let last = shown.last else { return "No weights recorded." }
+        let latest = "Latest \(units.formatWeight(kg: last.kg, decimals: 1))."
+        guard shown.count > 1 else { return latest }
+        let change = last.kg - first.kg
+        if abs(change) < 0.05 { return latest + " No change over the period." }
+        return latest + " \(units.formatWeight(kg: abs(change), decimals: 1)) \(change < 0 ? "down" : "up") over the period."
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader(title: "Weight",
+                          trailing: shown.last.map { units.formatWeight(kg: $0.kg, decimals: 1) })
+            if shown.isEmpty {
+                EmptyStateRow(text: "Update your weight from Today to see it change over time.", icon: "scalemass")
+            } else {
+                Chart {
+                    ForEach(shown) { entry in
+                        LineMark(x: .value("Day", entry.date), y: .value("Weight", display(entry.kg)))
+                            .foregroundStyle(VitalaColor.primary.opacity(0.55))
+                            .interpolationMethod(.monotone)
+                        PointMark(x: .value("Day", entry.date), y: .value("Weight", display(entry.kg)))
+                            .foregroundStyle(VitalaColor.primary)
+                    }
+                    if let target {
+                        RuleMark(y: .value("Target", display(target)))
+                            .foregroundStyle(VitalaColor.textSecondary.opacity(0.6))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    }
+                }
+                .chartYScale(domain: .automatic(includesZero: false))
+                .chartXScale(domain: (days.first ?? .now)...(Calendar.current.date(byAdding: .day, value: 1, to: days.last ?? .now) ?? .now))
+                .frame(height: 150)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Weight chart")
+                .accessibilityValue(summary)
+
+                Text(summary + (target.map { " Target \(units.formatWeight(kg: $0, decimals: 1))." } ?? ""))
+                    .font(VitalaFont.caption(12))
+                    .foregroundStyle(VitalaColor.textSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .vitalaCard()
     }
 }

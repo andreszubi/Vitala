@@ -26,6 +26,12 @@ final class DataStore: ObservableObject {
     @Published private(set) var savedMeals: [SavedMeal] = []
     /// Workouts the user built from the exercise library.
     @Published private(set) var customWorkouts: [Workout] = []
+    /// GLP-1 doses the user took.
+    @Published private(set) var glp1Doses: [GLP1Dose] = []
+    /// Side effects the user noted.
+    @Published private(set) var sideEffects: [SideEffectEntry] = []
+    /// Weights the user recorded.
+    @Published private(set) var weights: [WeightEntry] = []
     /// Something went wrong reading the data file and was put right; shown
     /// to the user once.
     @Published private(set) var notice: StorageNotice?
@@ -258,6 +264,40 @@ final class DataStore: ObservableObject {
         persist()
     }
 
+    // MARK: GLP-1
+
+    func saveGLP1Dose(_ dose: GLP1Dose) {
+        upsert(dose, into: &glp1Doses, .glp1Dose)
+        persist()
+    }
+
+    func deleteGLP1Dose(_ dose: GLP1Dose) {
+        remove(dose.id, from: &glp1Doses, .glp1Dose)
+        persist()
+    }
+
+    func saveSideEffect(_ entry: SideEffectEntry) {
+        upsert(entry, into: &sideEffects, .sideEffect)
+        persist()
+    }
+
+    func deleteSideEffect(_ entry: SideEffectEntry) {
+        remove(entry.id, from: &sideEffects, .sideEffect)
+        persist()
+    }
+
+    // MARK: Weight
+
+    func logWeight(_ entry: WeightEntry) {
+        upsert(entry, into: &weights, .weight)
+        persist()
+    }
+
+    func deleteWeight(_ entry: WeightEntry) {
+        remove(entry.id, from: &weights, .weight)
+        persist()
+    }
+
     // MARK: Erase
 
     /// Permanently removes every log from this device. Copies already saved
@@ -278,6 +318,9 @@ final class DataStore: ObservableObject {
         favouriteFoods = []
         savedMeals = []
         customWorkouts = []
+        glp1Doses = []
+        sideEffects = []
+        weights = []
         notice = nil
         saver.cancel()
         files.delete(Self.fileName)
@@ -309,13 +352,16 @@ final class DataStore: ObservableObject {
         var favouriteFoods: [FoodItem]? = nil
         var savedMeals: [SavedMeal]? = nil
         var customWorkouts: [Workout]? = nil
+        var glp1Doses: [GLP1Dose]? = nil
+        var sideEffects: [SideEffectEntry]? = nil
+        var weights: [WeightEntry]? = nil
         var changes: ChangeLog? = nil
         /// Entries left out because they couldn't be read. Never saved.
         var skipped = 0
 
         enum CodingKeys: String, CodingKey {
             case summaries, workouts, meals, water, sleep, mindfulness, customFoods, recentFoods,
-                 journal, favouriteFoods, savedMeals, customWorkouts, changes
+                 journal, favouriteFoods, savedMeals, customWorkouts, glp1Doses, sideEffects, weights, changes
         }
     }
 
@@ -324,6 +370,7 @@ final class DataStore: ObservableObject {
                  sleep: sleep, mindfulness: mindfulness, customFoods: customFoods,
                  recentFoods: recentFoods, journal: journal, favouriteFoods: favouriteFoods,
                  savedMeals: savedMeals, customWorkouts: customWorkouts,
+                 glp1Doses: glp1Doses, sideEffects: sideEffects, weights: weights,
                  changes: changes.isEmpty ? nil : changes)
     }
 
@@ -463,6 +510,9 @@ final class DataStore: ObservableObject {
         favouriteFoods = snap.favouriteFoods ?? []
         savedMeals = snap.savedMeals ?? []
         customWorkouts = snap.customWorkouts ?? []
+        glp1Doses = snap.glp1Doses ?? []
+        sideEffects = snap.sideEffects ?? []
+        weights = snap.weights ?? []
         changes = snap.changes ?? ChangeLog()
     }
 }
@@ -485,6 +535,9 @@ extension DataStore.Snapshot {
         favouriteFoods = values.salvage(FoodItem.self, forKey: .favouriteFoods, skipped: &skipped)
         savedMeals = values.salvage(SavedMeal.self, forKey: .savedMeals, skipped: &skipped)
         customWorkouts = values.salvage(Workout.self, forKey: .customWorkouts, skipped: &skipped)
+        glp1Doses = values.salvage(GLP1Dose.self, forKey: .glp1Doses, skipped: &skipped)
+        sideEffects = values.salvage(SideEffectEntry.self, forKey: .sideEffects, skipped: &skipped)
+        weights = values.salvage(WeightEntry.self, forKey: .weights, skipped: &skipped)
         changes = try? values.decodeIfPresent(ChangeLog.self, forKey: .changes)
         self.skipped = skipped
     }
