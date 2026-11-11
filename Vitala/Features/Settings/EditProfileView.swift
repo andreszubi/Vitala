@@ -159,6 +159,8 @@ struct EditProfileView: View {
         }
         if weightText != shownWeight, let kg = units.parseWeightToKg(weightText), kg > 0 {
             draft.weightKg = kg
+            // Kept in the weight history too, so the trend includes it.
+            DataStore.shared.logWeight(WeightEntry(date: .now, kg: kg))
         }
         Task {
             try? await profileStore.saveProfile(draft)

@@ -40,7 +40,9 @@ final class ProfileStore: ObservableObject {
     }
 
     func saveProfile(_ profile: UserProfile) async throws {
-        var updated = profile
+        // Targets left to Vitala follow the profile: a new weight, focus or
+        // birthday changes them here.
+        var updated = profile.followingPlan()
         updated.updatedAt = .now
         self.profile = updated
         persist(updated)
@@ -104,7 +106,10 @@ final class ProfileStore: ObservableObject {
         }
         switch files.load(UserProfile.self, from: Self.fileName) {
         case .loaded(let p):
-            profile = p
+            // A birthday may have passed, or the plan's rules changed in an update.
+            let current = p.followingPlan()
+            profile = current
+            if current != p { persist(current) }
             // A copy to fall back on if the file is ever damaged.
             files.copy(Self.fileName, to: Self.backupFileName)
         case .damaged:

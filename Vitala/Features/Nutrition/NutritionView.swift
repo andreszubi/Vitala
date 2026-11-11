@@ -140,18 +140,23 @@ struct NutritionView: View {
             ? AnyLayout(VStackLayout(spacing: 12))
             : AnyLayout(HStackLayout(spacing: 12))
         return layout {
-            macroBox("Protein", p, VitalaColor.coral)
+            macroBox("Protein", p, VitalaColor.coral, target: profileStore.profile?.goals.dailyProteinG)
             macroBox("Carbs", c, VitalaColor.sage)
             macroBox("Fat", f, Color(red: 0.93, green: 0.70, blue: 0.30))
         }
     }
 
-    private func macroBox(_ label: String, _ grams: Double, _ tint: Color) -> some View {
+    private func macroBox(_ label: String, _ grams: Double, _ tint: Color, target: Int? = nil) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             Capsule().fill(tint).frame(width: 20, height: 6)
                 .accessibilityHidden(true)
             Text(label).font(VitalaFont.caption()).foregroundStyle(VitalaColor.textSecondary)
             Text("\(Int(grams.rounded())) g").font(VitalaFont.title(20)).foregroundStyle(VitalaColor.textPrimary)
+            if let target {
+                Text("of \(target) g")
+                    .font(VitalaFont.caption(12))
+                    .foregroundStyle(VitalaColor.textSecondary)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .vitalaCard(padding: 14)

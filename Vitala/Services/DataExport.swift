@@ -20,6 +20,7 @@ struct DataExport: Codable {
     var customWorkouts: [Workout]
     var glp1Doses: [GLP1Dose]
     var sideEffects: [SideEffectEntry]
+    var weights: [WeightEntry]
 
     @MainActor
     init(profile: UserProfile?, store: DataStore, now: Date = .now) {
@@ -38,6 +39,7 @@ struct DataExport: Codable {
         customWorkouts = store.customWorkouts
         glp1Doses = store.glp1Doses.sorted { $0.takenAt < $1.takenAt }
         sideEffects = store.sideEffects.sorted { $0.date < $1.date }
+        weights = store.weights.sorted { $0.date < $1.date }
     }
 
     func jsonData() throws -> Data {
