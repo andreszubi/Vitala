@@ -15,6 +15,8 @@ struct ActiveWorkoutView: View {
     @State private var now: Date = .now
     @State private var confirmingEnd = false
     @State private var finished = false
+    /// The workout on the Lock Screen and in the Dynamic Island.
+    @State private var liveActivity = SessionLiveActivityController()
 
     private var current: Exercise { workout.exercises[index] }
     private var isLast: Bool { index == workout.exercises.count - 1 }
@@ -58,8 +60,15 @@ struct ActiveWorkoutView: View {
                     .padding(.bottom, VitalaSpacing.lg)
             }
         }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = true
+            liveActivity.start(kind: .workout, name: workout.name, symbol: workout.category.icon,
+                               state: activityState, expectedEnd: activityExpectedEnd)
+        }
+        .onDisappear {
+            UIApplication.shared.isIdleTimerDisabled = false
+            liveActivity.end()
+        }
         .task {
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(500))
@@ -178,6 +187,23 @@ struct ActiveWorkoutView: View {
 
     private var prescription: String { current.prescription ?? "At your own pace" }
 
+    /// What the Live Activity shows right now.
+    private var activityState: SessionActivityAttributes.ContentState {
+        let t = Date.now
+        let total = accumulated + (runningSince.map { t.timeIntervalSince($0) } ?? 0)
+        let inExercise = exerciseAccumulated + (exerciseRunningSince.map { t.timeIntervalSince($0) } ?? 0)
+        return .workout(exercise: current.name, index: index, count: workout.exercises.count,
+                        prescription: prescription, elapsed: total,
+                        stepRemaining: exerciseDuration.map { Double($0) - inExercise },
+                        isRunning: isRunning, now: t)
+    }
+
+    /// Well past when the workout should be over: after this the system
+    /// marks the activity as out of date.
+    private var activityExpectedEnd: Date {
+        Date.now.addingTimeInterval(Double(plannedSeconds) * 2 + 1_800)
+    }
+
     private func tick() {
         guard !finished else { return }
         now = .now
@@ -200,6 +226,7 @@ struct ActiveWorkoutView: View {
             exerciseRunningSince = t
         }
         now = t
+        liveActivity.update(activityState, expectedEnd: activityExpectedEnd)
     }
 
     private func move(by delta: Int) {
@@ -210,6 +237,7 @@ struct ActiveWorkoutView: View {
         exerciseRunningSince = isRunning ? .now : nil
         now = .now
         AccessibilityNotification.Announcement("Now: \(current.name), \(prescription)").post()
+        liveActivity.update(activityState, expectedEnd: activityExpectedEnd)
     }
 
     private func save() {
@@ -231,6 +259,7 @@ struct ActiveWorkoutView: View {
             try? await DataStore.shared.logWorkout(session)
             Haptics.success()
         }
+        liveActivity.end(showing: .finished("Workout saved", seconds: seconds))
         dismiss()
     }
 

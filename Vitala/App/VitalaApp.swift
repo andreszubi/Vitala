@@ -15,6 +15,9 @@ struct VitalaApp: App {
         #endif
         // Starts following changes if the user has iCloud sync on.
         _ = CloudSync.shared
+        // A session the app was closed in the middle of may have left its
+        // Live Activity on the Lock Screen.
+        SessionLiveActivityController.endLeftovers()
     }
 
     var body: some Scene {

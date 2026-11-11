@@ -11,6 +11,8 @@ struct SessionPlayerView: View {
     @AppStorage(AmbientSoundPlayer.Sound.storageKey) private var soundChoice: String = AmbientSoundPlayer.Sound.defaultSound.rawValue
     @State private var ambient = AmbientSoundPlayer()
     @State private var haptics = BreathHaptics()
+    /// The session on the Lock Screen and in the Dynamic Island.
+    @State private var liveActivity = SessionLiveActivityController()
     /// Every session starts on the scene that suits it; a change from the
     /// menu lasts for this session only.
     @State private var scene: ZenScene = .automatic
@@ -109,11 +111,14 @@ struct SessionPlayerView: View {
             soundChoice = AmbientSoundPlayer.Sound.defaultSound.rawValue
             ambient.play(sound, for: session.category)
             if prompts.isEmpty { prompts = PromptDeck.deal(for: session) }
+            liveActivity.start(kind: .breathing, name: session.title, symbol: session.icon,
+                               state: activityState, expectedEnd: activityExpectedEnd)
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
             ambient.stop()
             haptics.shutDown()
+            liveActivity.end()
         }
         .onChange(of: hapticsOn) { _, on in
             // Off stops at once; on picks up partway through the current breath.
@@ -364,8 +369,11 @@ struct SessionPlayerView: View {
         let t = Date.now
         // If the app was suspended (a call cut the sound off while the
         // screen was locked, say), that stretch wasn't spent breathing.
+        let before = clock
         clock.leaveOutGap(since: now, until: t)
         now = t
+        // The session now ends later than the Live Activity says.
+        if clock != before { updateActivity() }
         let index = position.index
         if isPlaying && index != lastStepIndex {
             let rejoining = lastStepIndex == -1
@@ -397,6 +405,24 @@ struct SessionPlayerView: View {
             lastStepIndex = -1
         }
         now = t
+        updateActivity()
+    }
+
+    /// What the Live Activity shows right now: the time left, or paused.
+    private var activityState: SessionActivityAttributes.ContentState {
+        let t = Date.now
+        return .breathing(subtitle: session.subtitle, elapsed: clock.elapsed(at: t),
+                          total: Double(totalSeconds), isRunning: clock.isRunning, now: t)
+    }
+
+    /// A while after the session should be over: past this the system marks
+    /// the activity as out of date.
+    private var activityExpectedEnd: Date {
+        Date.now.addingTimeInterval(max(0, Double(totalSeconds) - clock.elapsed(at: .now)) + 600)
+    }
+
+    private func updateActivity() {
+        liveActivity.update(activityState, expectedEnd: activityExpectedEnd)
     }
 
     private func restart() {
@@ -406,6 +432,7 @@ struct SessionPlayerView: View {
         now = .now
         // Restarting also un-pauses, so bring the sound back with the clock.
         ambient.resume()
+        updateActivity()
     }
 
     private func endTapped() {
@@ -424,6 +451,7 @@ struct SessionPlayerView: View {
         }
         ambient.stop()
         haptics.shutDown()
+        liveActivity.end(showing: .finished("Session saved", seconds: entry.minutes * 60))
         UIApplication.shared.isIdleTimerDisabled = false
         saved = entry
     }

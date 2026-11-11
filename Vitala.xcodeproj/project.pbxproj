@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B10000000000000000000001 /* VitalaWidgetsExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B20000000000000000000001 /* VitalaWidgetsExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		A10000000000000000000001 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -21,13 +25,35 @@
 			remoteGlobalIDString = 51BC5B318242F73C3825A8CF;
 			remoteInfo = Vitala;
 		};
+		B10000000000000000000002 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 46F86FAA6BBF9AC94A7E4595 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = B60000000000000000000001;
+			remoteInfo = VitalaWidgetsExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		B10000000000000000000003 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				B10000000000000000000001 /* VitalaWidgetsExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		37832BEE52484B5A998C32E6 /* Vitala.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Vitala.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000001 /* VitalaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VitalaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000002 /* VitalaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = VitalaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A20000000000000000000010 /* Vitala.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Vitala.xcconfig; sourceTree = "<group>"; };
+		B20000000000000000000001 /* VitalaWidgetsExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VitalaWidgetsExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -37,6 +63,13 @@
 				Resources/Info.plist,
 			);
 			target = 51BC5B318242F73C3825A8CF /* Vitala */;
+		};
+		B30000000000000000000001 /* Exceptions for "VitalaWidgets" folder in "VitalaWidgetsExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = B60000000000000000000001 /* VitalaWidgetsExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -59,6 +92,19 @@
 			path = VitalaUITests;
 			sourceTree = "<group>";
 		};
+		B40000000000000000000001 /* VitalaWidgets */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				B30000000000000000000001 /* Exceptions for "VitalaWidgets" folder in "VitalaWidgetsExtension" target */,
+			);
+			path = VitalaWidgets;
+			sourceTree = "<group>";
+		};
+		B40000000000000000000002 /* VitalaShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = VitalaShared;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -70,6 +116,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A50000000000000000000002 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B50000000000000000000001 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -92,6 +145,7 @@
 				37832BEE52484B5A998C32E6 /* Vitala.app */,
 				A20000000000000000000001 /* VitalaTests.xctest */,
 				A20000000000000000000002 /* VitalaUITests.xctest */,
+				B20000000000000000000001 /* VitalaWidgetsExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -102,6 +156,8 @@
 				A40000000000000000000001 /* Vitala */,
 				A40000000000000000000002 /* VitalaTests */,
 				A40000000000000000000003 /* VitalaUITests */,
+				B40000000000000000000001 /* VitalaWidgets */,
+				B40000000000000000000002 /* VitalaShared */,
 				A20000000000000000000011 /* Config */,
 				2AC8BA37DAC32D5437812408 /* Products */,
 			);
@@ -125,13 +181,16 @@
 				6C521AF8D6B34123C882A873 /* Sources */,
 				F845A3CC75B2C88E09C8099E /* Frameworks */,
 				987A4C32CF05F65AC894E5F6 /* Resources */,
+				B10000000000000000000003 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				BB0000000000000000000001 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A40000000000000000000001 /* Vitala */,
+				B40000000000000000000002 /* VitalaShared */,
 			);
 			name = Vitala;
 			productName = Vitala;
@@ -180,6 +239,27 @@
 			productReference = A20000000000000000000002 /* VitalaUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		B60000000000000000000001 /* VitalaWidgetsExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B90000000000000000000001 /* Build configuration list for PBXNativeTarget "VitalaWidgetsExtension" */;
+			buildPhases = (
+				B70000000000000000000001 /* Sources */,
+				B50000000000000000000001 /* Frameworks */,
+				B80000000000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				B40000000000000000000001 /* VitalaWidgets */,
+				B40000000000000000000002 /* VitalaShared */,
+			);
+			name = VitalaWidgetsExtension;
+			productName = VitalaWidgetsExtension;
+			productReference = B20000000000000000000001 /* VitalaWidgetsExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -201,6 +281,9 @@
 						CreatedOnToolsVersion = 27.0;
 						TestTargetID = 51BC5B318242F73C3825A8CF;
 					};
+					B60000000000000000000001 = {
+						CreatedOnToolsVersion = 27.2;
+					};
 				};
 			};
 			buildConfigurationList = A1806D8FE767B99D399E13F3 /* Build configuration list for PBXProject "Vitala" */;
@@ -220,6 +303,7 @@
 				51BC5B318242F73C3825A8CF /* Vitala */,
 				A60000000000000000000001 /* VitalaTests */,
 				A60000000000000000000002 /* VitalaUITests */,
+				B60000000000000000000001 /* VitalaWidgetsExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -240,6 +324,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A80000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		B80000000000000000000001 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -270,6 +361,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B70000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -282,6 +380,11 @@
 			isa = PBXTargetDependency;
 			target = 51BC5B318242F73C3825A8CF /* Vitala */;
 			targetProxy = A10000000000000000000002 /* PBXContainerItemProxy */;
+		};
+		BB0000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = B60000000000000000000001 /* VitalaWidgetsExtension */;
+			targetProxy = B10000000000000000000002 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -465,6 +568,56 @@
 			};
 			name = Release;
 		};
+		BA0000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VCNSRX296G;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VitalaWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Vitala;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vitala.healthyliving.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		BA0000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VCNSRX296G;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = VitalaWidgets/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Vitala;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.vitala.healthyliving.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 		D48F58F8CA231B2301441318 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -551,6 +704,15 @@
 			buildConfigurations = (
 				AA0000000000000000000003 /* Debug */,
 				AA0000000000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		B90000000000000000000001 /* Build configuration list for PBXNativeTarget "VitalaWidgetsExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				BA0000000000000000000001 /* Debug */,
+				BA0000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
