@@ -16,6 +16,7 @@ struct CloudSyncView: View {
         case .upToDate(let date): "Up to date · \(date.formatted(date: .omitted, time: .shortened))"
         case .noAccount: "Not signed in to iCloud"
         case .restricted: "iCloud is restricted on this iPhone"
+        case .accountNeedsAttention: "iCloud needs your attention"
         case .needsUpdate: "Update Vitala to keep syncing"
         case .failed: "Couldn't sync"
         }
@@ -26,6 +27,7 @@ struct CloudSyncView: View {
         switch sync.status {
         case .noAccount: "Sign in to iCloud in the Settings app, then come back here."
         case .restricted: "Screen Time or a device profile is blocking iCloud for this iPhone."
+        case .accountNeedsAttention: "You're signed in, but iCloud can't confirm your account on this iPhone right now. Open the Settings app and tap your name: if it asks you to sign in again or review your account, do that. Restarting the iPhone can also clear it. Vitala keeps trying, and nothing on this iPhone is lost in the meantime."
         case .needsUpdate: "A newer version of Vitala on another device saved your data. Update Vitala on this iPhone and it will carry on; nothing has been changed in the meantime."
         case .failed(let message): message
         default: nil
@@ -57,11 +59,21 @@ struct CloudSyncView: View {
                             .font(VitalaFont.body(14))
                             .foregroundStyle(VitalaColor.textSecondary)
                     }
-                    if sync.status == .noAccount {
+                    if let detail = sync.lastErrorDetail {
+                        DisclosureGroup("Details for support") {
+                            Text(detail)
+                                .font(.caption.monospaced())
+                                .foregroundStyle(VitalaColor.textSecondary)
+                                .textSelection(.enabled)
+                        }
+                        .font(VitalaFont.body(14))
+                    }
+                    if sync.status == .noAccount || sync.status == .accountNeedsAttention {
                         Button("Open Settings") {
                             if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                         }
-                    } else {
+                    }
+                    if sync.status != .noAccount {
                         Button("Sync now") { Task { await sync.syncNow() } }
                             .disabled(sync.status == .syncing)
                     }
