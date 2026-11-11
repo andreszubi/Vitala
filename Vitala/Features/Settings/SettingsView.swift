@@ -22,12 +22,15 @@ struct SettingsView: View {
             Section("You") {
                 NavigationLink("Edit profile") { EditProfileView() }
                 NavigationLink("Goals") { GoalsSettingsView() }
-                NavigationLink {
-                    AccountView()
-                } label: {
-                    LabeledContent("Account", value: auth.account?.email ?? auth.account?.provider.label ?? "")
+                // Only once accounts are in use.
+                if let account = auth.account {
+                    NavigationLink {
+                        AccountView()
+                    } label: {
+                        LabeledContent("Account", value: account.email ?? account.provider.label)
+                    }
+                    .accessibilityIdentifier("settings.account")
                 }
-                .accessibilityIdentifier("settings.account")
             }
 
             Section("Preferences") {
@@ -143,7 +146,7 @@ struct SettingsView: View {
             Text((sync.isOn
                  ? "This permanently deletes your profile, goals and every log from this iPhone, and every log from iCloud and your other devices that sync with it. Anything already saved to Apple Health stays there."
                  : "This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
-                 + " You stay signed in; to delete your account too, use Account.")
+                 + (auth.isSignedIn ? " You stay signed in; to delete your account too, use Account." : ""))
         }
     }
 
@@ -161,7 +164,7 @@ struct SettingsView: View {
         profileStore.erase()
         unitsService.system = .metric
         themeService.theme = .system
-        appState.resetAfterErase(isSignedIn: auth.isSignedIn)
+        appState.resetAfterErase(isSignedIn: auth.allowsEntry)
     }
 }
 

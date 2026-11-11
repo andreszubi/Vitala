@@ -8,17 +8,7 @@ Thanks for using Vitala. Here are answers to the most common questions.
 
 ## Do I need an account?
 
-Yes. When you first open Vitala, create an account with **Sign in with Apple**, **Google**, or an **email address and password**. The account holds only your sign-in; everything you log stays on your iPhone (and in your own iCloud, if you turn sync on).
-
-## I forgot my password
-
-On the sign-in screen tap **Continue with email**, choose **Sign in**, type your email address and tap **Forgot your password?** A link to choose a new one is sent to that address. If you signed up with Apple or Google there is no password: use the same button you used before.
-
-## How do I sign out or delete my account?
-
-Tap your avatar, then **Settings › Account**. **Sign out** leaves your data on the iPhone for when you sign back in. **Delete account** removes your Vitala account and erases your profile and logs from the iPhone; it can't be undone. If your account was made with Apple, Apple asks you to confirm it's you first.
-
-If someone else signs in on your iPhone, Vitala asks before it erases your data to make room for theirs.
+No. Vitala keeps everything on your iPhone. There's nothing to sign up for.
 
 ## Can I use Vitala on more than one iPhone?
 
@@ -26,7 +16,7 @@ Yes. Tap your avatar, then **Settings › iCloud sync**, and turn on **Sync with
 
 If the screen says **Not signed in to iCloud**, sign in from the iOS Settings app and come back. If it says **iCloud needs your attention**, open the Settings app and tap your name: iOS may want you to sign in again or review your account. For anything else, the screen shows **Details for support** that you can copy and send.
 
-iCloud sync belongs to your Apple Account, not your Vitala account: it is what moves your data between your own iPhones.
+iCloud sync uses your Apple Account: it is what moves your data between your own iPhones.
 
 ## How do I connect Apple Health?
 

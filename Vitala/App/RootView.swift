@@ -75,7 +75,7 @@ struct RootView: View {
     }
 
     private func route() {
-        appState.resolveRoute(profile: profileStore.profile, isSignedIn: auth.isSignedIn)
+        appState.resolveRoute(profile: profileStore.profile, isSignedIn: auth.allowsEntry)
     }
 
     /// A different person has signed in: clear the last person's data from
@@ -87,6 +87,6 @@ struct RootView: View {
         notifications.reset()
         profileStore.erase()
         auth.claimDevice()
-        appState.resetAfterErase(isSignedIn: auth.isSignedIn)
+        appState.resetAfterErase(isSignedIn: auth.allowsEntry)
     }
 }

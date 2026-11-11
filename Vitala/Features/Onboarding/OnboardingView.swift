@@ -19,7 +19,7 @@ struct OnboardingView: View {
               body: "Celebrate small wins — a glass of water, a five-minute walk, a deep breath."),
         .init(art: .symbol("lock.shield.fill"), tint: VitalaColor.coralText,
               title: "Your data, your rules",
-              body: "What you log stays on this iPhone. Your account holds only your sign-in, and Apple Health and iCloud sync are yours to turn on.")
+              body: "What you log stays on this iPhone. Apple Health and iCloud sync are there if you want them, and only if you turn them on.")
     ]
 
     private var totalPages: Int { marketingPages.count + 1 } // +1 for the form page

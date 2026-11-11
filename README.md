@@ -1,6 +1,6 @@
 # Vitala — Healthy living, gently
 
-A calm iPhone companion for movement, food, water, sleep, mindful breathing and journaling, with daily targets worked out for each person. You sign in with Apple, Google or email; everything you log stays on the device, with optional Apple Health and iCloud sync.
+A calm iPhone companion for movement, food, water, sleep, mindful breathing and journaling, with daily targets worked out for each person. Private by design: no account needed, no servers of its own, everything on the device, with optional Apple Health and iCloud sync.
 
 Author: Andres Zubizarreta
 
@@ -12,7 +12,7 @@ Author: Andres Zubizarreta
 
 ## Features
 
-- **Accounts** — Vitala needs an account: Sign in with Apple, Google, or an email address and password, with password reset, sign out and in-app account deletion. The account holds only the sign-in (Firebase Authentication); nothing that is logged is stored with it.
+- **Accounts (built, switched off)** — sign-in with Apple, Google, or an email address and password, with password reset, sign out and in-app account deletion, is in the app but dormant: with no account service configured, Vitala opens straight into onboarding and is used without an account. Adding the Firebase keys turns it on and makes signing in required (see `docs/APP_STORE.md`, step 3c). The account would hold only the sign-in; nothing that is logged is stored with it.
 - **Today** — Move, Exercise and Steps rings against your own goals; one-tap logging for water, meals, mindful minutes and sleep; real streaks and weekly workout progress. **Your plan** shows the four figures your focus puts first against their targets, what the food target means for your weight each week, and your weight against its target.
 - **Goals that follow you** — targets for food energy, protein, Move, steps, exercise, water, sleep and mindful minutes are worked out from your focus, sex, age, height, weight and activity level, and change when any of those do. Losing weight is a deficit of at most 500 kcal with a floor; steps are a distance counted in your stride. You can set your own instead.
 - **Activity** — guided yoga, strength, HIIT, mobility and running sessions with per-exercise countdowns; log any activity with type, duration, energy and distance. Every exercise has a **looping demonstration**: a figure drawn in the app moves through it in the workout player (and pauses with it), and each exercise in a workout's list shows a still and opens a closer look with instructions. **Build your own workout** from the exercise library: pick exercises (the same one twice if you like), set each one's time or reps and sets, reorder them, and choose a type and level; its length and energy are worked out for you, and it can be edited or deleted later.
@@ -50,7 +50,7 @@ Author: Andres Zubizarreta
 
 1. Open `Vitala.xcodeproj`.
 2. Vitala target → **Signing & Capabilities**: the project is set to the author's team, so pick your own Team to run it on a device (HealthKit and iCloud require a paid developer account). Leave the HealthKit capability's extra options (Clinical Health Records, Background Delivery) off: Vitala doesn't use them. Under **iCloud**, CloudKit should be ticked with a container named `iCloud.` plus the bundle ID; if it is red or missing, press refresh or **+** so Xcode creates it, or device builds won't sign. The simulator needs none of this.
-3. **Accounts (optional for development):** with no keys set, Debug builds keep accounts on the device and check nothing, so you can run the app straight away; the sign-in screen says so. For real accounts, create a Firebase project, enable Email/Password, Google and Apple under Authentication, and copy `API_KEY` and `CLIENT_ID` from its `GoogleService-Info.plist` into `Config/Secrets.xcconfig` as `FIREBASE_API_KEY` and `GOOGLE_CLIENT_ID` (see `docs/APP_STORE.md`, step 3c). Release builds can't sign anyone in without them.
+3. **Accounts (off by default):** with no keys set there is no sign-in at all and the app works without an account. To turn accounts on, create a Firebase project, enable Email/Password, Google and Apple under Authentication, and copy `API_KEY` and `CLIENT_ID` from its `GoogleService-Info.plist` into `Config/Secrets.xcconfig` as `FIREBASE_API_KEY` and `GOOGLE_CLIENT_ID`; signing in is then required. There is more to do at the same time (privacy manifest, privacy label, policy pages): see `docs/APP_STORE.md`, step 3c.
 4. **Food search key (optional for development):** copy `Config/Secrets.example.xcconfig` to `Config/Secrets.xcconfig` and paste your [USDA FoodData Central key](https://fdc.nal.usda.gov/api-key-signup) after `USDA_API_KEY =`. Git ignores `Secrets.xcconfig`. Without a key, Debug builds use USDA's shared `DEMO_KEY` and Release builds hide online search.
 5. Run on an iPhone simulator or device.
 
@@ -64,8 +64,9 @@ Exercises are demonstrated by a figure drawn in the app. To show filmed footage 
 
 | Argument | Effect |
 |---|---|
-| `-resetData` | Start from a clean first-launch state, signed out, with accounts kept on the device |
-| `-seedSampleData` | Sign in as a sample account, skip onboarding and load two weeks of realistic logs |
+| `-resetData` | Start from a clean first-launch state |
+| `-seedSampleData` | Skip onboarding and load two weeks of realistic logs |
+| `-requireSignIn` | Show the sign-in screens, with accounts kept on the device and nothing checked |
 | `-greetingHour 9` | Greet as if it were that hour (used for screenshots) |
 
 Add them in **Product › Scheme › Edit Scheme › Run › Arguments**. They're compiled out of Release builds.
@@ -105,7 +106,7 @@ docs/               Release plan, App Store kit, privacy policy, support page, s
 
 ## Architecture notes
 
-- **Accounts.** `AuthService` holds who is signed in and keeps the session in the Keychain. It talks to an `AuthBackend`: `FirebaseAuthBackend` calls Firebase Authentication's REST API directly, so there is no SDK to ship, and `LocalAuthBackend` stands in for it in tests and in development builds with no keys. Sign in with Apple uses the system button with a hashed nonce; Google uses the standard OAuth flow for installed apps (PKCE, no client secret) in the system's sign-in sheet. Deleting an Apple account first asks Apple to confirm, then revokes Vitala's access. The data on a device belongs to the first account to sign in there; another account is asked before it is erased.
+- **Accounts.** Off until `FIREBASE_API_KEY` is set: `AuthService.requiresSignIn` is false, the app never shows sign-in, and the legal text and Settings leave accounts out. With the key, `AuthService` holds who is signed in and keeps the session in the Keychain. It talks to an `AuthBackend`: `FirebaseAuthBackend` calls Firebase Authentication's REST API directly, so there is no SDK to ship, and `LocalAuthBackend` stands in for it in tests and under `-requireSignIn`. Sign in with Apple uses the system button with a hashed nonce; Google uses the standard OAuth flow for installed apps (PKCE, no client secret) in the system's sign-in sheet. Deleting an Apple account first asks Apple to confirm, then revokes Vitala's access. The data on a device belongs to the first account to sign in there; another account is asked before it is erased.
 - **Goal plans.** `GoalPlan` turns focus, sex, age, height, weight and activity level into daily targets with plain arithmetic: Mifflin–St Jeor energy at rest times the activity level, a capped deficit or small surplus, protein and Move per kilogram, steps as a distance divided by stride length. `ProfileStore` reapplies it whenever a profile that follows the plan is saved or loaded.
 - **Live Activity.** `SessionActivityAttributes` (shared with the widget extension) describes a workout or breathing session as moments in time, so the system keeps clocks and rings moving without the app. The breathing player updates it at each change of phase, which it can do with the screen locked because its sound keeps the app running.
 - **Local-first storage.** `DataStore` and `ProfileStore` persist JSON (and the profile photo) through `SecureFileStore`: atomic writes in Application Support with iOS Data Protection. Pre-1.0 `UserDefaults` data migrates once on first launch.

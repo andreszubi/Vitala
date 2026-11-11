@@ -20,8 +20,6 @@ struct AuthView: View {
     /// with the token it returns.
     @State private var appleNonce = AuthCrypto.randomString()
 
-    private var canSignIn: Bool { auth.mode != .unavailable }
-
     var body: some View {
         // No navigation stack here: the email form and the legal pages open
         // as sheets, so nothing of this screen outlives it once someone has
@@ -68,8 +66,7 @@ struct AuthView: View {
                         }
                         .accessibilityIdentifier("auth.email")
                     }
-                    .disabled(working || !canSignIn)
-                    .opacity(canSignIn ? 1 : 0.5)
+                    .disabled(working)
 
                     if working {
                         ProgressView("Signing in…")
@@ -128,16 +125,10 @@ struct AuthView: View {
                 .font(VitalaFont.caption(13))
                 .foregroundStyle(VitalaColor.textSecondary)
                 .fixedSize(horizontal: false, vertical: true)
-        case .development:
-            Label("Development build: no account service is set up, so accounts are kept on this device and nothing is checked. Add your Firebase keys to Config/Secrets.xcconfig to use real accounts.",
-                  systemImage: "hammer")
+        case .development, .off:
+            Label("Test mode: accounts are kept on this device and nothing is checked.", systemImage: "hammer")
                 .font(VitalaFont.caption(13))
                 .foregroundStyle(VitalaColor.textSecondary)
-                .fixedSize(horizontal: false, vertical: true)
-        case .unavailable:
-            Label("Signing in isn't available in this build of Vitala.", systemImage: "exclamationmark.triangle")
-                .font(VitalaFont.bodyMedium(14))
-                .foregroundStyle(VitalaColor.danger)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

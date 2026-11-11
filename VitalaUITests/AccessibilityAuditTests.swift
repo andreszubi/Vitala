@@ -84,25 +84,6 @@ final class AccessibilityAuditTests: XCTestCase {
     @MainActor
     func testOnboardingIsAccessible() throws {
         let app = launch(["-resetData"])
-        // Vitala starts at sign-in: nobody has an account on a fresh install.
-        let withEmail = app.buttons["auth.email"]
-        XCTAssertTrue(withEmail.waitForExistence(timeout: 10))
-        XCTAssertTrue(app.buttons["auth.apple"].exists && app.buttons["auth.google"].exists)
-        audit(app, "Sign in")
-
-        withEmail.tap()
-        XCTAssertTrue(app.navigationBars["Create your account"].waitForExistence(timeout: 5))
-        audit(app, "Create account", isSheet: true)
-        XCTAssertFalse(app.buttons["auth.submit"].isEnabled, "nothing to send yet")
-        app.navigationBars["Create your account"].buttons["Cancel"].tap()
-
-        // Signing in with a password makes iOS offer to save it, in a sheet
-        // of its own that would sit over the screens audited next. A test
-        // build keeps accounts on the device, so Google signs in at a tap.
-        // (Creating an account with an email is covered by the unit tests.)
-        XCTAssertTrue(app.buttons["auth.google"].waitForExistence(timeout: 5))
-        app.buttons["auth.google"].tap()
-
         XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10))
         audit(app, "Onboarding welcome")
 
@@ -116,6 +97,32 @@ final class AccessibilityAuditTests: XCTestCase {
         app.buttons["Get started"].tap()
         XCTAssertTrue(app.staticTexts["Tell us about you"].waitForExistence(timeout: 5))
         audit(app, "Profile setup: about you")
+    }
+
+    /// The sign-in screens, which the app shows once an account service is
+    /// set up. Until then it opens straight into onboarding, as above.
+    @MainActor
+    func testSignInIsAccessible() throws {
+        let app = launch(["-resetData", "-requireSignIn"])
+        let withEmail = app.buttons["auth.email"]
+        XCTAssertTrue(withEmail.waitForExistence(timeout: 10))
+        XCTAssertTrue(app.buttons["auth.apple"].exists && app.buttons["auth.google"].exists)
+        XCTAssertFalse(app.buttons["Continue"].exists, "nothing else is reachable before signing in")
+        audit(app, "Sign in")
+
+        withEmail.tap()
+        XCTAssertTrue(app.navigationBars["Create your account"].waitForExistence(timeout: 5))
+        audit(app, "Create account", isSheet: true)
+        XCTAssertFalse(app.buttons["auth.submit"].isEnabled, "nothing to send yet")
+        app.navigationBars["Create your account"].buttons["Cancel"].tap()
+
+        // Signing in with a password makes iOS offer to save it, in a sheet
+        // of its own. In test mode accounts are kept on the device, so
+        // Google signs in at a tap. (Creating an account with an email is
+        // covered by the unit tests.)
+        XCTAssertTrue(app.buttons["auth.google"].waitForExistence(timeout: 5))
+        app.buttons["auth.google"].tap()
+        XCTAssertTrue(app.buttons["Continue"].waitForExistence(timeout: 10), "signed in, onboarding follows")
     }
 
     @MainActor

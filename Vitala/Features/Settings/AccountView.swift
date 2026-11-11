@@ -25,7 +25,7 @@ struct AccountView: View {
                     }
                 } footer: {
                     Text(auth.mode == .development
-                         ? "Development build: this account exists only on this device."
+                         ? "Test mode: this account exists only on this device."
                          : "Your account holds only your sign-in. Your logs stay on this iPhone, or in your own iCloud if sync is on.")
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
@@ -101,7 +101,7 @@ struct AccountView: View {
                 if sync.isOn { await sync.syncNow() }
                 notifications.reset()
                 profileStore.erase()
-                appState.resetAfterErase(isSignedIn: auth.isSignedIn)
+                appState.resetAfterErase(isSignedIn: auth.allowsEntry)
             } catch let error as AuthError {
                 if let message = error.errorDescription { failure = message }
             } catch {
