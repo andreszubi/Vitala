@@ -11,8 +11,8 @@ USDA_API_KEY =
 
 // Accounts (Firebase Authentication). Both values are in the
 // GoogleService-Info.plist that Firebase gives you for the iOS app:
-// API_KEY and CLIENT_ID. Left empty here; Debug builds then keep accounts
-// on the device only, and Release builds can't sign anyone in.
+// API_KEY and CLIENT_ID. Left empty here: with no key the app is used
+// without an account. Once FIREBASE_API_KEY is set, signing in is required.
 FIREBASE_API_KEY =
 GOOGLE_CLIENT_ID =
 

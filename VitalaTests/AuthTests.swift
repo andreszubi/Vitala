@@ -16,6 +16,23 @@ struct AuthServiceTests {
         #expect(!auth.isSignedIn && auth.account == nil)
     }
 
+    @Test func untilAccountsAreSetUpNobodyHasToSignIn() async throws {
+        let defaults = UserDefaults(suiteName: "VitalaAuth-\(UUID().uuidString)")!
+        let off = AuthService(backend: LocalAuthBackend(), credentials: InMemoryCredentialStore(),
+                              defaults: defaults, mode: .off)
+        #expect(!off.requiresSignIn)
+        #expect(off.allowsEntry && !off.isSignedIn, "the app opens with nobody signed in")
+        #expect(off.otherOwner == nil)
+
+        // With an account service in place the door is shut until someone signs in.
+        let (live, _, _, _) = makeService()
+        #expect(live.requiresSignIn && !live.allowsEntry)
+        try await live.signUp(email: "sam@example.com", password: "correct horse")
+        #expect(live.allowsEntry)
+        live.signOut()
+        #expect(!live.allowsEntry)
+    }
+
     @Test func anAccountIsCreatedWithAnEmailAndStaysSignedIn() async throws {
         let (auth, backend, credentials, defaults) = makeService()
         try await auth.signUp(email: "  Sam@Example.com ", password: "correct horse")
@@ -136,6 +153,18 @@ struct AuthServiceTests {
         auth.signOut()
         try await auth.signIn(email: "sam@example.com", password: "correct horse")
         #expect(auth.otherOwner == "alex@example.com")
+    }
+
+    @Test func thePolicySaysWhatThisBuildDoes() {
+        // The tests run with no account service set up.
+        #expect(!AuthService.shared.requiresSignIn)
+        let privacy = LegalText.privacy, terms = LegalText.terms
+        #expect(!privacy.contains("{") && !terms.contains("{"), "no placeholder is left showing")
+        #expect(privacy.contains("There is no account to create."))
+        #expect(!privacy.contains("Firebase") && !privacy.contains("Delete your account"))
+        #expect(!terms.contains("You need an account"))
+        #expect(privacy.contains("iCloud sync (optional, off by default)"))
+        #expect(terms.contains("A wellness companion, not medical care"))
     }
 
     @Test func emailsAreChecked() throws {

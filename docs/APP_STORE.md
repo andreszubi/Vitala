@@ -10,15 +10,76 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 
 1. **Join the Apple Developer Program** (paid membership is required for HealthKit and App Store distribution).
 2. **Choose the bundle ID.** The project uses `com.vitala.healthyliving`. If that's taken or you prefer your own domain (for example `com.andreszubizarreta.vitala`), change `PRODUCT_BUNDLE_IDENTIFIER` for the Vitala target (and the two test targets' `.tests` / `.uitests` suffixes).
-3. In Xcode → Vitala target → **Signing & Capabilities**: pick your **Team**, for both the **Vitala** and **VitalaWidgetsExtension** targets. Xcode registers the bundle IDs and enables the **HealthKit**, **iCloud** and **Sign in with Apple** capabilities from `Vitala.entitlements`.
+3. In Xcode → Vitala target → **Signing & Capabilities**: pick your **Team**, for both the **Vitala** and **VitalaWidgetsExtension** targets. Xcode registers the bundle IDs and enables the **HealthKit**, **iCloud** and **Sign in with Apple** capabilities from `Vitala.entitlements` (Sign in with Apple is there for when accounts are switched on; it does nothing until then).
 3a. **Create the iCloud container (once).** Still in Signing & Capabilities, the **iCloud** section should show **CloudKit** ticked and a container named `iCloud.` followed by the bundle ID (`iCloud.com.vitala.healthyliving`). If the container is listed in red or missing, press the refresh arrow, or **+** and enter that exact name, so Xcode creates it. Until it exists, builds for a real iPhone fail to sign. If you change the bundle ID, the container name follows it automatically.
 3b. **Deploy the CloudKit schema to Production before submitting.** Run a build from Xcode on your iPhone, turn on **Settings › iCloud sync** and log something, so the record type `VitalaData` is created in the Development environment. Then open [CloudKit Console](https://icloud.developer.apple.com) → the container → **Deploy Schema Changes…** and deploy to Production. TestFlight and App Store builds use Production: without this step, sync fails for every user while working for you in Xcode.
-3c. **Set up accounts (Firebase Authentication).** Vitala cannot sign anyone in without this; until it is done, Debug builds keep accounts on the device only and Release builds show "Signing in isn't available".
+3c. **Accounts are built but switched off.** With no Firebase key, Vitala opens straight into onboarding and is used without an account, exactly as before; nothing about accounts shows anywhere. Adding the key turns sign-in on and makes it required. Do all of the following together, when you are ready:
    1. In the [Firebase console](https://console.firebase.google.com), create a project (no Analytics needed) and add an **iOS app** with the bundle ID `com.vitala.healthyliving`.
    2. **Build › Authentication › Sign-in method**: enable **Email/Password**, **Google** and **Apple**.
-   3. Download `GoogleService-Info.plist` from the app's settings. Do not add it to the project. Copy two values from it into `Config/Secrets.xcconfig` (Git ignores that file): `API_KEY` after `FIREBASE_API_KEY =` and `CLIENT_ID` after `GOOGLE_CLIENT_ID =`.
+   3. Download `GoogleService-Info.plist` from the app's settings. Do not add it to the project. Copy two values from it into `Config/Secrets.xcconfig` (Git ignores that file): `API_KEY` after `FIREBASE_API_KEY =` and `CLIENT_ID` after `GOOGLE_CLIENT_ID =`. From the next build, the app opens on the sign-in screen.
    4. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials), open the API key and restrict it to **iOS apps** with your bundle ID, and to the **Identity Toolkit API** and **Token Service API**.
    5. Run on your iPhone and check all three ways of signing in, password reset, sign out, and deleting an account made each way (QA checklist, section 7).
+   6. **Declare what accounts collect.** In `Vitala/Resources/PrivacyInfo.xcprivacy`, replace the empty `NSPrivacyCollectedDataTypes` array with entries for the email address, name and user id:
+
+   ```xml
+   <key>NSPrivacyCollectedDataTypes</key>
+   <array>
+   	<dict>
+   		<key>NSPrivacyCollectedDataType</key>
+   		<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+   		<key>NSPrivacyCollectedDataTypeLinked</key>
+   		<true/>
+   		<key>NSPrivacyCollectedDataTypeTracking</key>
+   		<false/>
+   		<key>NSPrivacyCollectedDataTypePurposes</key>
+   		<array>
+   			<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+   		</array>
+   	</dict>
+   	<!-- and the same again for NSPrivacyCollectedDataTypeName
+   	     and NSPrivacyCollectedDataTypeUserID -->
+   </array>
+   ```
+
+   7. **Change the App Privacy label** to the three types in section 4, and give App Review a sign-in (section 5).
+   8. **Publish the account sections** of the privacy policy and support page. The app's own copy of the policy and terms adds its account paragraphs by itself once the key is set; the web pages do not. Add this to `docs/privacy-policy.md` after "What Vitala stores", and change "Vitala has no account system and no servers of its own" to "Vitala has no servers of its own":
+
+   ````markdown
+   ## Your account
+
+   Vitala needs an account. You can create one with **Sign in with Apple**, with **Google**, or with an **email address and a password**.
+
+   Accounts are kept by [Firebase Authentication](https://firebase.google.com/support/privacy), a service of Google. It stores:
+
+   - your email address, or the private relay address Apple gives you if you choose to hide it;
+   - the name Apple or Google shares, if any;
+   - an account identifier;
+   - for email accounts, a protected form of your password that cannot be read back.
+
+   **Nothing you log in Vitala is stored with your account**: no meals, workouts, sleep, weight, medicines, side effects, journal entries or Apple Health data. The account is used only to sign you in. It is not used for advertising or tracking.
+
+   You can delete your account at any time in **Settings › Account › Delete account**. That removes the account from Firebase and erases your data from your iPhone.
+   ````
+
+      and replace the "Do I need an account?" answer in `docs/support.md` with:
+
+   ````markdown
+   ## Do I need an account?
+
+   Yes. When you first open Vitala, create an account with **Sign in with Apple**, **Google**, or an **email address and password**. The account holds only your sign-in; everything you log stays on your iPhone (and in your own iCloud, if you turn sync on).
+
+   ## I forgot my password
+
+   On the sign-in screen tap **Continue with email**, choose **Sign in**, type your email address and tap **Forgot your password?** A link to choose a new one is sent to that address. If you signed up with Apple or Google there is no password: use the same button you used before.
+
+   ## How do I sign out or delete my account?
+
+   Tap your avatar, then **Settings › Account**. **Sign out** leaves your data on the iPhone for when you sign back in. **Delete account** removes your Vitala account and erases your profile and logs from the iPhone; it can't be undone. If your account was made with Apple, Apple asks you to confirm it's you first.
+
+   If someone else signs in on your iPhone, Vitala asks before it erases your data to make room for theirs.
+   ````
+
+   To try the sign-in screens before any of this, add the launch argument `-requireSignIn` to a Debug run: accounts are then kept on the device and nothing is checked.
 4. **Publish the privacy policy and support pages.** In GitHub → repository **Settings › Pages**, deploy from the `main` branch, `/docs` folder. The pages then live at:
    - `https://andreszubi.github.io/Vitala/privacy-policy`
    - `https://andreszubi.github.io/Vitala/support`
@@ -110,7 +171,7 @@ Everything needed to submit Vitala, in the order you'll need it. Items marked **
 > Turn on iCloud sync and your logs, journal, favourite foods, saved meals and workouts match on every iPhone you sign in to. It is off until you choose it, and uses your own private iCloud.
 >
 > PRIVATE BY DESIGN
-> Your account holds only your sign-in: Sign in with Apple, Google or email. Everything you log stays on your iPhone, or in your own iCloud if you turn sync on. No ads, no tracking, and you can export or erase it, or delete your account, any time.
+> No account. No servers of ours. No ads or tracking. Everything stays on your iPhone, or in your own iCloud if you turn sync on, and you can export or erase it any time.
 >
 > ACCESSIBLE
 > Dynamic Type, VoiceOver with spoken chart summaries, Reduce Motion and high-contrast colours throughout.
@@ -125,7 +186,11 @@ wellness,habit,water,hydration,sleep,meditation,breathing,calorie,fitness,mindfu
 
 ## 4. App Privacy ("nutrition label")
 
-**Accounts change this answer.** Declare that the app collects data, with exactly these three types, each **linked to the user**, **not used for tracking**, purpose **App Functionality**:
+Recommended answer for now: **"No, we do not collect data from this app."**
+
+Why: "collect" means data sent off the device in a way that you or a partner can access. Everything the user logs stays on the device, in their own Apple Health and, with sync on, in their own iCloud. The app has no analytics, ads or third-party SDKs, and while accounts are switched off nobody signs in. The privacy manifest (`Vitala/Resources/PrivacyInfo.xcprivacy`) declares no tracking, no collected data types, and the one required-reason API (UserDefaults, reason CA92.1).
+
+**Once accounts are switched on (step 3c), this answer changes.** Declare exactly these three types, each **linked to the user**, **not used for tracking**, purpose **App Functionality**:
 
 | Category | Type | Why |
 |---|---|---|
@@ -133,13 +198,13 @@ wellness,habit,water,hydration,sleep,meditation,breathing,calorie,fitness,mindfu
 | Contact Info | Name | The name Apple or Google shares at sign-in, if any |
 | Identifiers | User ID | The account's id |
 
-They are held by Firebase Authentication (Google), which acts for you as a processor. Nothing else is collected: "collect" means data sent off the device in a way that you or a partner can access, and everything the user logs stays on the device, in their own Apple Health and, with sync on, in their own iCloud. The app has no analytics, ads or third-party SDKs (accounts use Firebase's web API directly). The privacy manifest (`Vitala/Resources/PrivacyInfo.xcprivacy`) declares the same three types, no tracking, and the one required-reason API (UserDefaults, reason CA92.1).
+They are held by Firebase Authentication (Google), which acts for you as a processor.
 
 **Do not declare Health & Fitness or Sensitive Info** on the strength of the GLP-1 tracker, weights or logs: they are not collected. If you later move any of it to a server, this changes.
 
 **iCloud sync does not change this answer.** With sync on, a copy of the user's logs goes to the private database of *their own* iCloud account through CloudKit. Neither you nor any third party can read a private CloudKit database, so by Apple's definition the data is not "collected". The privacy policy discloses it, and sync is off until the user turns it on.
 
-**Read guideline 5.1.1(v) before submitting.** It says an app without significant account-based features should let people use it without signing in. Vitala now requires an account while keeping all data on the device, so a reviewer may ask what the account is for. Decide your answer first: either give the account a job (for example, backing up data to it, which is a larger piece of work in the backlog), or be ready to make sign-in optional. The same guideline requires that accounts can be deleted in the app, which Settings › Account does; and guideline 4.8 requires Sign in with Apple alongside Google, which is there.
+**Before switching accounts on, read guideline 5.1.1(v).** It says an app without significant account-based features should let people use it without signing in. With all data kept on the device, a required account would do one thing, sign you in, so a reviewer may ask what it is for. Decide your answer first: either give the account a job (for example, backing up data to it, which is in the backlog) or make sign-in optional. The same guideline requires that accounts can be deleted in the app, which Settings › Account does; and guideline 4.8 requires Sign in with Apple alongside Google, which is there. None of this applies while accounts are off.
 
 **Read guideline 5.1.3 before submitting.** It restricts keeping personal health information in iCloud. Vitala's position: sync is opt-in; it covers only what the user typed into Vitala; nothing read from HealthKit is ever stored or synced (steps, heart rate and imported sleep and food are read live and never saved); and the profile with height and weight is not synced at all. The review notes below say so. If App Review objects, the fallback is to keep favourite foods, saved meals and built workouts in sync and take the logs and journal out of it, which is a contained change in `SyncMerge`.
 
@@ -149,7 +214,7 @@ They are held by Firebase Authentication (Google), which acts for you as a proce
 
 Paste into **App Review Information › Notes**:
 
-> Sign-in: Vitala requires an account, made with Sign in with Apple, Google, or an email address and password. A reviewer account is provided below; you can also create one in the app with any email address. Accounts hold only the sign-in details (Firebase Authentication); nothing the user logs is stored with the account. An account can be deleted in the app: avatar › Settings › Account › Delete account, which also erases the user's data from the device. After signing in, onboarding asks for a first name.
+> Vitala does not require an account or sign-in; all features are available immediately after onboarding (enter any first name).
 >
 > Goals: daily targets are general estimates worked out from the user's stated goal, sex, age, height, weight and activity level (Mifflin–St Jeor energy equation). For weight loss the deficit is capped at 500 kcal a day with a minimum intake of 1,200 to 1,500 kcal. The app says these are not medical advice and that users should talk to a healthcare professional.
 >
@@ -173,7 +238,11 @@ Paste into **App Review Information › Notes**:
 >
 > Camera: used only in Log a meal › Scan barcode to read product barcodes with VisionKit. Nothing is recorded. On the simulator or without camera access, the scanner offers manual number entry. Test barcode: 016459200441.
 
-**Demo account (required now that sign-in is):** before submitting, create an email account in the app for App Review, complete onboarding with it, and enter its email and password under **App Review Information › Sign-In Information**. Keep that account alive while the app is in review.
+No demo account is needed while accounts are off.
+
+**Once accounts are switched on (step 3c):** replace the first paragraph of the notes with the one below, create an email account in the app for App Review, complete onboarding with it, and enter its email and password under **App Review Information › Sign-In Information**. Keep that account alive while the app is in review.
+
+> Sign-in: Vitala requires an account, made with Sign in with Apple, Google, or an email address and password. A reviewer account is provided; you can also create one in the app with any email address. Accounts hold only the sign-in details (Firebase Authentication); nothing the user logs is stored with the account. An account can be deleted in the app: avatar › Settings › Account › Delete account, which also erases the user's data from the device. After signing in, onboarding asks for a first name.
 
 ## 6. Screenshots
 
@@ -202,10 +271,11 @@ Set a clean status bar first with `xcrun simctl status_bar booted override --tim
 
 ## 7. Device QA checklist (TestFlight)
 
-- [ ] Fresh install → sign-in screen → create an account → onboarding → profile setup → Today, with no crashes
-- [ ] Accounts: sign in with Apple (once sharing the email, once hiding it), with Google, and with email; a wrong password is refused with a clear message; Forgot your password sends an email that works; quit and reopen stays signed in; Sign out returns to sign-in and signing back in shows the same data
-- [ ] Accounts: delete an account made each of the three ways (Apple asks to confirm first); afterwards the account can't sign in, the data is gone from the iPhone, and for Apple the app no longer appears under Settings › your name › Sign in with Apple
-- [ ] Accounts: sign in as a second account on the same iPhone and check Vitala asks before erasing the first account's data, and that Sign out leaves it untouched
+- [ ] Fresh install → onboarding → profile setup → Today, with no crashes (no sign-in screen while accounts are off)
+- [ ] *Once accounts are on:* fresh install opens on the sign-in screen; create an account → onboarding → profile setup → Today
+- [ ] *Once accounts are on:* sign in with Apple (once sharing the email, once hiding it), with Google, and with email; a wrong password is refused with a clear message; Forgot your password sends an email that works; quit and reopen stays signed in; Sign out returns to sign-in and signing back in shows the same data
+- [ ] *Once accounts are on:* delete an account made each of the three ways (Apple asks to confirm first); afterwards the account can't sign in, the data is gone from the iPhone, and for Apple the app no longer appears under Settings › your name › Sign in with Apple
+- [ ] *Once accounts are on:* an iPhone that already has data from before accounts keeps it for the first account to sign in; sign in as a second account on the same iPhone and check Vitala asks before erasing the first account's data, and that Sign out leaves it untouched
 - [ ] Plan: with height, weight and birthday set, Goals shows worked-out targets; changing focus or updating weight on Today changes them; turning "Work out my targets for me" off brings back the sliders and keeps the numbers
 - [ ] GLP-1 tracker: log a weekly and a daily medicine, a typed amount, and a medicine under Other; the next-due line reads right the day before, on the day and the day after; log, edit and delete a side-effect note
 - [ ] Live Activity, breathing: start a session with sound, lock the iPhone; the banner reads Breathe in, Hold and Breathe out in step with the session for several minutes, the time left counts down, and it says Session saved at the end. Check the Dynamic Island compact and expanded views

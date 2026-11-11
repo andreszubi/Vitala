@@ -369,11 +369,13 @@ Findings that were not fixed are in the backlog below, marked *audit*.
 - **iCloud sync end to end.** Still blocked by the container not being recognised. If it has not cleared within a day, sign in to CloudKit Console and open the container, then check the Details shown on the sync screen.
 - **Live Activity on a device:** how often iOS lets the breathing banner update over a long session, and the Dynamic Island views.
 
-**Decisions waiting on the owner**
+**After the sprint: accounts switched off for now.** The owner chose to hold off on Firebase, so sign-in is dormant: with no account service configured the app opens straight into onboarding and is used without an account, as before, and nothing about accounts shows in Settings, the policy or the terms. Everything built for E10-5 stays in place and is still tested; adding the Firebase keys turns it on and makes it required. The privacy manifest, policy page, support page and App Store answers are back to "no account, nothing collected", with the account versions kept in `docs/APP_STORE.md`, step 3c, to restore at the same moment. 218 unit tests and 8 UI tests pass, one of them walking the sign-in screens in test mode.
+
+**Decisions waiting on the owner (they apply when accounts are switched on)**
 
 - **App Review guideline 5.1.1(v).** Apps without significant account-based features are expected to work without signing in. With data kept on the device, the account currently does one thing: sign you in. Either give it a job (account-based backup is the natural one) or be ready for the question. See `docs/APP_STORE.md`, section 4.
 - **The App Privacy label changes** from "Data Not Collected" to Email Address, Name and User ID.
-- **Existing users must make an account** on their first launch after updating; the data already on the phone passes to that account.
+- **Existing users will have to make an account** on their first launch after accounts go live; the data already on the phone passes to that account.
 
 **Retro:** an error message that says "couldn't reach iCloud" for every failure cost a round trip with the owner; the log had the answer in one line. Errors now carry their cause to the screen. Describing the Live Activity as moments in time rather than values to redraw is what lets the ring and clocks keep moving with the app asleep, and made the breath phase a one-line update. The largest risk this sprint is not in the code: requiring an account changes what the app promises about privacy, and that needs an owner's decision before release.
 
@@ -387,6 +389,7 @@ Ordered within each group. *audit* marks findings from Sprint 7's code audit tha
 
 | Priority | Item |
 |---|---|
+| High | **Switch accounts on** (Firebase project and keys, privacy manifest, label, policy pages: `docs/APP_STORE.md`, step 3c), once the question below is settled. |
 | High | **Give the account a job, or make it optional.** Back data up to the account (a server-side store per user, with the privacy label and policy to match), so signing in on a new phone brings everything back; this is also the answer to App Review guideline 5.1.1(v). |
 | High | Keep each account's data separately on a shared iPhone, instead of asking to erase the last person's. |
 | High | Tell the user when a save fails (storage full) instead of only logging it, and keep more than one saved copy to fall back on. |

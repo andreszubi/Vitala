@@ -22,18 +22,23 @@ struct AuthConfiguration: Equatable {
     }
 }
 
-/// Who is signed in. Vitala needs an account to be used: this holds it,
-/// keeps the session in the Keychain, and signs in, out and up.
+/// Who is signed in, and whether anyone has to be. Until an account service
+/// is set up (see `AuthConfiguration`), Vitala is used without an account,
+/// as it always was. Once the keys are in place the app opens on sign-in,
+/// and this holds the account, keeps the session in the Keychain, and
+/// signs in, out and up.
 @MainActor
 final class AuthService: ObservableObject {
     /// How accounts are checked in this build.
     enum Mode: Equatable {
-        /// Against the real account service.
+        /// No account service is set up: nobody signs in, and the app is
+        /// used without an account.
+        case off
+        /// Against the real account service. Signing in is required.
         case live
-        /// On the device only, by a development build with no keys set.
+        /// Against a stand-in on the device, to try the sign-in screens
+        /// without an account service. Signing in is required.
         case development
-        /// Not at all: a release build without keys. Nobody can sign in.
-        case unavailable
     }
 
     static let shared = AuthService.makeShared()
@@ -68,6 +73,12 @@ final class AuthService: ObservableObject {
     }
 
     var isSignedIn: Bool { account != nil }
+
+    /// Whether the app is closed to anyone who hasn't signed in.
+    var requiresSignIn: Bool { mode != .off }
+
+    /// Whether the app can be used right now.
+    var allowsEntry: Bool { isSignedIn || !requiresSignIn }
 
     // MARK: Signing in
 
@@ -181,36 +192,19 @@ final class AuthService: ObservableObject {
     // MARK: The app's instance
 
     private static func makeShared() -> AuthService {
-        let process = ProcessInfo.processInfo
         #if DEBUG
-        // UI tests and screenshots run with no network and no accounts:
-        // seeded data arrives signed in, a reset arrives signed out.
-        if process.arguments.contains("-seedSampleData") {
-            let seeded = AuthSession(account: Account(id: "debug-seeded", email: "maya@example.com",
-                                                      displayName: "Maya Chen", provider: .email),
-                                     refreshToken: "debug", idToken: "debug",
-                                     idTokenExpires: .now.addingTimeInterval(86_400))
-            let service = AuthService(backend: LocalAuthBackend(), credentials: InMemoryCredentialStore(seeded),
-                                      mode: .development)
-            service.claimDevice()
-            return service
-        }
-        if process.arguments.contains("-resetData") || process.environment["XCTestConfigurationFilePath"] != nil {
+        // UI tests reach the sign-in screens with this argument, against a
+        // stand-in that needs no network.
+        if ProcessInfo.processInfo.arguments.contains("-requireSignIn") {
             return AuthService(backend: LocalAuthBackend(), credentials: InMemoryCredentialStore(), mode: .development)
         }
         #endif
         let configuration = AuthConfiguration.fromBundle
-        let google = configuration.googleClientID.map(GoogleSignIn.init)
-        if let key = configuration.firebaseAPIKey {
-            return AuthService(backend: FirebaseAuthBackend(apiKey: key), credentials: KeychainCredentialStore(),
-                               mode: .live, google: google)
+        guard let key = configuration.firebaseAPIKey else {
+            // Accounts aren't set up yet: Vitala works without one.
+            return AuthService(backend: LocalAuthBackend(), credentials: InMemoryCredentialStore(), mode: .off)
         }
-        #if DEBUG
-        // No account service set up yet: let a development build be used.
-        return AuthService(backend: LocalAuthBackend(remembering: .standard),
-                           credentials: KeychainCredentialStore(), mode: .development, google: google)
-        #else
-        return AuthService(backend: LocalAuthBackend(), credentials: InMemoryCredentialStore(), mode: .unavailable)
-        #endif
+        return AuthService(backend: FirebaseAuthBackend(apiKey: key), credentials: KeychainCredentialStore(),
+                           mode: .live, google: configuration.googleClientID.map(GoogleSignIn.init))
     }
 }
