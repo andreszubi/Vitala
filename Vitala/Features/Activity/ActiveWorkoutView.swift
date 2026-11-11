@@ -194,7 +194,8 @@ struct ActiveWorkoutView: View {
         let inExercise = exerciseAccumulated + (exerciseRunningSince.map { t.timeIntervalSince($0) } ?? 0)
         return .workout(exercise: current.name, index: index, count: workout.exercises.count,
                         prescription: prescription, elapsed: total,
-                        stepRemaining: exerciseDuration.map { Double($0) - inExercise },
+                        stepElapsed: exerciseDuration == nil ? nil : inExercise,
+                        stepLength: exerciseDuration.map(Double.init),
                         isRunning: isRunning, now: t)
     }
 

@@ -386,6 +386,8 @@ struct SessionPlayerView: View {
             if !rejoining || elapsedPrecise < 0.5 {
                 AccessibilityNotification.Announcement(step.label).post()
             }
+            // The Lock Screen follows the breath: in, hold, out.
+            updateActivity()
         }
         // Not behind the "End session?" question: Discard must stay possible.
         if elapsed >= totalSeconds && !confirmingEnd { save() }
@@ -411,8 +413,17 @@ struct SessionPlayerView: View {
     /// What the Live Activity shows right now: the time left, or paused.
     private var activityState: SessionActivityAttributes.ContentState {
         let t = Date.now
-        return .breathing(subtitle: session.subtitle, elapsed: clock.elapsed(at: t),
-                          total: Double(totalSeconds), isRunning: clock.isRunning, now: t)
+        let timing = phaseTiming
+        let breath: SessionActivityAttributes.Breath
+        switch step.kind {
+        case .inhale: breath = .breatheIn
+        case .exhale: breath = .breatheOut
+        case .hold: breath = expanded ? .holdFull : .holdEmpty
+        }
+        return .breathing(subtitle: session.subtitle, breath: breath,
+                          phaseElapsed: timing.into, phaseLength: timing.length,
+                          elapsed: clock.elapsed(at: t), total: Double(totalSeconds),
+                          isRunning: clock.isRunning, now: t)
     }
 
     /// A while after the session should be over: past this the system marks
