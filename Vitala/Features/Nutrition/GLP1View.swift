@@ -213,17 +213,24 @@ struct GLP1DoseSheet: View {
 
     @State private var medicationID: String
     @State private var customName: String
-    /// One of the medicine's strengths, or nil for an amount typed by hand.
-    @State private var strength: Double?
+    /// One of the medicine's strengths, or `typed` for an amount entered
+    /// by hand, or `noDose` until one is chosen.
+    @State private var strength: Double
     @State private var customAmount: String
     @State private var takenAt: Date
     @State private var site: GLP1Dose.Site?
     @State private var notes: String
     @State private var confirmingDelete = false
     @State private var didLoad = false
+    /// The medicine was just filled in from the last dose, along with its
+    /// amount; that change must not clear the amount again.
+    @State private var keepsAmountOnce = false
 
     /// Stands for "nothing chosen yet" in the medicine picker.
     private static let unchosen = ""
+    /// Stand for "nothing chosen yet" and "another amount" in the dose picker.
+    private static let noDose = -1.0
+    private static let typed = 0.0
     /// The largest amount that can be typed, to catch slips of the finger.
     private static let largestAmount = 1_000.0
 
@@ -231,7 +238,7 @@ struct GLP1DoseSheet: View {
         existing = nil
         _medicationID = State(initialValue: Self.unchosen)
         _customName = State(initialValue: "")
-        _strength = State(initialValue: nil)
+        _strength = State(initialValue: Self.noDose)
         _customAmount = State(initialValue: "")
         _takenAt = State(initialValue: Self.time(on: day))
         _site = State(initialValue: nil)
@@ -244,7 +251,7 @@ struct GLP1DoseSheet: View {
         let listed = medication?.strengths.contains(dose.amount) == true
         _medicationID = State(initialValue: medication?.id ?? GLP1Medication.other.id)
         _customName = State(initialValue: medication?.id == GLP1Medication.other.id || medication == nil ? dose.medicationName : "")
-        _strength = State(initialValue: listed ? dose.amount : nil)
+        _strength = State(initialValue: listed ? dose.amount : Self.typed)
         _customAmount = State(initialValue: listed ? "" : dose.amount.formatted(.number.precision(.fractionLength(0...2))))
         _takenAt = State(initialValue: dose.takenAt)
         _site = State(initialValue: dose.site)
@@ -255,8 +262,14 @@ struct GLP1DoseSheet: View {
     private var isOther: Bool { medicationID == GLP1Medication.other.id }
     private var unit: String { medication?.unit ?? "mg" }
 
+    /// True when the amount is typed: "Another amount", or a medicine with
+    /// no listed strengths.
+    private var typesAmount: Bool {
+        strength == Self.typed || medication?.strengths.isEmpty == true
+    }
+
     private var amount: Double? {
-        if let strength { return strength }
+        if !typesAmount { return strength > 0 ? strength : nil }
         let typed = customAmount.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)
         guard let value = Double(typed), value.isFinite, value > 0, value <= Self.largestAmount else { return nil }
         return value
@@ -304,14 +317,17 @@ struct GLP1DoseSheet: View {
                 Section {
                     if let medication, !medication.strengths.isEmpty {
                         Picker("Dose", selection: $strength) {
-                            ForEach(medication.strengths, id: \.self) { value in
-                                Text(GLP1Dose.text(value, unit: medication.unit)).tag(Optional(value))
+                            if strength == Self.noDose {
+                                Text("Choose").tag(Self.noDose)
                             }
-                            Text("Another amount").tag(Double?.none)
+                            ForEach(medication.strengths, id: \.self) { value in
+                                Text(GLP1Dose.text(value, unit: medication.unit)).tag(value)
+                            }
+                            Text("Another amount").tag(Self.typed)
                         }
                         .accessibilityIdentifier("glp1.dose")
                     }
-                    if strength == nil {
+                    if typesAmount {
                         FormTextField(label: "Amount", text: $customAmount, prompt: "0", unit: unit, keyboard: .decimalPad)
                     }
                 } footer: {
@@ -380,7 +396,11 @@ struct GLP1DoseSheet: View {
         .onChange(of: medicationID) { old, new in
             // A different medicine has different strengths.
             guard didLoad, old != new else { return }
-            strength = nil
+            if keepsAmountOnce {
+                keepsAmountOnce = false
+                return
+            }
+            strength = Self.noDose
             customAmount = ""
             if GLP1Medication.find(new)?.form == .tablet { site = nil }
         }
@@ -393,11 +413,13 @@ struct GLP1DoseSheet: View {
         defer { didLoad = true }
         guard existing == nil, let last = GLP1Schedule.latest(store.glp1Doses) else { return }
         let known = GLP1Medication.find(last.medicationID)
+        keepsAmountOnce = true
         medicationID = known?.id ?? GLP1Medication.other.id
         if known == nil || known?.id == GLP1Medication.other.id { customName = last.medicationName }
         if known?.strengths.contains(last.amount) == true {
             strength = last.amount
         } else {
+            strength = Self.typed
             customAmount = last.amount.formatted(.number.precision(.fractionLength(0...2)))
         }
     }
