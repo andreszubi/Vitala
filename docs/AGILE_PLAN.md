@@ -334,6 +334,51 @@ Findings that were not fixed are in the backlog below, marked *audit*.
 
 ---
 
+### Sprint 9 — Accounts, a plan that follows you, GLP-1, Live Activities ✅
+
+**Sprint goal:** five requests from device use: require an account (Apple, Google or email); a Live Activity for workouts and breathing; goals that drive the daily targets; fix iCloud sync failing on a real iPhone; and GLP-1 dose and side-effect tracking.
+
+| ID | Story | Acceptance criteria | Pts |
+|----|-------|---------------------|-----|
+| E10-1 | As a user, I want iCloud sync to work, or tell me why it doesn't. | The failure on the iPhone is found from the phone's own log; each cause has its own message and advice; the technical detail is one tap away; a failed sync retries by itself and when the iCloud account changes. | 5 |
+| E10-2 | As someone on a GLP-1 medicine, I want to track it. | Log a dose with medicine, amount, time and injection site; ten medicines listed with the strengths they are sold in, any other typed in; last dose and next-due shown; log side effects with strength and notes; edit and delete; exported and synced; no dose is ever suggested. | 8 |
+| E10-3 | As a user, I want my targets to follow my goal and my body. | Targets for food energy, protein, Move, steps, exercise, water, sleep and mindful minutes come from focus, sex, age, height, weight and activity level; they change when any of those change; Today shows the figures the focus puts first; weight can be recorded and is charted; targets can still be set by hand; goals from before are untouched. | 13 |
+| E10-4 | As a user, I want to see my session on the Lock Screen. | A workout or breathing session shows as a Live Activity on the Lock Screen and in the Dynamic Island with a clock that runs without the app; a breathing session says breathe in, hold or breathe out, with a ring that fills and empties; pausing, changing exercise and finishing update it; a session closed mid-way leaves nothing behind. | 8 |
+| E10-5 | As the owner, I want everyone to have an account. | The app opens on sign-in; accounts are made with Sign in with Apple, Google or email and password; password reset; the session survives relaunch; sign out; delete account in the app; a second account on the same phone is asked before the first one's data is erased. | 13 |
+
+**How the sprint ran**
+
+1. *The bug first (E10-1).* The message on screen ("Couldn't reach iCloud") said nothing, so the first step was to read the phone's log. Three different errors turned up across launches: a server error, "account temporarily unavailable … failed to renew account credential", and finally "Invalid container to get bundle ids". None is in the sync logic: iCloud's servers did not yet recognise the container, which had been created that day. The fix was to stop hiding the cause: each case now has its own message, the full error is shown under *Details for support*, and the app retries on its own.
+2. *Decisions made up front.*
+   - **Accounts use Firebase Authentication, through its web API.** The project once used Firebase, it supports all three ways of signing in, and it is free at this size. Calling its REST API directly means no SDK in the app, and it sits behind a protocol so another service could replace it. Only the sign-in lives there: no logs go to the account.
+   - **A development build works before Firebase is set up.** With no keys, Debug builds keep accounts on the device and say so on the sign-in screen; Release builds cannot sign anyone in.
+   - **The plan is moderate on purpose.** Weight loss is at most a 500 kcal deficit with a floor of 1,200 to 1,500 kcal; nobody under 13 gets a plan; every screen says these are estimates, not medical advice.
+   - **The GLP-1 tracker records and nothing more.** It lists the strengths medicines are sold in as shortcuts, and never suggests a dose or comments on a side effect beyond telling the user when to contact their prescriber.
+   - **Workouts stay paused while the phone is locked.** The app is suspended then, so the Live Activity keeps the time but cannot move to the next exercise. Keeping workouts running in the background is in the backlog.
+3. *Build.* One story at a time, each tested and pushed: sync, GLP-1, plan, Live Activity (then redesigned on request, to show the breath phase), accounts.
+4. *Review.* 216 unit tests and 7 UI tests, including accessibility audits of sign-in and account creation; simulator walkthroughs of each feature; the sync diagnosis on the iPhone itself.
+
+**Checked on the simulator:** the GLP-1 tracker end to end; the plan card and worked-out targets; the Live Activity on the Lock Screen changing from Hold to Breathe out while locked; creating an account with email and going through onboarding (UI test).
+
+**Checked on the iPhone:** the sync errors, read from its log over several launches.
+
+**Not verified, and why**
+
+- **Real accounts.** There is no Firebase project yet, so no request has reached Firebase, Apple or Google. Requests and replies are tested against what those services document; the round trip is not. Needs `docs/APP_STORE.md` step 3c, then the QA checklist.
+- **Revoking Apple access on deletion.** Written from Firebase's documented request; cannot be exercised without a real Apple-made account.
+- **iCloud sync end to end.** Still blocked by the container not being recognised. If it has not cleared within a day, sign in to CloudKit Console and open the container, then check the Details shown on the sync screen.
+- **Live Activity on a device:** how often iOS lets the breathing banner update over a long session, and the Dynamic Island views.
+
+**Decisions waiting on the owner**
+
+- **App Review guideline 5.1.1(v).** Apps without significant account-based features are expected to work without signing in. With data kept on the device, the account currently does one thing: sign you in. Either give it a job (account-based backup is the natural one) or be ready for the question. See `docs/APP_STORE.md`, section 4.
+- **The App Privacy label changes** from "Data Not Collected" to Email Address, Name and User ID.
+- **Existing users must make an account** on their first launch after updating; the data already on the phone passes to that account.
+
+**Retro:** an error message that says "couldn't reach iCloud" for every failure cost a round trip with the owner; the log had the answer in one line. Errors now carry their cause to the screen. Describing the Live Activity as moments in time rather than values to redraw is what lets the ring and clocks keep moving with the app asleep, and made the breath phase a one-line update. The largest risk this sprint is not in the code: requiring an account changes what the app promises about privacy, and that needs an owner's decision before release.
+
+---
+
 ## 7. Next backlog (1.1+)
 
 Ordered within each group. *audit* marks findings from Sprint 7's code audit that were scheduled rather than fixed.
@@ -342,6 +387,8 @@ Ordered within each group. *audit* marks findings from Sprint 7's code audit tha
 
 | Priority | Item |
 |---|---|
+| High | **Give the account a job, or make it optional.** Back data up to the account (a server-side store per user, with the privacy label and policy to match), so signing in on a new phone brings everything back; this is also the answer to App Review guideline 5.1.1(v). |
+| High | Keep each account's data separately on a shared iPhone, instead of asking to erase the last person's. |
 | High | Tell the user when a save fails (storage full) instead of only logging it, and keep more than one saved copy to fall back on. |
 | Medium | Entries that arrive, change or are deleted through iCloud sync are not mirrored to Apple Health on the receiving iPhone, on the assumption that Health's own iCloud sync carries them. Confirm on two devices that this leaves no duplicates and no leftovers after a delete. |
 | Medium | *audit* — Writes to Apple Health are unordered, so add-then-delete can leave a sample behind. Send them through one queue. |
@@ -365,7 +412,11 @@ Ordered within each group. *audit* marks findings from Sprint 7's code audit tha
 | Medium | Rename and reorder saved meals and favourites; save a meal straight from a logged meal's menu |
 | Medium | More exercises with demonstrations for the workout builder; rest between sets in the player; a spoken or haptic cue when the exercise changes; duplicate a library workout to edit it |
 | Medium | Lock-screen controls for a session (pause and resume, title, time left) |
-| Medium | A Live Activity for a running workout or breathing session |
+| High | **Keep workouts running with the phone locked** (a HealthKit workout session), so timed exercises move on by themselves and the Live Activity follows; add a sound or haptic at each change. |
+| Medium | GLP-1: a reminder when the next dose is due; a chart of dose over time beside weight; injection-site rotation at a glance; a summary to share with a prescriber. |
+| Medium | Plan: save weight to Apple Health and read it from there; a weekly check-in that adjusts the plan to the trend; let food energy flex with the day's activity. |
+| Medium | Accounts: verify the email address; change email or password in the app; link Apple and Google to one account. |
+| Medium | Live Activity: pause and resume from the Lock Screen (App Intents). |
 | Medium | Save journal moods to Apple Health as State of Mind (iOS 18+), with the user's permission |
 | Medium | Home Screen widgets and App Intents ("Log 250 ml of water") |
 | Medium | A weekly summary: what went well, in plain words |
