@@ -12,6 +12,11 @@ struct NutritionView: View {
     @State private var viewingMealType: Meal.MealType? = nil
     /// Opened once the food details sheet has closed.
     @State private var editAfterDetail: Meal? = nil
+    @State private var showingGLP1 = false
+
+    /// Someone using the tracker sees it near the top; everyone else finds
+    /// it below their meals.
+    private var usesGLP1: Bool { !store.glp1Doses.isEmpty || !store.sideEffects.isEmpty }
 
     /// A food tapped in a meal card, with the meal it belongs to.
     struct FoodDetail: Identifiable {
@@ -46,9 +51,11 @@ struct NutritionView: View {
                 DateNavigator(date: $date)
 
                 summaryCard
+                if usesGLP1 { GLP1Card { showingGLP1 = true } }
                 macroBreakdown
                 nutrientDetails
                 mealsByType
+                if !usesGLP1 { GLP1Card { showingGLP1 = true } }
             }
             .padding(.horizontal, VitalaSpacing.lg)
             .padding(.bottom, VitalaSpacing.xl)
@@ -60,6 +67,9 @@ struct NutritionView: View {
         }
         .sheet(item: $editingMeal) { meal in
             NavigationStack { AddMealView(editing: meal) }
+        }
+        .sheet(isPresented: $showingGLP1) {
+            NavigationStack { GLP1View(day: date) }
         }
         .sheet(item: $viewingMealType) { type in
             NavigationStack {

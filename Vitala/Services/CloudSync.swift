@@ -82,8 +82,11 @@ final class CloudSync: ObservableObject {
         return true
     }
 
-    /// The newest payload format this version reads and writes.
-    nonisolated static let formatVersion = 1
+    /// The newest payload format this version reads and writes. It goes up
+    /// whenever a kind of entry is added: a version that doesn't know the
+    /// new kind would save the copy back without it.
+    /// 2: GLP-1 doses and side effects.
+    nonisolated static let formatVersion = 2
     nonisolated static let enabledKey = "vitala.iCloudSync"
     nonisolated static let lastSyncedKey = "vitala.iCloudSync.last"
 
