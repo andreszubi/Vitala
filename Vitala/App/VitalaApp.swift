@@ -4,6 +4,7 @@ import SwiftUI
 struct VitalaApp: App {
     @StateObject private var profileStore = ProfileStore()
     @StateObject private var appState = AppState()
+    @StateObject private var auth = AuthService.shared
     @StateObject private var health = HealthKitService.shared
     @StateObject private var notifications = NotificationService.shared
     @StateObject private var units = UnitsService()
@@ -25,6 +26,7 @@ struct VitalaApp: App {
             RootView()
                 .environmentObject(profileStore)
                 .environmentObject(appState)
+                .environmentObject(auth)
                 .environmentObject(health)
                 .environmentObject(notifications)
                 .environmentObject(units)

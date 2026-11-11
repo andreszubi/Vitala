@@ -3,7 +3,8 @@ import SwiftUI
 import UIKit
 
 /// Owns the user's profile. Vitala is local-first: the profile lives only on
-/// this device and is created during onboarding — there is no account.
+/// this device and is created during onboarding. The account (see
+/// `AuthService`) holds the sign-in and nothing else.
 @MainActor
 final class ProfileStore: ObservableObject {
     @Published private(set) var profile: UserProfile?

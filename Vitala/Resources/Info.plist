@@ -49,6 +49,10 @@
     <string>Vitala uses the camera to scan food barcodes so you can log packaged foods quickly. Nothing is recorded or saved.</string>
     <key>USDAAPIKey</key>
     <string>$(USDA_API_KEY)</string>
+    <key>FirebaseAPIKey</key>
+    <string>$(FIREBASE_API_KEY)</string>
+    <key>GoogleClientID</key>
+    <string>$(GOOGLE_CLIENT_ID)</string>
     <key>NSHealthShareUsageDescription</key>
     <string>Vitala reads your steps, active energy, exercise minutes, walking and running distance, heart rate, sleep, mindful minutes, and the food energy, protein, carbs and fat other apps record in Apple Health to show your progress.</string>
     <key>NSHealthUpdateUsageDescription</key>

@@ -6,6 +6,8 @@ import Combine
 final class AppState: ObservableObject {
     enum Route: Equatable {
         case splash
+        /// Nobody is signed in: Vitala needs an account.
+        case signIn
         case onboarding
         case profileSetup
         case main
@@ -44,8 +46,10 @@ final class AppState: ObservableObject {
         }
     }
 
-    func resolveRoute(profile: UserProfile?) {
-        if !hasSeenOnboarding || profile == nil {
+    func resolveRoute(profile: UserProfile?, isSignedIn: Bool) {
+        if !isSignedIn {
+            route = .signIn
+        } else if !hasSeenOnboarding || profile == nil {
             route = .onboarding
         } else if !hasCompletedProfile {
             route = .profileSetup
@@ -64,11 +68,12 @@ final class AppState: ObservableObject {
         route = .main
     }
 
-    /// Returns to a first-launch state after the user erases their data.
-    func resetAfterErase() {
+    /// Returns to a first-launch state after the user erases their data:
+    /// setting up again if they are still signed in, signing in if not.
+    func resetAfterErase(isSignedIn: Bool) {
         hasCompletedProfile = false
         hasSeenOnboarding = false
         selectedTab = .home
-        route = .onboarding
+        route = isSignedIn ? .onboarding : .signIn
     }
 }

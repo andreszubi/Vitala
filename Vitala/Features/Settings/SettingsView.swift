@@ -7,6 +7,7 @@ struct SettingsView: View {
     @EnvironmentObject var health: HealthKitService
     @EnvironmentObject var unitsService: UnitsService
     @EnvironmentObject var themeService: ThemeService
+    @EnvironmentObject var auth: AuthService
     @Environment(\.openURL) private var openURL
 
     @State private var confirmingErase = false
@@ -21,6 +22,12 @@ struct SettingsView: View {
             Section("You") {
                 NavigationLink("Edit profile") { EditProfileView() }
                 NavigationLink("Goals") { GoalsSettingsView() }
+                NavigationLink {
+                    AccountView()
+                } label: {
+                    LabeledContent("Account", value: auth.account?.email ?? auth.account?.provider.label ?? "")
+                }
+                .accessibilityIdentifier("settings.account")
             }
 
             Section("Preferences") {
@@ -133,9 +140,10 @@ struct SettingsView: View {
             Button("Erase everything", role: .destructive, action: eraseEverything)
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text(sync.isOn
+            Text((sync.isOn
                  ? "This permanently deletes your profile, goals and every log from this iPhone, and every log from iCloud and your other devices that sync with it. Anything already saved to Apple Health stays there."
                  : "This permanently deletes your profile, goals and every log from this iPhone. Anything already saved to Apple Health stays there.")
+                 + " You stay signed in; to delete your account too, use Account.")
         }
     }
 
@@ -153,7 +161,7 @@ struct SettingsView: View {
         profileStore.erase()
         unitsService.system = .metric
         themeService.theme = .system
-        appState.resetAfterErase()
+        appState.resetAfterErase(isSignedIn: auth.isSignedIn)
     }
 }
 

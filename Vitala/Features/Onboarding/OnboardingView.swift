@@ -3,6 +3,7 @@ import SwiftUI
 struct OnboardingView: View {
     @EnvironmentObject var appState: AppState
     @EnvironmentObject var profileStore: ProfileStore
+    @EnvironmentObject var auth: AuthService
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var page: Int = 0
 
@@ -18,7 +19,7 @@ struct OnboardingView: View {
               body: "Celebrate small wins — a glass of water, a five-minute walk, a deep breath."),
         .init(art: .symbol("lock.shield.fill"), tint: VitalaColor.coralText,
               title: "Your data, your rules",
-              body: "Everything stays on this iPhone. Connect Apple Health only if you want to — no account needed.")
+              body: "What you log stays on this iPhone. Your account holds only your sign-in, and Apple Health and iCloud sync are yours to turn on.")
     ]
 
     private var totalPages: Int { marketingPages.count + 1 } // +1 for the form page
@@ -36,9 +37,13 @@ struct OnboardingView: View {
 
                 TabView(selection: $page) {
                     ForEach(Array(marketingPages.enumerated()), id: \.offset) { i, p in
+                        // Pages that aren't showing stay loaded beside the
+                        // one that is; keep them out of VoiceOver's way.
                         OnboardingPageView(page: p).tag(i)
+                            .accessibilityHidden(page != i)
                     }
                     formPage.tag(marketingPages.count)
+                        .accessibilityHidden(!isFormPage)
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
                 .frame(maxHeight: .infinity)
@@ -53,8 +58,9 @@ struct OnboardingView: View {
         }
         .onAppear {
             // Pre-populate if a profile already exists so users can edit instead of retype.
-            if let p = profileStore.profile {
-                let parts = p.displayName.split(separator: " ", maxSplits: 1).map(String.init)
+            // Or start from the name the account came with.
+            if let name = profileStore.profile?.displayName ?? auth.account?.displayName {
+                let parts = name.split(separator: " ", maxSplits: 1).map(String.init)
                 if firstName.isEmpty { firstName = parts.first ?? "" }
                 if lastName.isEmpty  { lastName  = parts.count > 1 ? parts[1] : "" }
             }
@@ -119,7 +125,7 @@ struct OnboardingView: View {
                         .font(VitalaFont.title(28))
                         .foregroundStyle(VitalaColor.textPrimary)
                         .accessibilityAddTraits(.isHeader)
-                    Text("Vitala uses your name to personalize your day. Everything you enter stays on this device.")
+                    Text("Vitala uses your name to personalize your day. It stays on this device.")
                         .font(VitalaFont.body(15))
                         .foregroundStyle(VitalaColor.textSecondary)
                 }
@@ -221,4 +227,5 @@ private struct OnboardingPageView: View {
     OnboardingView()
         .environmentObject(AppState())
         .environmentObject(ProfileStore())
+        .environmentObject(AuthService.shared)
 }
